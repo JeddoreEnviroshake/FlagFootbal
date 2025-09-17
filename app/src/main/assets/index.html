@@ -44,6 +44,17 @@
     .stat.full { grid-column: 1 / -1; }
     .stat label { display:block; font-size:11px; color:#334155; font-weight:700; margin-bottom:2px; }
     .val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 22px; font-weight: 900; cursor:pointer; }
+    .val.editing { cursor: text; }
+    .val-editor { display:flex; flex-direction:column; gap:8px; background:#ffffff; border-radius:10px; border:2px solid var(--accent); padding:10px; box-shadow:0 6px 16px rgba(15,23,42,.08); }
+    .val-input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:20px; font-weight:900; text-align:center; color:var(--ink); background:#f8fafc; -webkit-appearance: none; }
+    .val-input:focus { outline:none; border-color: var(--accent); box-shadow:0 0 0 3px rgba(16,185,129,.2); }
+    .val-hint { font-size:11px; color:var(--muted); font-weight:700; text-align:center; }
+    .val-actions { display:flex; gap:8px; }
+    .val-action { flex:1; padding:12px 10px; border-radius:10px; border:1px solid var(--line); background:#e2e8f0; color:#0f172a; font-weight:800; font-size:13px; letter-spacing:.01em; -webkit-tap-highlight-color: transparent; }
+    .val-action.confirm { background: var(--accent); border-color: var(--accent); color:white; }
+    .val-action.cancel { background:#f1f5f9; color:#334155; }
+    .val-action:active { transform: scale(0.97); }
+    .val-error { font-size:11px; color: var(--danger); font-weight:700; min-height:14px; text-align:center; }
 
     /* Global control card */
     .controls-card { position: fixed; left:0; right:0; bottom:0; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(2,6,23,.9); backdrop-filter: blur(10px); border-top: 1px solid rgba(148,163,184,.25); }
@@ -161,6 +172,14 @@ const defaultState = () => ({
   game: { seconds: 15*60, running: false, timeoutSecondsRemaining: 0, timeoutTeam: null, halftimeSecondsRemaining: 0 }
 });
 
+const VALUE_RULES = {
+  score: { label: 'Score', min: 0, minMessage: 'Score must be 0 or higher', hint: 'Enter 0 or higher' },
+  downs: { label: 'Down', min: 1, max: 4, minMessage: 'Down must be between 1 and 4', maxMessage: 'Down must be between 1 and 4', hint: 'Use values from 1-4' },
+  girlPlay: { label: 'Girl Play In', min: 0, max: 2, minMessage: 'Girl Play In must be between 0 and 2', maxMessage: 'Girl Play In must be between 0 and 2', hint: '0 = Now, 2 = Two plays' },
+  rushes: { label: 'Rushes', min: 0, minMessage: 'Rushes must be 0 or higher', hint: 'Enter 0 or higher' },
+  timeouts: { label: 'Timeouts', min: 0, minMessage: 'Timeouts must be 0 or higher', hint: 'Enter 0 or higher' }
+};
+
 function migrateGirlPlay(oldVal){
   // v8 style (1..3 rolling) -> v9 remaining (2..0)
   // Map: 1 -> 2, 2 -> 1, 3 -> 0
@@ -213,6 +232,7 @@ let state = loadMigrated() || defaultState();
 let timeoutTimer = null; // 1:00 timeout
 let halftimeTimer = null; // 2:00 halftime
 let clockTimer = null;    // game clock
+let activeValueEditor = null;
 
 /**********************
  * Rendering
@@ -239,6 +259,7 @@ function render(){
 }
 
 function renderTeams(){
+  activeValueEditor = null;
   const host = $('#teams'); host.innerHTML = '';
   state.teams.forEach((t, idx) => {
     const sec = document.createElement('section'); sec.className = 'team' + (state.activeTeam===idx?' active':'');
@@ -262,7 +283,7 @@ function renderTeams(){
   });
 
   $$('.val').forEach(v => {
-    v.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditValue(v.dataset.kind, +v.dataset.team); });
+    v.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditValue(v, v.dataset.kind, +v.dataset.team); });
   });
 }
 
@@ -282,20 +303,96 @@ function beginEditName(idx, spanEl){
   input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') finish(true); if(e.key==='Escape') finish(false); });
 }
 
-function beginEditValue(kind, teamIdx){
-  const t = state.teams[teamIdx];
-  const current = {score:t.score, downs:t.downs, girlPlay:t.girlPlay, rushes:t.rushes, timeouts:t.timeouts}[kind];
-  const hint = kind==='girlPlay' ? 'Enter 0-2 (0 = Now)' : (kind==='downs' ? 'Enter 1-4' : 'Enter a non-negative integer');
-  const input = prompt(`${kind} — ${hint}:`, String(current));
-  if (input==null) return;
-  const n = parseInt(String(input).trim(),10);
-  if (Number.isNaN(n)) return alert('Please enter a number');
-  if (kind==='downs'){ if (n<1||n>4) return alert('Down must be 1-4'); t.downs = n; }
-  else if (kind==='girlPlay'){ if (n<0||n>2) return alert('Girl Play In must be 0-2'); t.girlPlay = n; }
-  else if (kind==='score'){ t.score = Math.max(0, n); }
-  else if (kind==='rushes'){ t.rushes = Math.max(0, n); }
-  else if (kind==='timeouts'){ t.timeouts = Math.max(0, n); }
-  render(); scheduleSave();
+function beginEditValue(valEl, kind, teamIdx){
+  if (!valEl || valEl.classList.contains('editing')) return;
+  const team = state.teams[teamIdx];
+  const rules = VALUE_RULES[kind];
+  if (!team || !rules) return;
+
+  if (activeValueEditor) activeValueEditor(false);
+
+  const originalDisplay = kind==='girlPlay' ? fmtGirl(team.girlPlay) : String(team[kind] ?? '');
+  valEl.classList.add('editing');
+  valEl.textContent = '';
+
+  const editor = document.createElement('div'); editor.className = 'val-editor';
+  editor.addEventListener('click', (e)=>e.stopPropagation());
+
+  const input = document.createElement('input');
+  input.className = 'val-input';
+  input.type = 'text';
+  input.inputMode = 'numeric';
+  input.pattern = '[0-9]*';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.value = String(team[kind] ?? '');
+  input.setAttribute('aria-label', `${rules.label} for ${team.name}`);
+  editor.appendChild(input);
+
+  if (rules.hint){
+    const hint = document.createElement('div'); hint.className = 'val-hint'; hint.textContent = rules.hint; editor.appendChild(hint);
+  }
+
+  const actions = document.createElement('div'); actions.className = 'val-actions';
+  const saveBtn = document.createElement('button'); saveBtn.type='button'; saveBtn.className='val-action confirm'; saveBtn.textContent='Save';
+  const cancelBtn = document.createElement('button'); cancelBtn.type='button'; cancelBtn.className='val-action cancel'; cancelBtn.textContent='Cancel';
+  actions.appendChild(saveBtn);
+  actions.appendChild(cancelBtn);
+  editor.appendChild(actions);
+
+  const error = document.createElement('div'); error.className = 'val-error'; error.style.display = 'none'; error.setAttribute('role','alert');
+  editor.appendChild(error);
+
+  valEl.appendChild(editor);
+
+  const focusInput = () => { input.focus(); if (typeof input.select === 'function') input.select(); };
+  const showError = (msg) => { error.textContent = msg || ''; error.style.display = msg ? 'block' : 'none'; };
+  let closed = false;
+  const finish = (commit) => {
+    if (closed) return;
+    if (!commit){
+      closed = true;
+      activeValueEditor = null;
+      valEl.classList.remove('editing');
+      showError('');
+      valEl.textContent = originalDisplay;
+      return;
+    }
+
+    const raw = input.value.trim();
+    if (!raw){ showError('Enter a number'); focusInput(); return; }
+    if (!/^-?\d+$/.test(raw)){ showError('Use whole numbers only'); focusInput(); return; }
+    const nextVal = parseInt(raw, 10);
+    if (Number.isNaN(nextVal)){ showError('Enter a number'); focusInput(); return; }
+    if (rules.min != null && nextVal < rules.min){ showError(rules.minMessage || `${rules.label} must be ≥ ${rules.min}`); focusInput(); return; }
+    if (rules.max != null && nextVal > rules.max){ showError(rules.maxMessage || `${rules.label} must be ≤ ${rules.max}`); focusInput(); return; }
+
+    closed = true;
+    activeValueEditor = null;
+    showError('');
+    team[kind] = nextVal;
+    valEl.classList.remove('editing');
+    valEl.textContent = kind==='girlPlay' ? fmtGirl(nextVal) : String(nextVal);
+    render(); scheduleSave();
+  };
+
+  activeValueEditor = finish;
+
+  saveBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); finish(true); });
+  cancelBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); finish(false); });
+
+  input.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter'){ e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape'){ e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', ()=>{
+    setTimeout(()=>{
+      const active = document.activeElement;
+      if (!valEl.contains(active)) finish(true);
+    }, 20);
+  });
+
+  setTimeout(()=>{ focusInput(); }, 0);
 }
 
 /**********************
