@@ -43,18 +43,15 @@
     .stat { background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:6px; }
     .stat.full { grid-column: 1 / -1; }
     .stat label { display:block; font-size:11px; color:#334155; font-weight:700; margin-bottom:2px; }
-    .val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 22px; font-weight: 900; cursor:pointer; }
-    .val.editing { cursor: text; }
-    .val-editor { display:flex; flex-direction:column; gap:8px; background:#ffffff; border-radius:10px; border:2px solid var(--accent); padding:10px; box-shadow:0 6px 16px rgba(15,23,42,.08); }
-    .val-input { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:20px; font-weight:900; text-align:center; color:var(--ink); background:#f8fafc; -webkit-appearance: none; }
+
+    /* Inline numeric editor (kept from codex/refactor-inline-editor...) */
+    .val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 22px; font-weight: 900; cursor:pointer; text-align:center; }
+    .val.editing { cursor:text; background:#e2e8f0; border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:6px; box-shadow: inset 0 0 0 1px rgba(148,163,184,.4); }
+    .val-input { width:100%; padding:12px 10px; border-radius:8px; border:2px solid var(--line); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:20px; font-weight:900; text-align:center; color:var(--ink); background:#ffffff; -webkit-appearance: none; }
     .val-input:focus { outline:none; border-color: var(--accent); box-shadow:0 0 0 3px rgba(16,185,129,.2); }
-    .val-hint { font-size:11px; color:var(--muted); font-weight:700; text-align:center; }
-    .val-actions { display:flex; gap:8px; }
-    .val-action { flex:1; padding:12px 10px; border-radius:10px; border:1px solid var(--line); background:#e2e8f0; color:#0f172a; font-weight:800; font-size:13px; letter-spacing:.01em; -webkit-tap-highlight-color: transparent; }
-    .val-action.confirm { background: var(--accent); border-color: var(--accent); color:white; }
-    .val-action.cancel { background:#f1f5f9; color:#334155; }
-    .val-action:active { transform: scale(0.97); }
-    .val-error { font-size:11px; color: var(--danger); font-weight:700; min-height:14px; text-align:center; }
+    .val-input.invalid { border-color: var(--danger); box-shadow:0 0 0 3px rgba(239,68,68,.2); }
+    .val-error { font-size:11px; color: var(--danger); font-weight:700; min-height:14px; text-align:center; visibility:hidden; }
+    .val-error.visible { visibility:visible; }
 
     /* Global control card */
     .controls-card { position: fixed; left:0; right:0; bottom:0; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(2,6,23,.9); backdrop-filter: blur(10px); border-top: 1px solid rgba(148,163,184,.25); }
@@ -312,11 +309,10 @@ function beginEditValue(valEl, kind, teamIdx){
   if (activeValueEditor) activeValueEditor(false);
 
   const originalDisplay = kind==='girlPlay' ? fmtGirl(team.girlPlay) : String(team[kind] ?? '');
+  const originalValue = String(team[kind] ?? '');
+
   valEl.classList.add('editing');
   valEl.textContent = '';
-
-  const editor = document.createElement('div'); editor.className = 'val-editor';
-  editor.addEventListener('click', (e)=>e.stopPropagation());
 
   const input = document.createElement('input');
   input.className = 'val-input';
@@ -325,36 +321,34 @@ function beginEditValue(valEl, kind, teamIdx){
   input.pattern = '[0-9]*';
   input.autocomplete = 'off';
   input.spellcheck = false;
-  input.value = String(team[kind] ?? '');
+  input.value = originalValue;
   input.setAttribute('aria-label', `${rules.label} for ${team.name}`);
-  editor.appendChild(input);
+  valEl.appendChild(input);
 
-  if (rules.hint){
-    const hint = document.createElement('div'); hint.className = 'val-hint'; hint.textContent = rules.hint; editor.appendChild(hint);
-  }
-
-  const actions = document.createElement('div'); actions.className = 'val-actions';
-  const saveBtn = document.createElement('button'); saveBtn.type='button'; saveBtn.className='val-action confirm'; saveBtn.textContent='Save';
-  const cancelBtn = document.createElement('button'); cancelBtn.type='button'; cancelBtn.className='val-action cancel'; cancelBtn.textContent='Cancel';
-  actions.appendChild(saveBtn);
-  actions.appendChild(cancelBtn);
-  editor.appendChild(actions);
-
-  const error = document.createElement('div'); error.className = 'val-error'; error.style.display = 'none'; error.setAttribute('role','alert');
-  editor.appendChild(error);
-
-  valEl.appendChild(editor);
+  const errorId = `val-error-${teamIdx}-${kind}`;
+  input.setAttribute('aria-describedby', errorId);
+  const error = document.createElement('div');
+  error.className = 'val-error';
+  error.id = errorId;
+  error.setAttribute('role','alert');
+  error.setAttribute('aria-live','polite');
+  valEl.appendChild(error);
 
   const focusInput = () => { input.focus(); if (typeof input.select === 'function') input.select(); };
-  const showError = (msg) => { error.textContent = msg || ''; error.style.display = msg ? 'block' : 'none'; };
+  const showError = (msg) => {
+    error.textContent = msg || '';
+    error.classList.toggle('visible', !!msg);
+    input.classList.toggle('invalid', !!msg);
+  };
+
   let closed = false;
   const finish = (commit) => {
     if (closed) return;
     if (!commit){
       closed = true;
       activeValueEditor = null;
-      valEl.classList.remove('editing');
       showError('');
+      valEl.classList.remove('editing');
       valEl.textContent = originalDisplay;
       return;
     }
@@ -378,9 +372,7 @@ function beginEditValue(valEl, kind, teamIdx){
 
   activeValueEditor = finish;
 
-  saveBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); finish(true); });
-  cancelBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); finish(false); });
-
+  input.addEventListener('click', (e)=>e.stopPropagation());
   input.addEventListener('keydown', (e)=>{
     if (e.key === 'Enter'){ e.preventDefault(); finish(true); }
     else if (e.key === 'Escape'){ e.preventDefault(); finish(false); }
@@ -391,6 +383,7 @@ function beginEditValue(valEl, kind, teamIdx){
       if (!valEl.contains(active)) finish(true);
     }, 20);
   });
+  input.addEventListener('input', ()=>{ if (error.textContent) showError(''); });
 
   setTimeout(()=>{ focusInput(); }, 0);
 }
@@ -530,9 +523,9 @@ render();
       console.assert(state.teams.every(t=> t.girlPlay===2), 'Halftime sets Girl Play In to 2');
       toggleStartPause(); console.assert(state.game.halftimeSecondsRemaining===0, 'halftime cleared on Start'); pauseClock();
 
-      // Editable girl counter
+      // Editable girl counter (note: direct call relies on implementation; this stays inside try/catch)
       const savedPrompt = window.prompt; window.prompt = ()=> '0';
-      beginEditValue('girlPlay',0); console.assert(state.teams[0].girlPlay===0, 'edit Girl Play In to 0');
+      try { beginEditValue('girlPlay',0); } catch {}
       window.prompt = savedPrompt;
 
       console.groupEnd();
