@@ -17,7 +17,7 @@
     }
     html, body { height: 100%; }
     body { margin: 0; overflow-x: hidden; background: var(--bg); color: #e5e7eb; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-    .app { max-width: 900px; margin: 0 auto; padding: 8px 8px calc(180px + env(safe-area-inset-bottom)); }
+    .app { max-width: 900px; margin: 0 auto; padding: 8px 8px calc(240px + env(safe-area-inset-bottom)); }
     h1 { font-size: 20px; margin: 10px 0 6px; font-weight: 800; }
 
     /* Clock */
@@ -52,6 +52,7 @@
     .controls .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
     .controls .row2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px; }
     .btn { -webkit-tap-highlight-color: transparent; display:inline-flex; align-items:center; justify-content:center; text-align:center; width:100%; padding:12px 8px; border-radius:12px; border:2px solid var(--line); font-weight:900; font-size:15px; background:#ffffff; }
+    .btn.tall { padding-top: 24px; padding-bottom: 24px; }
     .btn:active { transform: scale(0.98); }
     .btn.primary { background: var(--accent); border-color: var(--accent); color:white; }
     .btn.warn { background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }
@@ -94,12 +95,12 @@
       </div>
       <!-- Reordered: First Down, Guy Play, Rush, Girl Play -->
       <div class="row2">
-        <button class="btn" id="g_downReset">First Down</button>
-        <button class="btn" id="g_guyPlay">Guy Play</button>
+        <button class="btn tall" id="g_downReset">First Down</button>
+        <button class="btn tall" id="g_guyPlay">Guy Play</button>
       </div>
       <div class="row2">
-        <button class="btn" id="g_rushm1">Rush</button>
-        <button class="btn" id="g_girlPlay">Girl Play</button>
+        <button class="btn tall" id="g_rushm1">Rush</button>
+        <button class="btn tall" id="g_girlPlay">Girl Play</button>
       </div>
     </div>
   </div>
