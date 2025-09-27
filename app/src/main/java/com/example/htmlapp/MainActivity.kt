@@ -10,6 +10,7 @@ import android.webkit.CookieManager
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -20,15 +21,24 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.webkit.WebViewAssetLoader
 import com.example.htmlapp.BuildConfig
 
-private const val ASSET_URL = "file:///android_asset/index.html"
+private const val ASSET_URL = "https://appassets.androidplatform.net/assets/index.html"
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var backCallback: OnBackPressedCallback
+
+    private val assetLoader by lazy {
+        WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+    }
+
+    private val assetHost: String? = Uri.parse(ASSET_URL).host
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
@@ -79,6 +89,22 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    override fun onPause() {
+        webView.apply {
+            onPause()
+            pauseTimers()
+        }
+        super.onPause()
+    }
+
+    override fun onResume() {
+        webView.apply {
+            onResume()
+            resumeTimers()
+        }
+        super.onResume()
+    }
+
     private fun setupFileChooser() {
         fileChooserLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val callback = filePathCallback
@@ -115,8 +141,8 @@ class MainActivity : AppCompatActivity() {
         with(webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
-            allowFileAccess = true
-            allowContentAccess = true
+            allowFileAccess = false
+            allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             loadWithOverviewMode = true
             useWideViewPort = true
@@ -131,12 +157,34 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
+                if (uri.host?.equals(assetHost, ignoreCase = true) == true) {
+                    return false
+                }
                 return handleExternalUri(uri)
             }
 
             @Deprecated("Deprecated in Java")
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                return url?.let { handleExternalUri(Uri.parse(it)) } ?: false
+                return url?.let {
+                    val uri = Uri.parse(it)
+                    if (uri.host?.equals(assetHost, ignoreCase = true) == true) {
+                        false
+                    } else {
+                        handleExternalUri(uri)
+                    }
+                } ?: false
+            }
+
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(request?.url)
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(url?.let(Uri::parse))
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
