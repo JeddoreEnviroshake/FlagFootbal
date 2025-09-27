@@ -51,15 +51,21 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         webView = findViewById(R.id.webView)
 
-        backCallback = onBackPressedDispatcher.addCallback(this) {
-            if (webView.canGoBack()) {
-                webView.goBack()
-            } else {
-                remove()
-                onBackPressedDispatcher.onBackPressed()
+        // FIX: create an OnBackPressedCallback object and register it
+        backCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    // disable this callback so the dispatcher can propagate the back event
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                    // optionally re-enable for future use:
+                    isEnabled = true
+                }
             }
         }
-        backCallback.isEnabled = false
+        onBackPressedDispatcher.addCallback(this, backCallback)
 
         setupFileChooser()
         configureWebView()
@@ -106,34 +112,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupFileChooser() {
-        fileChooserLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val callback = filePathCallback
-            val data = result.data
-            if (callback == null) {
-                return@registerForActivityResult
-            }
+        fileChooserLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                val callback = filePathCallback
+                val data = result.data
+                if (callback == null) return@registerForActivityResult
 
-            val uris: Array<Uri>? = if (result.resultCode == RESULT_OK) {
-                when {
-                    data == null -> null
-                    data.clipData != null -> {
-                        val clipData = data.clipData
-                        if (clipData != null) {
-                            Array(clipData.itemCount) { index -> clipData.getItemAt(index).uri }
-                        } else {
-                            null
+                val uris: Array<Uri>? = if (result.resultCode == RESULT_OK) {
+                    when {
+                        data == null -> null
+                        data.clipData != null -> {
+                            val clip = data.clipData
+                            if (clip != null) Array(clip.itemCount) { i -> clip.getItemAt(i).uri } else null
                         }
+                        data.data != null -> arrayOf(data.data!!)
+                        else -> null
                     }
-                    data.data != null -> arrayOf(data.data!!)
-                    else -> null
+                } else {
+                    null
                 }
-            } else {
-                null
-            }
 
-            callback.onReceiveValue(uris)
-            filePathCallback = null
-        }
+                callback.onReceiveValue(uris)
+                filePathCallback = null
+            }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -151,15 +152,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         CookieManager.getInstance().setAcceptCookie(true)
-
         webView.scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
 
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
                 val uri = request?.url ?: return false
-                if (uri.host?.equals(assetHost, ignoreCase = true) == true) {
-                    return false
-                }
+                if (uri.host?.equals(assetHost, ignoreCase = true) == true) return false
                 return handleExternalUri(uri)
             }
 
@@ -179,12 +180,19 @@ class MainActivity : AppCompatActivity() {
                 view: WebView?,
                 request: WebResourceRequest?
             ): WebResourceResponse? {
-                return assetLoader.shouldInterceptRequest(request?.url)
+                // FIX: pass a non-null Uri to assetLoader
+                val url = request?.url ?: return null
+                return assetLoader.shouldInterceptRequest(url)
             }
 
             @Deprecated("Deprecated in Java")
-            override fun shouldInterceptRequest(view: WebView?, url: String?): WebResourceResponse? {
-                return assetLoader.shouldInterceptRequest(url?.let(Uri::parse))
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                url: String?
+            ): WebResourceResponse? {
+                // FIX: ensure non-null Uri
+                val parsed = url?.let(Uri::parse) ?: return null
+                return assetLoader.shouldInterceptRequest(parsed)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -223,7 +231,7 @@ class MainActivity : AppCompatActivity() {
                     try {
                         fileChooserLauncher.launch(intent)
                         true
-                    } catch (e: ActivityNotFoundException) {
+                    } catch (_: ActivityNotFoundException) {
                         showToast(R.string.webview_no_file_picker)
                         this@MainActivity.filePathCallback?.onReceiveValue(null)
                         this@MainActivity.filePathCallback = null
@@ -254,7 +262,7 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(Intent.ACTION_VIEW, uri)
         try {
             startActivity(intent)
-        } catch (ex: ActivityNotFoundException) {
+        } catch (_: ActivityNotFoundException) {
             showToast(R.string.webview_unable_to_open_link)
         }
     }
