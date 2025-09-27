@@ -420,11 +420,13 @@ function migrateGirlPlay(oldVal){
 function inflate(obj){
   const base = defaultState(); if (!obj) return base;
   try {
-    const activeTeam = obj.activeTeam != null ? obj.activeTeam : (obj.a != null ? obj.a : 0);
-    base.activeTeam = activeTeam;
-    const teams = obj.teams != null ? obj.teams : (obj.t != null ? obj.t : base.teams);
-    base.teams = teams.map((t,i)=>{
-      const prev = base.teams[i] || {};
+    const activeTeamRaw = obj.activeTeam != null ? obj.activeTeam : (obj.a != null ? obj.a : 0);
+    const fallbackTeams = base.teams;
+    const teamsSource = Array.isArray(obj.teams) && obj.teams.length
+      ? obj.teams
+      : (Array.isArray(obj.t) && obj.t.length ? obj.t : fallbackTeams);
+    base.teams = teamsSource.map((t,i)=>{
+      const prev = fallbackTeams[i] || {};
       // Accept both schemas for girlPlay
       const gp = (t.girlPlay == null) ? prev.girlPlay : t.girlPlay;
       const girlV9 = (gp>=0 && gp<=2) ? gp : migrateGirlPlay(gp);
@@ -437,6 +439,12 @@ function inflate(obj){
         timeouts: t.timeouts != null ? t.timeouts : (t.o != null ? t.o : 3)
       };
     });
+    const teamsLength = base.teams.length || fallbackTeams.length;
+    const activeTeamNum = Number(activeTeamRaw);
+    const normalizedActiveTeam = Number.isFinite(activeTeamNum)
+      ? Math.max(0, Math.min(teamsLength > 0 ? teamsLength - 1 : 0, Math.floor(activeTeamNum)))
+      : 0;
+    base.activeTeam = normalizedActiveTeam;
     const g = obj.game != null ? obj.game : (obj.g != null ? obj.g : {});
     const secondsSource = g.seconds != null ? g.seconds : (g.s != null ? g.s : 15*60);
     base.game.seconds = Math.max(0, secondsSource);
@@ -554,7 +562,11 @@ function render(){
   } else { $('#halftimeBanner').style.display='none'; }
 
   $('#clockStartPause').textContent = state.game.running ? 'Pause' : 'Start';
-  $('#activeTeamLabel').textContent = state.teams[state.activeTeam].name;
+  const activeTeam = state.teams[state.activeTeam] || state.teams[0];
+  const activeTeamLabel = $('#activeTeamLabel');
+  if (activeTeamLabel && activeTeam) {
+    activeTeamLabel.textContent = activeTeam.name;
+  }
   renderTeams();
 }
 
