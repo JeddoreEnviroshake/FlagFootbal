@@ -67,6 +67,22 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    override fun onPause() {
+        webView.apply {
+            onPause()
+            pauseTimers()
+        }
+        super.onPause()
+    }
+
+    override fun onResume() {
+        webView.apply {
+            onResume()
+            resumeTimers()
+        }
+        super.onResume()
+    }
+
     override fun onBackPressed() {
         if (webView.canGoBack()) {
             webView.goBack()
