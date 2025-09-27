@@ -332,8 +332,9 @@ const REMOTE_CONFIG_KEY = 'flag_football_touch_remote_v1';
 
 function serializeState(s){
   const teamSource = Array.isArray(s.teams) && s.teams.length ? s.teams : defaultState().teams;
+  const game = s.game || {};
   const safe = {
-    activeTeam: Math.max(0, Math.min(1, s.activeTeam ?? 0)),
+    activeTeam: Math.max(0, Math.min(1, s.activeTeam != null ? s.activeTeam : 0)),
     teams: teamSource.map(t => ({
       name: t.name,
       score: t.score|0,
@@ -343,11 +344,11 @@ function serializeState(s){
       timeouts: Math.max(0, t.timeouts|0)
     })),
     game: {
-      seconds: Math.max(0, s.game?.seconds|0) || 15*60,
-      running: !!s.game?.running,
-      timeoutSecondsRemaining: Math.max(0, s.game?.timeoutSecondsRemaining|0),
-      timeoutTeam: s.game?.timeoutTeam ?? null,
-      halftimeSecondsRemaining: Math.max(0, s.game?.halftimeSecondsRemaining|0)
+      seconds: Math.max(0, game.seconds|0) || 15*60,
+      running: !!game.running,
+      timeoutSecondsRemaining: Math.max(0, game.timeoutSecondsRemaining|0),
+      timeoutTeam: game.timeoutTeam == null ? null : game.timeoutTeam,
+      halftimeSecondsRemaining: Math.max(0, game.halftimeSecondsRemaining|0)
     }
   };
   if (safe.game.timeoutTeam != null) {
@@ -419,29 +420,33 @@ function migrateGirlPlay(oldVal){
 function inflate(obj){
   const base = defaultState(); if (!obj) return base;
   try {
-    base.activeTeam = obj.activeTeam ?? obj.a ?? 0;
-    const teams = obj.teams ?? obj.t ?? base.teams;
+    const activeTeam = obj.activeTeam != null ? obj.activeTeam : (obj.a != null ? obj.a : 0);
+    base.activeTeam = activeTeam;
+    const teams = obj.teams != null ? obj.teams : (obj.t != null ? obj.t : base.teams);
     base.teams = teams.map((t,i)=>{
       const prev = base.teams[i] || {};
       // Accept both schemas for girlPlay
       const gp = (t.girlPlay == null) ? prev.girlPlay : t.girlPlay;
       const girlV9 = (gp>=0 && gp<=2) ? gp : migrateGirlPlay(gp);
       return {
-        name: t.name ?? t.n ?? prev.name ?? 'Team',
-        score: t.score ?? t.s ?? 0,
-        downs: t.downs ?? t.d ?? 1,
+        name: t.name != null ? t.name : (t.n != null ? t.n : (prev.name != null ? prev.name : 'Team')),
+        score: t.score != null ? t.score : (t.s != null ? t.s : 0),
+        downs: t.downs != null ? t.downs : (t.d != null ? t.d : 1),
         girlPlay: girlV9,
-        rushes: t.rushes ?? t.r ?? 2,
-        timeouts: t.timeouts ?? t.o ?? 3
+        rushes: t.rushes != null ? t.rushes : (t.r != null ? t.r : 2),
+        timeouts: t.timeouts != null ? t.timeouts : (t.o != null ? t.o : 3)
       };
     });
-    const g = obj.game ?? obj.g ?? {};
-    base.game.seconds = Math.max(0, g.seconds ?? g.s ?? 15*60);
+    const g = obj.game != null ? obj.game : (obj.g != null ? obj.g : {});
+    const secondsSource = g.seconds != null ? g.seconds : (g.s != null ? g.s : 15*60);
+    base.game.seconds = Math.max(0, secondsSource);
     base.game.running = !!g.running;
-    base.game.timeoutSecondsRemaining = Math.max(0, g.timeoutSecondsRemaining ?? g.tr ?? 0);
+    const timeoutSeconds = g.timeoutSecondsRemaining != null ? g.timeoutSecondsRemaining : (g.tr != null ? g.tr : 0);
+    base.game.timeoutSecondsRemaining = Math.max(0, timeoutSeconds);
     if (g.timeoutTeam == null) base.game.timeoutTeam = null;
     else base.game.timeoutTeam = Math.max(0, Math.min(1, g.timeoutTeam|0));
-    base.game.halftimeSecondsRemaining = Math.max(0, g.halftimeSecondsRemaining ?? g.hr ?? 0);
+    const halftimeSeconds = g.halftimeSecondsRemaining != null ? g.halftimeSecondsRemaining : (g.hr != null ? g.hr : 0);
+    base.game.halftimeSecondsRemaining = Math.max(0, halftimeSeconds);
   } catch {}
   return base;
 }
@@ -535,7 +540,12 @@ function render(){
   $('#gameTime').textContent = fmt(state.game.seconds);
   if (state.game.timeoutSecondsRemaining>0){
     $('#timeoutBanner').style.display='';
-    $('#timeoutTeam').textContent = state.teams[state.game.timeoutTeam]?.name || '';
+    const timeoutTeamIndex = state.game.timeoutTeam;
+    let timeoutName = '';
+    if (timeoutTeamIndex != null && state.teams[timeoutTeamIndex]) {
+      timeoutName = state.teams[timeoutTeamIndex].name;
+    }
+    $('#timeoutTeam').textContent = timeoutName;
     $('#timeoutTime').textContent = fmt(state.game.timeoutSecondsRemaining);
   } else { $('#timeoutBanner').style.display='none'; }
   if (state.game.halftimeSecondsRemaining>0){
@@ -559,8 +569,8 @@ function renderTeams(){
         team: Number(team),
         kind,
         value: input.value,
-        selectionStart: input.selectionStart ?? input.value.length,
-        selectionEnd: input.selectionEnd ?? input.value.length
+        selectionStart: input.selectionStart != null ? input.selectionStart : input.value.length,
+        selectionEnd: input.selectionEnd != null ? input.selectionEnd : input.value.length
       };
     }
   }
@@ -653,7 +663,9 @@ function updateRemoteStatus(){
   if (remoteSync.status === 'connecting') el.textContent = `Connecting to ${remoteSync.config.game}…`;
   else if (remoteSync.status === 'connected') el.textContent = `Connected • ${remoteSync.config.game}`;
   else if (remoteSync.status === 'error') {
-    const msg = remoteSync.lastError?.message?.includes('EventSource')
+    const lastError = remoteSync.lastError;
+    const message = lastError && lastError.message ? lastError.message : '';
+    const msg = message.indexOf('EventSource') !== -1
       ? 'Live sync needs a modern browser (EventSource unsupported).'
       : 'Sync error — check URL or credentials';
     el.textContent = msg;
@@ -663,9 +675,10 @@ function updateRemoteStatus(){
 
 function populateSyncForm(){
   const form = $('#syncForm'); if (!form) return;
-  form.url.value = remoteSync.config?.url || '';
-  form.auth.value = remoteSync.config?.auth || '';
-  form.game.value = remoteSync.config?.game || '';
+  const cfg = remoteSync.config || {};
+  form.url.value = cfg.url || '';
+  form.auth.value = cfg.auth || '';
+  form.game.value = cfg.game || '';
 }
 
 function scheduleRemotePush(){
@@ -727,9 +740,9 @@ function applySerializedState(serialized, { fromRemote = false } = {}){
 
 function handleRemotePayload(raw){
   if (!raw) return;
-  const body = raw.state ?? raw;
+  const body = raw && raw.state != null ? raw.state : raw;
   if (!body) return;
-  const updatedAt = raw.updatedAt ?? null;
+  const updatedAt = raw && raw.updatedAt != null ? raw.updatedAt : null;
   if (updatedAt && updatedAt === remoteSync.lastPushedAt) return;
   remoteSync.applying = true;
   try {
@@ -835,9 +848,13 @@ function beginEditValue(valEl, kind, teamIdx, opts = {}){
 
   if (activeValueEditor && !opts.skipCancelExisting) activeValueEditor(false);
 
-  const originalDisplay = kind==='girlPlay' ? fmtGirl(team.girlPlay) : String(team[kind] ?? '');
-  const originalValue = String(team[kind] ?? '');
-  const startingValue = opts.restore?.value ?? originalValue;
+  const originalData = team[kind] != null ? team[kind] : '';
+  const originalDisplay = kind==='girlPlay' ? fmtGirl(team.girlPlay) : String(originalData);
+  const originalValue = String(originalData);
+  let startingValue = originalValue;
+  if (opts.restore && Object.prototype.hasOwnProperty.call(opts.restore, 'value')) {
+    startingValue = opts.restore.value;
+  }
 
   valEl.classList.add('editing');
   valEl.textContent = '';
@@ -865,8 +882,9 @@ function beginEditValue(valEl, kind, teamIdx, opts = {}){
   const focusInput = () => {
     input.focus();
     if (opts.restore && opts.restore.selectionStart != null) {
-      const end = opts.restore.selectionEnd ?? opts.restore.selectionStart;
-      try { input.setSelectionRange(opts.restore.selectionStart, end); }
+      const restoreStart = opts.restore.selectionStart;
+      const restoreEnd = opts.restore.selectionEnd != null ? opts.restore.selectionEnd : restoreStart;
+      try { input.setSelectionRange(restoreStart, restoreEnd); }
       catch {}
     } else if (typeof input.select === 'function') {
       input.select();
@@ -1095,17 +1113,17 @@ const menuBackdrop = $('#menuBackdrop');
 
 function openMenu(){
   document.body.classList.add('menu-open');
-  menuDrawer?.setAttribute('aria-hidden', 'false');
-  menuBackdrop?.setAttribute('aria-hidden', 'false');
-  menuToggleBtn?.setAttribute('aria-expanded', 'true');
+  if (menuDrawer) menuDrawer.setAttribute('aria-hidden', 'false');
+  if (menuBackdrop) menuBackdrop.setAttribute('aria-hidden', 'false');
+  if (menuToggleBtn) menuToggleBtn.setAttribute('aria-expanded', 'true');
   populateSyncForm();
 }
 
 function closeMenu(){
   document.body.classList.remove('menu-open');
-  menuDrawer?.setAttribute('aria-hidden', 'true');
-  menuBackdrop?.setAttribute('aria-hidden', 'true');
-  menuToggleBtn?.setAttribute('aria-expanded', 'false');
+  if (menuDrawer) menuDrawer.setAttribute('aria-hidden', 'true');
+  if (menuBackdrop) menuBackdrop.setAttribute('aria-hidden', 'true');
+  if (menuToggleBtn) menuToggleBtn.setAttribute('aria-expanded', 'false');
 }
 
 function toggleMenu(){
@@ -1126,8 +1144,8 @@ function setViewMode(mode){
   render();
 }
 
-menuToggleBtn?.addEventListener('click', toggleMenu);
-menuBackdrop?.addEventListener('click', closeMenu);
+if (menuToggleBtn) menuToggleBtn.addEventListener('click', toggleMenu);
+if (menuBackdrop) menuBackdrop.addEventListener('click', closeMenu);
 document.addEventListener('keydown', (ev)=>{ if (ev.key === 'Escape') closeMenu(); });
 
 $$('#menuDrawer .drawer-item').forEach(btn => {
