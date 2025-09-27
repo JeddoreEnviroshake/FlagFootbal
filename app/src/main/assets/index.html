@@ -62,6 +62,7 @@
     .controls .label { font-size:12px; color:#94a3b8; font-weight:800; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; }
     .controls .row3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
     .controls .row2 { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
+    .controls .row1 { display:grid; grid-template-columns:1fr; gap:8px; }
     .btn { -webkit-tap-highlight-color: transparent; display:inline-flex; align-items:center; justify-content:center; text-align:center; width:100%; padding:12px 10px; border-radius:12px; border:2px solid var(--line); font-weight:900; font-size:15px; background:#ffffff; }
     .btn.tall { padding-top: 24px; padding-bottom: 24px; }
     .btn:active { transform: scale(0.98); }
@@ -121,6 +122,9 @@
           <div class="row2">
             <button class="btn tall" id="g_rushm1">Rush</button>
             <button class="btn tall" id="g_girlPlay">Girl Play</button>
+          </div>
+          <div class="row1">
+            <button class="btn tall warn" id="g_turnover">Turnover</button>
           </div>
         </div>
       </aside>
@@ -454,13 +458,23 @@ $('#g_guyPlay').addEventListener('click', ()=>{
 $('#g_girlPlay').addEventListener('click', ()=>{
   const t = state.teams[state.activeTeam];
   // Girl Play happens: reset counter to 2 and +1 Down
-  t.girlPlay = 2; 
+  t.girlPlay = 2;
   t.downs = t.downs >= 4 ? 1 : t.downs + 1;
   render(); scheduleSave();
 });
 
 // First Down
 $('#g_downReset').addEventListener('click', ()=>{ state.teams[state.activeTeam].downs = 1; render(); scheduleSave(); });
+
+// Turnover
+$('#g_turnover').addEventListener('click', ()=>{
+  const currentTeam = state.teams[state.activeTeam];
+  currentTeam.downs = 1;
+  currentTeam.girlPlay = 2;
+  state.activeTeam = state.activeTeam === 0 ? 1 : 0;
+  render();
+  scheduleSave();
+});
 
 // Rush (defense)
 $('#g_rushm1').addEventListener('click', ()=>{ const def = state.activeTeam===0?1:0; state.teams[def].rushes = Math.max(0, state.teams[def].rushes - 1); render(); scheduleSave(); });
