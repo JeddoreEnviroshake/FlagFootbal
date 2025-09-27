@@ -15,6 +15,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
+    private lateinit var backCallback: OnBackPressedCallback
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
@@ -38,6 +40,16 @@ class MainActivity : AppCompatActivity() {
 
         progressBar = findViewById(R.id.progressBar)
         webView = findViewById(R.id.webView)
+
+        backCallback = onBackPressedDispatcher.addCallback(this) {
+            if (webView.canGoBack()) {
+                webView.goBack()
+            } else {
+                remove()
+                onBackPressedDispatcher.onBackPressed()
+            }
+        }
+        backCallback.isEnabled = false
 
         setupFileChooser()
         configureWebView()
@@ -65,14 +77,6 @@ class MainActivity : AppCompatActivity() {
             destroy()
         }
         super.onDestroy()
-    }
-
-    override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
-        }
     }
 
     private fun setupFileChooser() {
@@ -133,6 +137,13 @@ class MainActivity : AppCompatActivity() {
             @Deprecated("Deprecated in Java")
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 return url?.let { handleExternalUri(Uri.parse(it)) } ?: false
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                if (::backCallback.isInitialized) {
+                    backCallback.isEnabled = webView.canGoBack()
+                }
             }
         }
 
