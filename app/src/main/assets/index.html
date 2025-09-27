@@ -533,7 +533,7 @@ const remoteSync = {
 /**********************
  * Rendering
  **********************/
-function fmt(sec){ const m=Math.floor(sec/60); const s=sec%60; return `${m}:${s.toString().padStart(2,'0')}`; }
+function fmt(sec){ const m=Math.floor(sec/60); const s=sec%60; const padded = ('0' + s).slice(-2); return `${m}:${padded}`; }
 function fmtGirl(val){ return val===0 ? 'Now' : String(val); }
 
 function render(){
