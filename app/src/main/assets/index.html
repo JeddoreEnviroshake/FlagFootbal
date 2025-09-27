@@ -16,7 +16,154 @@
       --muted: #64748b;
     }
     html, body { height: 100%; }
-    body { margin: 0; overflow-x: hidden; background: var(--bg); color: #e5e7eb; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    body { margin: 0; overflow-x: hidden; background: var(--bg); color: #e5e7eb; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; transition: background 0.2s ease; }
+
+    body[data-view="player"] {
+      background: #020617;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+    }
+
+    .menu-toggle {
+      border: none;
+      background: transparent;
+      color: inherit;
+      font-size: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .menu-toggle:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .topbar-title { font-weight: 800; letter-spacing: 0.01em; font-size: 16px; flex: 1; }
+
+    .view-indicator {
+      font-size: 13px;
+      font-weight: 800;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(148, 163, 184, 0.18);
+      color: #e2e8f0;
+    }
+
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(2px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease;
+      z-index: 30;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: min(360px, 86vw);
+      background: #0b1220;
+      border-right: 1px solid rgba(148, 163, 184, 0.25);
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 18px 28px;
+      gap: 18px;
+      overflow-y: auto;
+    }
+
+    body.menu-open .drawer { transform: translateX(0); }
+    body.menu-open .drawer-backdrop { opacity: 1; visibility: visible; }
+
+    .drawer h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #cbd5f5;
+    }
+
+    .drawer-section { display: flex; flex-direction: column; gap: 10px; }
+
+    .drawer-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 12px 14px;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.65);
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .drawer-item.active { border-color: var(--accent); background: rgba(16, 185, 129, 0.16); color: #d1fae5; }
+
+    .drawer-note { font-size: 12px; color: #94a3b8; margin: 0; line-height: 1.5; }
+
+    .drawer form { display: flex; flex-direction: column; gap: 10px; }
+
+    .drawer label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; font-weight: 700; }
+
+    .drawer input, .drawer textarea {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.6);
+      color: #e2e8f0;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .drawer input:focus-visible, .drawer textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .drawer button.save {
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 800;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+    }
+
+    .drawer button.secondary {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.65);
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .sync-status { font-size: 12px; color: #94a3b8; }
+
+    body.menu-open { overflow: hidden; }
+
     .app { max-width: 1040px; margin: 0 auto; padding: 16px 12px 32px; display:flex; flex-direction:column; gap:16px; min-height:100vh; }
     h1 { font-size: 20px; margin: 10px 0 6px; font-weight: 800; text-align:center; }
 
@@ -36,9 +183,11 @@
 
     /* Team card */
     .team { background: var(--card); color: var(--ink); border-radius: 14px; padding: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.18); border: 2px solid var(--line); cursor: pointer; }
+    body[data-view="player"] .team { cursor: default; }
     .team.active { border-color: var(--accent); box-shadow: 0 6px 18px rgba(16,185,129,.25); }
     .team header { display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:10px; }
     .name { font-weight: 900; font-size: 16px; user-select:none; padding:2px 4px; border-radius:6px; }
+    body[data-view="player"] .name { cursor: default; }
     .name.editing { background:#f1f5f9; }
     .name-input { font-weight:900; font-size:16px; width:100%; padding:4px 6px; border-radius:8px; border:2px solid var(--line); text-align:center; }
 
@@ -49,6 +198,7 @@
 
     /* Inline numeric editor (kept from codex/refactor-inline-editor...) */
     .val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 22px; font-weight: 900; cursor:pointer; text-align:center; }
+    body[data-view="player"] .val { cursor: default; }
     .val.editing { cursor:text; background:#e2e8f0; border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:6px; box-shadow: inset 0 0 0 1px rgba(148,163,184,.4); }
     .val-input { width:100%; padding:12px 10px; border-radius:8px; border:2px solid var(--line); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:20px; font-weight:900; text-align:center; color:var(--ink); background:#ffffff; -webkit-appearance: none; }
     .val-input:focus { outline:none; border-color: var(--accent); box-shadow:0 0 0 3px rgba(16,185,129,.2); }
@@ -69,6 +219,8 @@
     .btn.primary { background: var(--accent); border-color: var(--accent); color:white; }
     .btn.warn { background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }
 
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
     .muted { color: var(--muted); font-size:12px; }
 
     @media (max-width: 860px) {
@@ -80,6 +232,41 @@
   </style>
 </head>
 <body>
+  <header class="topbar">
+    <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false">☰</button>
+    <div class="topbar-title">Flag Football Game Tracker</div>
+    <div class="view-indicator" id="viewIndicator">Ref View</div>
+  </header>
+
+  <nav class="drawer" id="menuDrawer" aria-hidden="true">
+    <div class="drawer-section">
+      <h2>View</h2>
+      <button class="drawer-item" data-view="ref" type="button">Ref view</button>
+      <button class="drawer-item" data-view="player" type="button">Player view</button>
+      <p class="drawer-note">Refs can update the score, clock, and stats. Players and spectators see a read-only dashboard.</p>
+    </div>
+
+    <div class="drawer-section">
+      <h2>Live sync</h2>
+      <form id="syncForm">
+        <label for="syncUrl">Firebase database URL</label>
+        <input id="syncUrl" name="url" type="url" placeholder="https://your-project-default-rtdb.firebaseio.com" />
+
+        <label for="syncAuth">Database secret (optional)</label>
+        <input id="syncAuth" name="auth" type="text" placeholder="Only needed for locked rules" />
+
+        <label for="syncGame">Game code</label>
+        <input id="syncGame" name="game" type="text" placeholder="e.g. week1-field1" />
+
+        <button class="save" type="submit">Save &amp; connect</button>
+      </form>
+      <button class="secondary" type="button" id="syncDisconnect">Disconnect</button>
+      <p class="drawer-note">Create a free Firebase Realtime Database, set rules to public or use a database secret, then share the game code with refs and viewers.</p>
+      <div class="sync-status" id="syncStatus" role="status">Offline</div>
+    </div>
+  </nav>
+  <div class="drawer-backdrop" id="menuBackdrop" tabindex="-1" aria-hidden="true"></div>
+
   <div class="app">
     <h1>Flag Football Game Tracker</h1>
 
@@ -94,10 +281,10 @@
           </div>
           <div class="time" id="gameTime" title="Tap to edit when paused">15:00</div>
           <div class="clock-controls">
-            <button class="btn" id="clockStartPause">Start</button>
-            <button class="btn" id="timeoutHome">Timeout (Home)</button>
-            <button class="btn" id="timeoutAway">Timeout (Away)</button>
-            <button class="btn" id="halftimeBtn">Halftime</button>
+            <button class="btn" id="clockStartPause" data-role="ref-only">Start</button>
+            <button class="btn" id="timeoutHome" data-role="ref-only">Timeout (Home)</button>
+            <button class="btn" id="timeoutAway" data-role="ref-only">Timeout (Away)</button>
+            <button class="btn" id="halftimeBtn" data-role="ref-only">Halftime</button>
           </div>
         </div>
 
@@ -110,21 +297,21 @@
         <div class="controls">
           <div class="label">Active team: <span id="activeTeamLabel">Home</span> — tap a team card to switch</div>
           <div class="row3">
-            <button class="btn primary" id="g_score6">+6</button>
-            <button class="btn" id="g_score1">+1</button>
-            <button class="btn warn" id="g_scorem1">-1</button>
+            <button class="btn primary" id="g_score6" data-role="ref-only">+6</button>
+            <button class="btn" id="g_score1" data-role="ref-only">+1</button>
+            <button class="btn warn" id="g_scorem1" data-role="ref-only">-1</button>
           </div>
           <!-- Reordered: First Down, Guy Play, Rush, Girl Play -->
           <div class="row2">
-            <button class="btn tall" id="g_downReset">First Down</button>
-            <button class="btn tall" id="g_guyPlay">Guy Play</button>
+            <button class="btn tall" id="g_downReset" data-role="ref-only">First Down</button>
+            <button class="btn tall" id="g_guyPlay" data-role="ref-only">Guy Play</button>
           </div>
           <div class="row2">
-            <button class="btn tall" id="g_rushm1">Rush</button>
-            <button class="btn tall" id="g_girlPlay">Girl Play</button>
+            <button class="btn tall" id="g_rushm1" data-role="ref-only">Rush</button>
+            <button class="btn tall" id="g_girlPlay" data-role="ref-only">Girl Play</button>
           </div>
           <div class="row1">
-            <button class="btn tall warn" id="g_turnover">Turnover</button>
+            <button class="btn tall warn" id="g_turnover" data-role="ref-only">Turnover</button>
           </div>
         </div>
       </aside>
@@ -137,14 +324,17 @@
  **********************/
 const STORAGE_KEY = 'flag_football_touch_v9';
 const LEGACY_KEYS = ['flag_football_touch_v8','flag_football_touch_v7','flag_football_touch_v6','flag_football_touch_v5','flag_football_touch_v4'];
+const VIEW_MODE_KEY = 'flag_football_touch_view_mode';
+const REMOTE_CONFIG_KEY = 'flag_football_touch_remote_v1';
 
 // NOTE: As of v9, girlPlay now represents "plays until required girl play" on a 0-2 scale
 // 2 -> "2", 1 -> "1", 0 -> "Now". Previously (v8 and earlier) girlPlay was 1..3 rolling counter.
 
 function serializeState(s){
-  return {
-    activeTeam: s.activeTeam,
-    teams: s.teams.map(t => ({
+  const teamSource = Array.isArray(s.teams) && s.teams.length ? s.teams : defaultState().teams;
+  const safe = {
+    activeTeam: Math.max(0, Math.min(1, s.activeTeam ?? 0)),
+    teams: teamSource.map(t => ({
       name: t.name,
       score: t.score|0,
       downs: Math.min(4, Math.max(1, t.downs|0)) || 1,
@@ -152,8 +342,20 @@ function serializeState(s){
       rushes: Math.max(0, t.rushes|0),
       timeouts: Math.max(0, t.timeouts|0)
     })),
-    game: { seconds: Math.max(0, s.game?.seconds|0) || 15*60 }
+    game: {
+      seconds: Math.max(0, s.game?.seconds|0) || 15*60,
+      running: !!s.game?.running,
+      timeoutSecondsRemaining: Math.max(0, s.game?.timeoutSecondsRemaining|0),
+      timeoutTeam: s.game?.timeoutTeam ?? null,
+      halftimeSecondsRemaining: Math.max(0, s.game?.halftimeSecondsRemaining|0)
+    }
   };
+  if (safe.game.timeoutTeam != null) {
+    safe.game.timeoutTeam = Math.max(0, Math.min(1, safe.game.timeoutTeam|0));
+  } else {
+    safe.game.timeoutTeam = null;
+  }
+  return safe;
 }
 
 function safeSave(){
@@ -171,6 +373,16 @@ function safeSave(){
   }
 }
 let saveTimer=null; function scheduleSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(safeSave, 400); }
+
+function requestPersist(){
+  scheduleSave();
+  scheduleRemotePush();
+}
+
+function renderAndPersist(){
+  render();
+  requestPersist();
+}
 
 /**********************
  * App State
@@ -224,7 +436,12 @@ function inflate(obj){
       };
     });
     const g = obj.game ?? obj.g ?? {};
-    base.game.seconds = g.seconds ?? g.s ?? 15*60;
+    base.game.seconds = Math.max(0, g.seconds ?? g.s ?? 15*60);
+    base.game.running = !!g.running;
+    base.game.timeoutSecondsRemaining = Math.max(0, g.timeoutSecondsRemaining ?? g.tr ?? 0);
+    if (g.timeoutTeam == null) base.game.timeoutTeam = null;
+    else base.game.timeoutTeam = Math.max(0, Math.min(1, g.timeoutTeam|0));
+    base.game.halftimeSecondsRemaining = Math.max(0, g.halftimeSecondsRemaining ?? g.hr ?? 0);
   } catch {}
   return base;
 }
@@ -243,11 +460,62 @@ function loadMigrated(){
   return null;
 }
 
+function loadViewMode(){
+  try {
+    const raw = localStorage.getItem(VIEW_MODE_KEY);
+    if (raw === 'ref' || raw === 'player') return raw;
+  } catch {}
+  return 'ref';
+}
+
+function saveViewMode(mode){
+  try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch {}
+}
+
+function loadRemoteConfig(){
+  try {
+    const raw = localStorage.getItem(REMOTE_CONFIG_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!parsed.url || !parsed.game) return null;
+    return {
+      url: parsed.url,
+      auth: parsed.auth || '',
+      game: parsed.game,
+      lastKnown: parsed.lastKnown || null
+    };
+  } catch {}
+  return null;
+}
+
+function saveRemoteConfig(cfg){
+  try { localStorage.setItem(REMOTE_CONFIG_KEY, JSON.stringify(cfg)); } catch {}
+}
+
+function clearRemoteConfig(){
+  try { localStorage.removeItem(REMOTE_CONFIG_KEY); } catch {}
+}
+
 let state = loadMigrated() || defaultState();
 let timeoutTimer = null; // 1:00 timeout
 let halftimeTimer = null; // 2:00 halftime
 let clockTimer = null;    // game clock
 let activeValueEditor = null;
+let viewMode = loadViewMode();
+
+const remoteSync = {
+  config: loadRemoteConfig(),
+  source: null,
+  status: 'idle',
+  lastError: null,
+  pushTimer: null,
+  lastPushedAt: 0,
+  applying: false,
+  connected: false,
+  pushing: false,
+  pendingPush: false
+};
 
 /**********************
  * Rendering
@@ -256,6 +524,13 @@ function fmt(sec){ const m=Math.floor(sec/60); const s=sec%60; return `${m}:${s.
 function fmtGirl(val){ return val===0 ? 'Now' : String(val); }
 
 function render(){
+  document.body.dataset.view = viewMode;
+  const indicator = $('#viewIndicator');
+  if (indicator) indicator.textContent = viewMode === 'ref' ? 'Ref View' : 'Player View';
+  $$('#menuDrawer .drawer-item').forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewMode));
+  const isRef = viewMode === 'ref';
+  $$('button[data-role="ref-only"]').forEach(btn => { btn.disabled = !isRef; });
+
   // Clock & banners
   $('#gameTime').textContent = fmt(state.game.seconds);
   if (state.game.timeoutSecondsRemaining>0){
@@ -290,15 +565,23 @@ function renderTeams(){
     }
   }
 
+  const editingEnabled = viewMode === 'ref';
+  if (!editingEnabled && activeValueEditor) {
+    try { activeValueEditor(false); } catch {}
+  }
   activeValueEditor = null;
   const host = $('#teams'); host.innerHTML = '';
   state.teams.forEach((t, idx) => {
     const sec = document.createElement('section'); sec.className = 'team' + (state.activeTeam===idx?' active':'');
-    sec.addEventListener('click', ()=>{ state.activeTeam = idx; render(); scheduleSave(); });
+    if (editingEnabled){
+      sec.addEventListener('click', ()=>{ state.activeTeam = idx; renderAndPersist(); });
+    }
 
     const header = document.createElement('header');
     const nameSpan = document.createElement('span'); nameSpan.className = 'name'; nameSpan.textContent = t.name;
-    nameSpan.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditName(idx, nameSpan); });
+    if (editingEnabled){
+      nameSpan.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditName(idx, nameSpan); });
+    }
     header.appendChild(nameSpan);
 
     const stats = document.createElement('div'); stats.className = 'stats';
@@ -313,11 +596,13 @@ function renderTeams(){
     sec.appendChild(header); sec.appendChild(stats); host.appendChild(sec);
   });
 
-  $$('.val').forEach(v => {
-    v.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditValue(v, v.dataset.kind, +v.dataset.team); });
-  });
+  if (editingEnabled){
+    $$('#teams .val').forEach(v => {
+      v.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditValue(v, v.dataset.kind, +v.dataset.team); });
+    });
+  }
 
-  if (restoreEdit) {
+  if (restoreEdit && editingEnabled) {
     const valEl = host.querySelector(`.val[data-team="${restoreEdit.team}"][data-kind="${restoreEdit.kind}"]`);
     if (valEl) {
       beginEditValue(valEl, restoreEdit.kind, restoreEdit.team, { skipCancelExisting: true, restore: restoreEdit });
@@ -325,7 +610,206 @@ function renderTeams(){
   }
 }
 
+/**********************
+ * Remote Sync (Firebase Realtime Database)
+ **********************/
+function remoteConfigured(){
+  return !!(remoteSync.config && remoteSync.config.url && remoteSync.config.game);
+}
+
+function remoteUrl(params = {}){
+  if (!remoteConfigured()) return null;
+  let base = remoteSync.config.url.trim();
+  base = base.replace(/\.json$/i, '');
+  base = base.replace(/\/+$, '');
+  const key = encodeURIComponent(remoteSync.config.game);
+  const pairs = [];
+  if (remoteSync.config.auth) pairs.push(['auth', remoteSync.config.auth]);
+  for (const [k,v] of Object.entries(params)){
+    if (v == null || v === '') continue;
+    pairs.push([k, v]);
+  }
+  const query = pairs.length ? '?' + pairs.map(([k,v])=>`${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&') : '';
+  return `${base}/games/${key}.json${query}`;
+}
+
+function disconnectRemote(){
+  if (remoteSync.source){
+    try { remoteSync.source.close(); } catch {}
+  }
+  remoteSync.source = null;
+  remoteSync.connected = false;
+  if (remoteSync.pushTimer){ clearTimeout(remoteSync.pushTimer); remoteSync.pushTimer = null; }
+  remoteSync.pendingPush = false;
+}
+
+function updateRemoteStatus(){
+  const el = $('#syncStatus');
+  if (!el) return;
+  if (!remoteConfigured()){
+    el.textContent = 'Offline';
+    return;
+  }
+  if (remoteSync.status === 'connecting') el.textContent = `Connecting to ${remoteSync.config.game}…`;
+  else if (remoteSync.status === 'connected') el.textContent = `Connected • ${remoteSync.config.game}`;
+  else if (remoteSync.status === 'error') {
+    const msg = remoteSync.lastError?.message?.includes('EventSource')
+      ? 'Live sync needs a modern browser (EventSource unsupported).'
+      : 'Sync error — check URL or credentials';
+    el.textContent = msg;
+  }
+  else el.textContent = 'Ready to connect';
+}
+
+function populateSyncForm(){
+  const form = $('#syncForm'); if (!form) return;
+  form.url.value = remoteSync.config?.url || '';
+  form.auth.value = remoteSync.config?.auth || '';
+  form.game.value = remoteSync.config?.game || '';
+}
+
+function scheduleRemotePush(){
+  if (!remoteConfigured() || viewMode !== 'ref' || remoteSync.applying) return;
+  if (remoteSync.pushing){
+    remoteSync.pendingPush = true;
+    return;
+  }
+  if (remoteSync.pushTimer) clearTimeout(remoteSync.pushTimer);
+  remoteSync.pushTimer = setTimeout(pushRemoteNow, 250);
+}
+
+async function pushRemoteNow(){
+  if (!remoteConfigured() || remoteSync.pushing) return;
+  const url = remoteUrl(); if (!url) return;
+  const payload = { version: 1, updatedAt: Date.now(), state: serializeState(state) };
+  remoteSync.pushing = true;
+  remoteSync.lastPushedAt = payload.updatedAt;
+  try {
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    remoteSync.status = 'connected';
+    remoteSync.connected = true;
+    remoteSync.lastError = null;
+  } catch (err) {
+    remoteSync.status = 'error';
+    remoteSync.lastError = err;
+  } finally {
+    remoteSync.pushing = false;
+    if (remoteSync.pendingPush){
+      remoteSync.pendingPush = false;
+      scheduleRemotePush();
+    }
+    updateRemoteStatus();
+  }
+}
+
+function syncLocalTimersWithState(){
+  if (!state.game.running && clockTimer){ clearInterval(clockTimer); clockTimer = null; }
+  if (state.game.timeoutSecondsRemaining <= 0 && timeoutTimer){ clearInterval(timeoutTimer); timeoutTimer = null; }
+  if (state.game.halftimeSecondsRemaining <= 0 && halftimeTimer){ clearInterval(halftimeTimer); halftimeTimer = null; }
+}
+
+function applySerializedState(serialized, { fromRemote = false } = {}){
+  const next = inflate(serialized);
+  state = next;
+  syncLocalTimersWithState();
+  if (fromRemote){
+    render();
+    scheduleSave();
+  } else {
+    renderAndPersist();
+  }
+}
+
+function handleRemotePayload(raw){
+  if (!raw) return;
+  const body = raw.state ?? raw;
+  if (!body) return;
+  const updatedAt = raw.updatedAt ?? null;
+  if (updatedAt && updatedAt === remoteSync.lastPushedAt) return;
+  remoteSync.applying = true;
+  try {
+    applySerializedState(body, { fromRemote: true });
+  } finally {
+    remoteSync.applying = false;
+  }
+}
+
+function connectRemote(){
+  disconnectRemote();
+  if (!remoteConfigured()){
+    remoteSync.status = 'idle';
+    updateRemoteStatus();
+    return;
+  }
+  remoteSync.status = 'connecting';
+  updateRemoteStatus();
+  const initUrl = remoteUrl();
+  if (initUrl){
+    fetch(initUrl)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data) {
+          if (viewMode === 'ref') scheduleRemotePush();
+          return;
+        }
+        handleRemotePayload(data);
+      })
+      .catch(err => {
+        remoteSync.status = 'error';
+        remoteSync.lastError = err;
+        updateRemoteStatus();
+      });
+  }
+  if (typeof EventSource === 'undefined'){
+    remoteSync.status = 'error';
+    remoteSync.lastError = new Error('EventSource is not supported in this browser');
+    updateRemoteStatus();
+    return;
+  }
+  const streamUrl = remoteUrl({ print: 'silent' });
+  if (!streamUrl) return;
+  try {
+    const source = new EventSource(streamUrl);
+    remoteSync.source = source;
+    source.onopen = () => {
+      remoteSync.connected = true;
+      remoteSync.status = 'connected';
+      updateRemoteStatus();
+    };
+    source.onerror = () => {
+      remoteSync.connected = false;
+      if (remoteSync.status !== 'error'){
+        remoteSync.status = 'error';
+        updateRemoteStatus();
+      }
+    };
+    const handler = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (!payload) return;
+        if (payload.data == null) return;
+        handleRemotePayload(payload.data);
+      } catch (err) {
+        console.warn('Remote sync parse error', err);
+      }
+    };
+    source.addEventListener('put', handler);
+    source.addEventListener('patch', handler);
+    source.onmessage = handler;
+  } catch (err) {
+    remoteSync.status = 'error';
+    remoteSync.lastError = err;
+    updateRemoteStatus();
+  }
+}
+
 function beginEditName(idx, spanEl){
+  if (viewMode !== 'ref') return;
   if (spanEl.classList.contains('editing')) return;
   spanEl.classList.add('editing');
   const input = document.createElement('input'); input.className = 'name-input'; input.value = state.teams[idx].name;
@@ -335,13 +819,15 @@ function beginEditName(idx, spanEl){
     if (commit) state.teams[idx].name = input.value.trim() || state.teams[idx].name;
     newSpan.textContent = state.teams[idx].name;
     newSpan.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditName(idx, newSpan); });
-    input.replaceWith(newSpan); render(); scheduleSave();
+    input.replaceWith(newSpan);
+    if (commit) renderAndPersist(); else render();
   };
   input.addEventListener('blur', () => finish(true));
   input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') finish(true); if(e.key==='Escape') finish(false); });
 }
 
 function beginEditValue(valEl, kind, teamIdx, opts = {}){
+  if (viewMode !== 'ref') return;
   if (!valEl || valEl.classList.contains('editing')) return;
   const team = state.teams[teamIdx];
   const rules = VALUE_RULES[kind];
@@ -418,7 +904,7 @@ function beginEditValue(valEl, kind, teamIdx, opts = {}){
     team[kind] = nextVal;
     valEl.classList.remove('editing');
     valEl.textContent = kind==='girlPlay' ? fmtGirl(nextVal) : String(nextVal);
-    render(); scheduleSave();
+    renderAndPersist();
   };
 
   activeValueEditor = finish;
@@ -443,80 +929,141 @@ function beginEditValue(valEl, kind, teamIdx, opts = {}){
 /**********************
  * Global Controls
  **********************/
-$('#g_score6').addEventListener('click', ()=>{ state.teams[state.activeTeam].score += 6; render(); scheduleSave(); });
-$('#g_score1').addEventListener('click', ()=>{ state.teams[state.activeTeam].score += 1; render(); scheduleSave(); });
-$('#g_scorem1').addEventListener('click', ()=>{ state.teams[state.activeTeam].score = Math.max(0, state.teams[state.activeTeam].score - 1); render(); scheduleSave(); });
+$('#g_score6').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
+  state.teams[state.activeTeam].score += 6;
+  renderAndPersist();
+});
+$('#g_score1').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
+  state.teams[state.activeTeam].score += 1;
+  renderAndPersist();
+});
+$('#g_scorem1').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
+  state.teams[state.activeTeam].score = Math.max(0, state.teams[state.activeTeam].score - 1);
+  renderAndPersist();
+});
 
 // Guy/Girl play (v9 semantics)
 $('#g_guyPlay').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
   const t = state.teams[state.activeTeam];
   // +1 Down, decrement Girl Play In until 0 (Now), then stick at 0
   t.downs = t.downs >= 4 ? 1 : t.downs + 1;
   t.girlPlay = Math.max(0, (t.girlPlay|0) - 1);
-  render(); scheduleSave();
+  renderAndPersist();
 });
 $('#g_girlPlay').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
   const t = state.teams[state.activeTeam];
   // Girl Play happens: reset counter to 2 and +1 Down
   t.girlPlay = 2;
   t.downs = t.downs >= 4 ? 1 : t.downs + 1;
-  render(); scheduleSave();
+  renderAndPersist();
 });
 
 // First Down
-$('#g_downReset').addEventListener('click', ()=>{ state.teams[state.activeTeam].downs = 1; render(); scheduleSave(); });
+$('#g_downReset').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
+  state.teams[state.activeTeam].downs = 1;
+  renderAndPersist();
+});
 
 // Turnover
 $('#g_turnover').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
   const currentTeam = state.teams[state.activeTeam];
   currentTeam.downs = 1;
   currentTeam.girlPlay = 2;
   state.activeTeam = state.activeTeam === 0 ? 1 : 0;
-  render();
-  scheduleSave();
+  renderAndPersist();
 });
 
 // Rush (defense)
-$('#g_rushm1').addEventListener('click', ()=>{ const def = state.activeTeam===0?1:0; state.teams[def].rushes = Math.max(0, state.teams[def].rushes - 1); render(); scheduleSave(); });
+$('#g_rushm1').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
+  const def = state.activeTeam===0?1:0;
+  state.teams[def].rushes = Math.max(0, state.teams[def].rushes - 1);
+  renderAndPersist();
+});
 
 /**********************
  * Clock, Timeout & Halftime
  **********************/
-function clearTimeoutMode(){ if (timeoutTimer){ clearInterval(timeoutTimer); timeoutTimer=null; } state.game.timeoutSecondsRemaining=0; state.game.timeoutTeam=null; }
-function clearHalftimeMode(){ if (halftimeTimer){ clearInterval(halftimeTimer); halftimeTimer=null; } state.game.halftimeSecondsRemaining=0; }
+function clearTimeoutMode(){
+  if (timeoutTimer){ clearInterval(timeoutTimer); timeoutTimer=null; }
+  state.game.timeoutSecondsRemaining=0;
+  state.game.timeoutTeam=null;
+}
+function clearHalftimeMode(){
+  if (halftimeTimer){ clearInterval(halftimeTimer); halftimeTimer=null; }
+  state.game.halftimeSecondsRemaining=0;
+}
 
 function startClock(){
+  if (viewMode !== 'ref') return;
   if (state.game.timeoutSecondsRemaining>0) clearTimeoutMode();
   if (state.game.halftimeSecondsRemaining>0) clearHalftimeMode();
-  if (clockTimer) return; state.game.running = true;
-  clockTimer = setInterval(()=>{ if (state.game.seconds>0){ state.game.seconds--; } else { pauseClock(); } render(); }, 1000);
+  if (clockTimer) return;
+  state.game.running = true;
+  renderAndPersist();
+  clockTimer = setInterval(()=>{
+    if (state.game.seconds>0){
+      state.game.seconds--;
+      renderAndPersist();
+    } else {
+      pauseClock();
+    }
+  }, 1000);
 }
-function pauseClock(){ state.game.running=false; if (clockTimer){ clearInterval(clockTimer); clockTimer=null; } scheduleSave(); }
-function toggleStartPause(){ state.game.running ? pauseClock() : startClock(); render(); }
+function pauseClock(){
+  state.game.running=false;
+  if (clockTimer){ clearInterval(clockTimer); clockTimer=null; }
+  renderAndPersist();
+}
+function toggleStartPause(){
+  if (viewMode !== 'ref') return;
+  state.game.running ? pauseClock() : startClock();
+}
 
 function startTimeout(teamIdx){
-  if (timeoutTimer || state.game.timeoutSecondsRemaining>0) return; 
+  if (viewMode !== 'ref') return;
+  if (timeoutTimer || state.game.timeoutSecondsRemaining>0) return;
   const t = state.teams[teamIdx]; if (t.timeouts<=0) return;
   t.timeouts--; pauseClock(); clearHalftimeMode();
   state.game.timeoutSecondsRemaining = 60; state.game.timeoutTeam = teamIdx;
   timeoutTimer = setInterval(()=>{
-    if (state.game.timeoutSecondsRemaining>0){ state.game.timeoutSecondsRemaining--; render(); }
-    else { clearTimeoutMode(); render(); scheduleSave(); }
+    if (state.game.timeoutSecondsRemaining>0){
+      state.game.timeoutSecondsRemaining--;
+      renderAndPersist();
+    }
+    else {
+      clearTimeoutMode();
+      renderAndPersist();
+    }
   },1000);
-  render(); scheduleSave();
+  renderAndPersist();
 }
 
 function startHalftime(){
+  if (viewMode !== 'ref') return;
   pauseClock(); clearTimeoutMode();
   state.teams.forEach(t=>{ t.downs=1; t.girlPlay=2; t.rushes=2; t.timeouts=3; });
   state.game.seconds = 15*60;
   state.game.halftimeSecondsRemaining = 120;
   if (halftimeTimer) clearInterval(halftimeTimer);
   halftimeTimer = setInterval(()=>{
-    if (state.game.halftimeSecondsRemaining>0){ state.game.halftimeSecondsRemaining--; render(); }
-    else { clearHalftimeMode(); render(); scheduleSave(); }
+    if (state.game.halftimeSecondsRemaining>0){
+      state.game.halftimeSecondsRemaining--;
+      renderAndPersist();
+    }
+    else {
+      clearHalftimeMode();
+      renderAndPersist();
+    }
   }, 1000);
-  render(); scheduleSave();
+  renderAndPersist();
 }
 
 $('#clockStartPause').addEventListener('click', toggleStartPause);
@@ -526,6 +1073,7 @@ $('#halftimeBtn').addEventListener('click', startHalftime);
 
 // Edit time when paused
 $('#gameTime').addEventListener('click', ()=>{
+  if (viewMode !== 'ref') return;
   if (state.game.running || state.game.timeoutSecondsRemaining>0 || state.game.halftimeSecondsRemaining>0) return;
   const current = fmt(state.game.seconds);
   const input = prompt('Set game clock (MM:SS):', current);
@@ -535,13 +1083,95 @@ $('#gameTime').addEventListener('click', ()=>{
   const mm = parseInt(m[1],10), ss = parseInt(m[2],10);
   if (ss>59) return alert('Seconds must be 00-59');
   state.game.seconds = Math.max(0, mm*60 + ss);
-  render(); scheduleSave();
+  renderAndPersist();
 });
+
+/**********************
+ * Menu & View Switching
+ **********************/
+const menuToggleBtn = $('#menuToggle');
+const menuDrawer = $('#menuDrawer');
+const menuBackdrop = $('#menuBackdrop');
+
+function openMenu(){
+  document.body.classList.add('menu-open');
+  menuDrawer?.setAttribute('aria-hidden', 'false');
+  menuBackdrop?.setAttribute('aria-hidden', 'false');
+  menuToggleBtn?.setAttribute('aria-expanded', 'true');
+  populateSyncForm();
+}
+
+function closeMenu(){
+  document.body.classList.remove('menu-open');
+  menuDrawer?.setAttribute('aria-hidden', 'true');
+  menuBackdrop?.setAttribute('aria-hidden', 'true');
+  menuToggleBtn?.setAttribute('aria-expanded', 'false');
+}
+
+function toggleMenu(){
+  if (document.body.classList.contains('menu-open')) closeMenu();
+  else openMenu();
+}
+
+function setViewMode(mode){
+  const next = mode === 'player' ? 'player' : 'ref';
+  if (viewMode === next) return;
+  viewMode = next;
+  saveViewMode(viewMode);
+  if (viewMode !== 'ref' && remoteSync.pushTimer){
+    clearTimeout(remoteSync.pushTimer);
+    remoteSync.pushTimer = null;
+  }
+  closeMenu();
+  render();
+}
+
+menuToggleBtn?.addEventListener('click', toggleMenu);
+menuBackdrop?.addEventListener('click', closeMenu);
+document.addEventListener('keydown', (ev)=>{ if (ev.key === 'Escape') closeMenu(); });
+
+$$('#menuDrawer .drawer-item').forEach(btn => {
+  btn.addEventListener('click', ()=>{ if (btn.dataset.view) setViewMode(btn.dataset.view); });
+});
+
+const syncForm = $('#syncForm');
+if (syncForm){
+  syncForm.addEventListener('submit', (ev)=>{
+    ev.preventDefault();
+    const url = syncForm.url.value.trim();
+    const auth = syncForm.auth.value.trim();
+    const game = syncForm.game.value.trim();
+    if (!url || !game){
+      alert('Enter both the database URL and a game code.');
+      return;
+    }
+    remoteSync.config = { url, auth, game };
+    saveRemoteConfig(remoteSync.config);
+    updateRemoteStatus();
+    connectRemote();
+    closeMenu();
+  });
+}
+
+const disconnectBtn = $('#syncDisconnect');
+if (disconnectBtn){
+  disconnectBtn.addEventListener('click', ()=>{
+    disconnectRemote();
+    remoteSync.config = null;
+    clearRemoteConfig();
+    remoteSync.status = 'idle';
+    updateRemoteStatus();
+    populateSyncForm();
+  });
+}
 
 /**********************
  * Init
  **********************/
 render();
+updateRemoteStatus();
+populateSyncForm();
+if (remoteConfigured()) connectRemote();
 
 /**********************
  * Self-tests (run with #test)
