@@ -30,3 +30,23 @@ If you prefer to host the experience remotely:
 3. Ensure the remote content is served over HTTPS or enable cleartext traffic for development via `app/src/debug/AndroidManifest.xml`.
 
 Rebuild and relaunch the application to verify that the WebView points at the remote content.
+
+## Ref vs. player views
+
+The bundled tracker now supports two roles that can be toggled from the hamburger menu in the top bar:
+
+* **Ref view** (default) keeps all editing controls enabled so you can advance the clock, update scores, and manage downs.
+* **Player view** is read-only — team cards, inline editors, and global buttons are disabled so spectators only see the scoreboard.
+
+Each device remembers its own selection locally, so refs and spectators can join the same game without impacting one another.
+
+## Live sync via Firebase Realtime Database
+
+You can stream the scoreboard to other devices for free with Firebase's Realtime Database REST API:
+
+1. Create a Firebase project and enable the Realtime Database in **test mode**, or generate a database secret if you want to lock writes.
+2. Copy the database URL (for example `https://<project-id>-default-rtdb.firebaseio.com`).
+3. Open the in-app menu ▶ **Live sync**, paste the database URL, optional secret, and a game code (this becomes the `/games/<code>` path).
+4. Tap **Save & connect** on every device. Refs will publish changes, while player-mode devices automatically stay read-only.
+
+The app uses Server-Sent Events to listen for updates. If your WebView or browser does not support `EventSource`, the sync panel will display a compatibility warning.
