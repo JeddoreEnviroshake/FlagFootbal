@@ -703,33 +703,30 @@ function scheduleRemotePush(){
   remoteSync.pushTimer = setTimeout(pushRemoteNow, 250);
 }
 
-async function pushRemoteNow(){
-  if (!remoteConfigured() || remoteSync.pushing) return;
-  const url = remoteUrl(); if (!url) return;
-  const payload = { version: 1, updatedAt: Date.now(), state: serializeState(state) };
+function pushRemoteNow() {
   remoteSync.pushing = true;
-  remoteSync.lastPushedAt = payload.updatedAt;
-  try {
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+
+  fetch(url, opts)
+    .then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function (json) {
+      remoteSync.status = 'ok';
+      remoteSync.connected = true;
+      remoteSync.lastError = null;
+      // use `json` if you need it
+    })
+    .catch(function (err) {
+      remoteSync.status = 'error';
+      remoteSync.connected = false;
+      remoteSync.lastError = String(err && err.message ? err.message : err);
+    })
+    .finally(function () {
+      remoteSync.pushing = false;
+      if (pendingPush) { pendingPush = false; pushRemoteNow(); }
+      updateRemoteStatus();
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    remoteSync.status = 'connected';
-    remoteSync.connected = true;
-    remoteSync.lastError = null;
-  } catch (err) {
-    remoteSync.status = 'error';
-    remoteSync.lastError = err;
-  } finally {
-    remoteSync.pushing = false;
-    if (remoteSync.pendingPush){
-      remoteSync.pendingPush = false;
-      scheduleRemotePush();
-    }
-    updateRemoteStatus();
-  }
 }
 
 function syncLocalTimersWithState(){
