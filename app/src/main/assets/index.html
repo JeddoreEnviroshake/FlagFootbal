@@ -322,9 +322,9 @@
           <div class="left">
             <div class="muted">Game Clock</div>
             <div class="banner" id="timeoutBanner" style="display:none;">Timeout — <span id="timeoutTeam"></span> <span id="timeoutTime">1:00</span></div>
-            <div class="banner" id="halftimeBanner" style="display:none;">Halftime — <span id="halftimeTime">2:00</span></div>
+            <div class="banner" id="halftimeBanner" style="display:none;">Halftime — <span id="halftimeTime">5:00</span></div>
           </div>
-          <div class="time" id="gameTime" title="Tap to edit when paused">15:00</div>
+          <div class="time" id="gameTime" title="Tap to edit when paused">25:00</div>
           <div class="clock-controls">
             <button class="btn" id="clockStartPause" data-role="ref-only">Start</button>
             <button class="btn" id="timeoutHome" data-role="ref-only">Timeout (Home)</button>
@@ -389,7 +389,7 @@ function serializeState(s){
       timeouts: Math.max(0, t.timeouts|0)
     })),
     game: {
-      seconds: Math.max(0, game.seconds|0) || 15*60,
+      seconds: Math.max(0, game.seconds|0) || 25*60,
       running: !!game.running,
       timeoutSecondsRemaining: Math.max(0, game.timeoutSecondsRemaining|0),
       timeoutTeam: game.timeoutTeam == null ? null : game.timeoutTeam,
@@ -442,7 +442,7 @@ const defaultState = () => ({
     { name: 'Home', score: 0, downs: 1, girlPlay: 2, rushes: 2, timeouts: 3 }, // start at 2 plays until girl
     { name: 'Away', score: 0, downs: 1, girlPlay: 2, rushes: 2, timeouts: 3 }
   ],
-  game: { seconds: 15*60, running: false, timeoutSecondsRemaining: 0, timeoutTeam: null, halftimeSecondsRemaining: 0 }
+  game: { seconds: 25*60, running: false, timeoutSecondsRemaining: 0, timeoutTeam: null, halftimeSecondsRemaining: 0 }
 });
 
 const VALUE_RULES = {
@@ -491,7 +491,7 @@ function inflate(obj){
       : 0;
     base.activeTeam = normalizedActiveTeam;
     const g = obj.game != null ? obj.game : (obj.g != null ? obj.g : {});
-    const secondsSource = g.seconds != null ? g.seconds : (g.s != null ? g.s : 15*60);
+    const secondsSource = g.seconds != null ? g.seconds : (g.s != null ? g.s : 25*60);
     base.game.seconds = Math.max(0, secondsSource);
     base.game.running = !!g.running;
     const timeoutSeconds = g.timeoutSecondsRemaining != null ? g.timeoutSecondsRemaining : (g.tr != null ? g.tr : 0);
@@ -532,7 +532,7 @@ function saveViewMode(mode){
 
 let state = loadMigrated() || defaultState();
 let timeoutTimer = null; // 1:00 timeout
-let halftimeTimer = null; // 2:00 halftime
+let halftimeTimer = null; // 5:00 halftime
 let clockTimer = null;    // game clock
 let activeValueEditor = null;
 let viewMode = loadViewMode();
@@ -1271,7 +1271,7 @@ function startTimeout(teamIdx){
       s.game.running = false;
       s.game.halftimeSecondsRemaining = 0;
       s.game.timeoutTeam = teamIdx;
-      s.game.timeoutSecondsRemaining = 60;
+      s.game.timeoutSecondsRemaining = 30;
       return s;
     });
     if (timeoutTimer) clearInterval(timeoutTimer);
@@ -1298,7 +1298,7 @@ if (res && res.snapshot && typeof res.snapshot.val === 'function') {
   if (timeoutTimer || state.game.timeoutSecondsRemaining>0) return;
   const t = state.teams[teamIdx]; if (t.timeouts<=0) return;
   t.timeouts--; pauseClock(); clearHalftimeMode();
-  state.game.timeoutSecondsRemaining = 60; state.game.timeoutTeam = teamIdx;
+  state.game.timeoutSecondsRemaining = 30; state.game.timeoutTeam = teamIdx;
   timeoutTimer = setInterval(()=>{
     if (state.game.timeoutSecondsRemaining>0){
       state.game.timeoutSecondsRemaining--;
@@ -1314,13 +1314,13 @@ if (res && res.snapshot && typeof res.snapshot.val === 'function') {
 function startHalftime(){
   if (viewMode !== 'ref') return;
   if (isOnlineWriter()){
-    // reset team counters, set halftime 120s
+    // reset team counters, set halftime 300s
     txnState(s => {
       s.game.running = false;
       s.game.timeoutSecondsRemaining = 0;
       s.game.timeoutTeam = null;
-      s.game.seconds = 15*60;
-      s.game.halftimeSecondsRemaining = 120;
+      s.game.seconds = 25*60;
+      s.game.halftimeSecondsRemaining = 300;
       s.teams.forEach(t=>{ t.downs=1; t.girlPlay=2; t.rushes=2; t.timeouts=3; });
       return s;
     });
@@ -1345,8 +1345,8 @@ if (res && res.snapshot && typeof res.snapshot.val === 'function') {
   // local fallback
   pauseClock(); clearTimeoutMode();
   state.teams.forEach(t=>{ t.downs=1; t.girlPlay=2; t.rushes=2; t.timeouts=3; });
-  state.game.seconds = 15*60;
-  state.game.halftimeSecondsRemaining = 120;
+  state.game.seconds = 25*60;
+  state.game.halftimeSecondsRemaining = 300;
   if (halftimeTimer) clearInterval(halftimeTimer);
   halftimeTimer = setInterval(()=>{
     if (state.game.halftimeSecondsRemaining>0){
