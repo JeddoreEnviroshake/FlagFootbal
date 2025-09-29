@@ -245,9 +245,43 @@
     .teams-stat-row span:last-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:18px; }
     .teams-placeholder { font-size:13px; color:#94a3b8; font-style:italic; }
 
+    /* Team picker popover */
+    .team-popover-backdrop {
+      position: fixed; inset: 0; background: transparent; z-index: 1000;
+    }
+    .team-popover {
+      position: fixed; z-index: 1001;
+      background: #0b1220;
+      border: 1px solid rgba(148,163,184,.35);
+      border-radius: 10px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.35);
+      min-width: 180px; max-width: 80vw; max-height: 50vh; overflow: auto;
+    }
+    .team-popover button {
+      width: 100%; text-align: left;
+      background: transparent; color: #e2e8f0;
+      border: 0; padding: 10px 12px; font-weight: 800; cursor: pointer;
+    }
+    .team-popover button:hover, .team-popover button:focus {
+      background: rgba(16,185,129,.16); outline: none;
+    }
+
+
     button:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .muted { color: var(--muted); font-size:12px; }
+
+    .team-select {
+    font-weight: 900;
+    font-size: 16px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 2px solid var(--line);
+    background: #ffffff;
+    color: var(--ink);
+  }
+
 
     @media (max-width: 860px) {
       .layout { flex-direction:column; }
@@ -740,14 +774,24 @@ function renderTeams(){
   state.teams.forEach((t, idx) => {
     const sec = document.createElement('section'); sec.className = 'team' + (state.activeTeam===idx?' active':'');
     if (editingEnabled){
-      sec.addEventListener('click', ()=>{ state.activeTeam = idx; renderAndPersist(); });
-    }
+  sec.addEventListener('click', (e)=>{
+    // 🛡️ If a team dropdown is open, ignore card clicks
+    if (document.querySelector('.team-select')) return;
+    state.activeTeam = idx;
+    renderAndPersist();
+  });
+}
+
 
     const header = document.createElement('header');
     const nameSpan = document.createElement('span'); nameSpan.className = 'name'; nameSpan.textContent = t.name;
-    if (editingEnabled){
-      nameSpan.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditName(idx, nameSpan); });
-    }
+if (editingEnabled){
+  nameSpan.addEventListener('click', (ev)=>{
+    ev.stopPropagation();
+    openTeamPopover(idx, nameSpan);
+  });
+}
+
     header.appendChild(nameSpan);
 
     const stats = document.createElement('div'); stats.className = 'stats';
@@ -1337,6 +1381,263 @@ const wantsWriter = (_el && typeof _el.checked !== 'undefined') ? _el.checked : 
   remoteSync.source = { off: () => gameRef.off('value', handler) };
 
   updateRemoteStatus();
+}
+
+// --- Game Dashboard team picker (choose from /teams or type custom) ---
+async function setTeamName(slotIdx, newName){
+  if (!newName) return;
+  state.teams[slotIdx].name = newName;
+  if (isOnlineWriter()){
+    try {
+      await txnField(`teams/${slotIdx}/name`, () => newName);
+    } catch (e) {
+      console.warn('[team name sync] failed; using local only', e);
+    }
+  }
+  renderAndPersist();
+}
+
+async function chooseTeamForSlot(slotIdx){
+  try {
+    let options = [];
+    // Pull names from /teams if Firebase is available
+    if (db) {
+      const snap = await db.ref('teams').get();
+      const val = snap.val() || {};
+      options = Object.values(val)
+        .map(t => (t && t.name ? String(t.name).trim() : ''))
+        .filter(Boolean);
+    }
+    // Deduplicate + sort for a clean list
+    options = Array.from(new Set(options)).sort((a,b)=>a.localeCompare(b));
+
+    if (!options.length) {
+      // No Firebase or no teams yet — just let them type a name
+      const manual = prompt('Enter team name:', state.teams[slotIdx].name || '');
+      if (manual) await setTeamName(slotIdx, manual.trim());
+      return;
+    }
+
+    const numbered = options.map((n,i)=> `${i+1}) ${n}`).join('\n');
+    const label = slotIdx === 0 ? 'Home' : 'Away';
+    const ans = prompt(
+      `Select a team for ${label}:\n${numbered}\n\nTip: type a number OR type a custom name.`,
+      ''
+    );
+    if (!ans) return;
+
+    const num = parseInt(ans, 10);
+    const chosen = (Number.isFinite(num) && num >= 1 && num <= options.length)
+      ? options[num - 1]
+      : ans;
+
+    await setTeamName(slotIdx, chosen.trim());
+  } catch (e) {
+    console.warn('[chooseTeamForSlot] error; falling back to manual', e);
+    const manual = prompt('Enter team name:', state.teams[slotIdx].name || '');
+    if (manual) await setTeamName(slotIdx, manual.trim());
+  }
+}
+
+// === Team dropdown picker for Game Dashboard ===
+async function fetchTeamOptions() {
+  // Pull names from /teams in Firebase; fall back to [] if unavailable
+  if (!db) return [];
+  const snap = await db.ref('teams').get();
+  const val = snap.val() || {};
+  const names = Object.values(val)
+    .map(t => (t && t.name ? String(t.name).trim() : ''))
+    .filter(Boolean);
+  // Dedup + sort
+  return Array.from(new Set(names)).sort((a,b)=>a.localeCompare(b));
+}
+
+async function openTeamDropdown(slotIdx, anchorEl) {
+  const options = await fetchTeamOptions();
+  if (!options.length) {
+    alert('No teams found. Add teams on the Teams page first.');
+    return;
+  }
+
+  const select = document.createElement('select');
+  select.className = 'team-select';
+
+  options.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+
+  const current = (state.teams[slotIdx] && state.teams[slotIdx].name) || '';
+  if (current) {
+    const i = options.indexOf(current);
+    if (i >= 0) select.selectedIndex = i;
+  }
+
+  // Replace the span with the select
+  anchorEl.replaceWith(select);
+
+  // 🚫 Stop team-card click from firing while dropdown is open
+  const stop = (e) => e.stopPropagation();
+  select.addEventListener('mousedown', stop, true);
+  select.addEventListener('click', stop, true);
+  select.addEventListener('touchstart', stop, true);
+
+  // Helpers to put the span back
+  const restoreSpan = () => {
+    const span = document.createElement('span');
+    span.className = 'name';
+    span.textContent = (state.teams[slotIdx] && state.teams[slotIdx].name) || current || (slotIdx === 0 ? 'Home' : 'Away');
+    span.addEventListener('click', (ev) => { ev.stopPropagation(); openTeamDropdown(slotIdx, span); });
+    select.replaceWith(span);
+    document.removeEventListener('mousedown', outsideClickOnce, true);
+    document.removeEventListener('touchstart', outsideClickOnce, true);
+  };
+
+  const commit = async () => {
+    const chosen = select.value;
+    if (chosen && chosen !== current) {
+      state.teams[slotIdx].name = chosen;
+      if (isOnlineWriter()) {
+        try { await txnField(`teams/${slotIdx}/name`, () => chosen); } catch {}
+      }
+      renderAndPersist();
+    }
+    restoreSpan();
+  };
+
+  const cancel = () => restoreSpan();
+
+  // ✅ Commit only on actual change or Enter; Escape cancels
+  select.addEventListener('change', commit);
+  select.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+
+  // Click/tap outside cancels (does NOT auto-select)
+  const outsideClickOnce = (e) => {
+    if (!select.contains(e.target)) cancel();
+  };
+  document.addEventListener('mousedown', outsideClickOnce, true);
+  document.addEventListener('touchstart', outsideClickOnce, true);
+
+  // Focus after it’s in the DOM and try to auto-open the native picker
+  setTimeout(() => {
+    try { select.focus({ preventScroll: true }); } catch {}
+    // Try multiple ways to trigger the dropdown
+    try { select.click(); } catch {}
+    try { select.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); } catch {}
+    try { select.dispatchEvent(new MouseEvent('mouseup',   { bubbles: true, cancelable: true })); } catch {}
+    try { select.dispatchEvent(new MouseEvent('click',     { bubbles: true, cancelable: true })); } catch {}
+    try { select.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); } catch {}
+  }, 0);
+}
+
+
+// === Popover team picker (no <select>, zero layout shift) ===
+async function fetchTeamOptions() {
+  if (!db) return [];
+  const snap = await db.ref('teams').get();
+  const val = snap.val() || {};
+  const names = Object.values(val).map(t => (t && t.name ? String(t.name).trim() : '')).filter(Boolean);
+  return Array.from(new Set(names)).sort((a,b)=>a.localeCompare(b));
+}
+
+function openTeamPopover(slotIdx, anchorEl) {
+  // Prevent card click from swapping active team while picker is open
+  const hasExisting = document.querySelector('.team-popover, .team-popover-backdrop');
+  if (hasExisting) { /* one at a time */ return; }
+
+  // Backdrop to catch outside clicks
+  const backdrop = document.createElement('div');
+  backdrop.className = 'team-popover-backdrop';
+  backdrop.addEventListener('mousedown', (e)=> e.stopPropagation());
+  backdrop.addEventListener('click', close);
+
+  // Popover shell
+  const pop = document.createElement('div');
+  pop.className = 'team-popover';
+  pop.setAttribute('role', 'listbox');
+  pop.addEventListener('mousedown', (e)=> e.stopPropagation());
+  pop.addEventListener('click', (e)=> e.stopPropagation());
+
+  // Position near the anchor (name span)
+  const r = anchorEl.getBoundingClientRect();
+  const gap = 6;
+  const px = Math.min(r.left, window.innerWidth - 220); // keep on screen
+  let py = r.bottom + gap;
+  const belowSpace = window.innerHeight - r.bottom;
+  if (belowSpace < 180) py = Math.max(12, r.top - gap - 220); // place above if not enough space
+
+  pop.style.left = `${px}px`;
+  pop.style.top  = `${py}px`;
+
+  // Fill with options (async)
+  pop.textContent = 'Loading…';
+  document.body.appendChild(backdrop);
+  document.body.appendChild(pop);
+
+  (async () => {
+    try {
+      const options = await fetchTeamOptions();
+      const current = (state.teams[slotIdx] && state.teams[slotIdx].name) || '';
+      if (!options.length) {
+        pop.innerHTML = '<div style="padding:10px 12px;color:#94a3b8;font-weight:700;">No teams found. Add teams on the Teams page.</div>';
+        return;
+      }
+      pop.innerHTML = '';
+      options.forEach(name => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('role', 'option');
+        btn.textContent = name;
+        if (name === current) btn.style.opacity = .8;
+        btn.addEventListener('click', async () => {
+          if (name !== current) {
+            state.teams[slotIdx].name = name;
+            if (isOnlineWriter()) {
+              try { await txnField(`teams/${slotIdx}/name`, () => name); } catch {}
+            }
+            renderAndPersist();
+          }
+          close();
+        });
+        pop.appendChild(btn);
+      });
+
+      // Keyboard support: ArrowUp/Down, Enter, Escape
+      let focusIdx = Math.max(0, options.indexOf(current));
+      const setFocus = (i) => {
+        focusIdx = Math.max(0, Math.min(options.length - 1, i));
+        const btns = pop.querySelectorAll('button');
+        btns[focusIdx]?.focus();
+      };
+      pop.addEventListener('keydown', (e) => {
+        const btns = pop.querySelectorAll('button');
+        if (e.key === 'Escape') { e.preventDefault(); close(); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); setFocus(focusIdx + 1); }
+        if (e.key === 'ArrowUp') { e.preventDefault(); setFocus(focusIdx - 1); }
+        if (e.key === 'Enter') { e.preventDefault(); btns[focusIdx]?.click(); }
+      });
+      // initial focus
+      setTimeout(() => { setFocus(focusIdx); }, 0);
+    } catch (e) {
+      pop.innerHTML = '<div style="padding:10px 12px;color:#fca5a5;font-weight:800;">Error loading teams.</div>';
+      console.warn('[team popover]', e);
+    }
+  })();
+
+  // Close helper
+  function close() {
+    try { backdrop.remove(); } catch {}
+    try { pop.remove(); } catch {}
+  }
+
+  // Also close on window resize/scroll to avoid misplacement
+  window.addEventListener('resize', close, { once: true });
+  window.addEventListener('scroll', close, { once: true }, true);
 }
 
 
