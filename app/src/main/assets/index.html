@@ -568,6 +568,20 @@ function render(){
   const isRef = viewMode === 'ref';
   $$('button[data-role="ref-only"]').forEach(btn => { btn.disabled = !isRef; });
 
+  // 🔹 Update Timeout button labels to current team names
+  const homeName = state.teams[0]?.name || 'Home';
+  const awayName = state.teams[1]?.name || 'Away';
+  const btnHomeTO = $('#timeoutHome');
+  const btnAwayTO = $('#timeoutAway');
+  if (btnHomeTO) {
+    btnHomeTO.textContent = `Timeout (${homeName})`;
+    btnHomeTO.setAttribute('aria-label', `Timeout for ${homeName}`);
+  }
+  if (btnAwayTO) {
+    btnAwayTO.textContent = `Timeout (${awayName})`;
+    btnAwayTO.setAttribute('aria-label', `Timeout for ${awayName}`);
+  }
+
   // Clock & banners
   $('#gameTime').textContent = fmt(state.game.seconds);
   if (state.game.timeoutSecondsRemaining>0){
@@ -1555,5 +1569,22 @@ if (remoteConfigured()) connectRemote();
   } catch (e) { console.warn('Self tests error:', e); console.groupEnd(); }
 })();
 </script>
+
+<script>
+  // Volume → actions (safe no-ops if not in Ref view)
+  window.triggerGuyPlay = function(){
+  try {
+    if (document.body?.dataset?.view !== 'ref') return;
+    document.getElementById('g_guyPlay')?.click();
+  } catch(e){ console.warn('triggerGuyPlay error', e); }
+};
+window.triggerGirlPlay = function(){
+  try {
+    if (document.body?.dataset?.view !== 'ref') return;
+    document.getElementById('g_girlPlay')?.click();
+  } catch(e){ console.warn('triggerGirlPlay error', e); }
+};
+</script>
+
 </body>
 </html>
