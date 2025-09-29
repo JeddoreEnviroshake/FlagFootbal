@@ -165,6 +165,8 @@
     body.menu-open { overflow: hidden; }
 
     .app { max-width: 1040px; margin: 0 auto; padding: 16px 12px 32px; display:flex; flex-direction:column; gap:16px; min-height:100vh; }
+    .page { display: none; }
+    .page.active { display: flex; flex-direction: column; gap: 16px; }
     h1 { font-size: 20px; margin: 10px 0 6px; font-weight: 800; text-align:center; }
 
     .layout { display:flex; align-items:flex-start; gap:16px; }
@@ -219,6 +221,30 @@
     .btn.primary { background: var(--accent); border-color: var(--accent); color:white; }
     .btn.warn { background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }
 
+    /* Teams directory page */
+    .teams-page { display: flex; flex-direction: column; gap: 18px; }
+    .teams-page .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .teams-panel { background: rgba(15, 23, 42, 0.7); border:1px solid rgba(148,163,184,0.3); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+    .teams-panel header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .teams-panel header h3 { margin:0; font-size:16px; font-weight:800; color:#e2e8f0; }
+    .teams-panel header span { font-size:13px; color:#94a3b8; font-weight:600; }
+    .teams-panel .list { display:flex; flex-direction:column; gap:8px; }
+    .teams-panel .list button { border-radius:10px; border:1px solid rgba(148,163,184,0.3); background:rgba(15,23,42,0.55); color:#e2e8f0; padding:10px 12px; text-align:left; font-weight:700; cursor:pointer; }
+    .teams-panel .list button.active { border-color: var(--accent); background: rgba(16,185,129,0.16); color:#d1fae5; }
+    .teams-panel .list button:disabled { opacity:0.55; cursor:not-allowed; }
+    .teams-panel .empty { font-size:13px; color:#94a3b8; font-style:italic; }
+    .teams-panel footer { font-size:12px; color:#94a3b8; }
+    .teams-status { font-size:13px; color:#94a3b8; text-align:center; }
+    .teams-status.error { color: var(--danger); }
+    .teams-actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .teams-actions .btn-inline { border-radius:10px; border:1px solid rgba(148,163,184,0.35); background:rgba(15,23,42,0.65); color:#e2e8f0; font-weight:700; padding:8px 12px; cursor:pointer; }
+    .teams-actions .btn-inline.primary { background: var(--accent); border-color: var(--accent); color:white; }
+    .teams-actions .btn-inline:disabled { opacity:0.5; cursor:not-allowed; }
+    .teams-stats { display:flex; flex-direction:column; gap:10px; }
+    .teams-stat-row { display:flex; align-items:center; justify-content:space-between; background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px 12px; font-weight:700; }
+    .teams-stat-row span:last-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:18px; }
+    .teams-placeholder { font-size:13px; color:#94a3b8; font-style:italic; }
+
     button:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .muted { color: var(--muted); font-size:12px; }
@@ -228,6 +254,8 @@
       .controls-card { position:static; width:100%; }
       .controls { flex-direction:column; max-height:none; overflow:visible; }
       .teams { grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); }
+      .page.active { gap: 12px; }
+      .teams-page .columns { grid-template-columns:1fr; }
     }
   </style>
 
@@ -292,6 +320,12 @@
     </div>
 
     <div class="drawer-section">
+      <h2>Pages</h2>
+      <button class="drawer-item active" data-page="game" type="button">Game dashboard</button>
+      <button class="drawer-item" data-page="teams" type="button">Teams</button>
+    </div>
+
+    <div class="drawer-section">
       <h2>Live sync</h2>
       <form id="syncForm">
         <label for="syncGame">Game code</label>
@@ -313,14 +347,15 @@
   <div class="drawer-backdrop" id="menuBackdrop" tabindex="-1" aria-hidden="true"></div>
 
   <div class="app">
-    <h1>Flag Football Game Tracker</h1>
+    <section class="page active" data-page="game">
+      <h1>Flag Football Game Tracker</h1>
 
-    <div class="layout">
-      <div class="primary">
-        <!-- Game Clock -->
-        <div class="clock">
-          <div class="left">
-            <div class="muted">Game Clock</div>
+      <div class="layout">
+        <div class="primary">
+          <!-- Game Clock -->
+          <div class="clock">
+            <div class="left">
+              <div class="muted">Game Clock</div>
             <div class="banner" id="timeoutBanner" style="display:none;">Timeout — <span id="timeoutTeam"></span> <span id="timeoutTime">1:00</span></div>
             <div class="banner" id="halftimeBanner" style="display:none;">Halftime — <span id="halftimeTime">5:00</span></div>
           </div>
@@ -361,6 +396,43 @@
         </div>
       </aside>
     </div>
+    </section>
+
+    <section class="page" data-page="teams" id="teamsPage">
+      <h1>Teams</h1>
+      <div class="teams-page">
+        <div class="teams-status" id="teamsPageStatus" role="status">Loading teams…</div>
+        <div class="columns">
+          <section class="teams-panel" aria-labelledby="teamsListHeading">
+            <header>
+              <h3 id="teamsListHeading">Teams</h3>
+              <div class="teams-actions">
+                <button class="btn-inline primary" type="button" id="teamsAddTeam">Add Team</button>
+              </div>
+            </header>
+            <div class="list" id="teamsDirectoryList" role="listbox" aria-label="Teams"></div>
+            <footer>Select a team to see its players.</footer>
+          </section>
+          <section class="teams-panel" aria-labelledby="playersListHeading">
+            <header>
+              <h3 id="playersListHeading">Players</h3>
+              <div class="teams-actions">
+                <button class="btn-inline" type="button" id="teamsAddPlayer">Add Player</button>
+              </div>
+            </header>
+            <div class="list" id="teamsPlayerList" role="listbox" aria-label="Players"></div>
+            <footer>Choose a player to view stats.</footer>
+          </section>
+          <section class="teams-panel" aria-labelledby="playerStatsHeading">
+            <header>
+              <h3 id="playerStatsHeading">Player stats</h3>
+              <span id="teamsSelectedPlayer"></span>
+            </header>
+            <div class="teams-stats" id="teamsStatsList"></div>
+          </section>
+        </div>
+      </div>
+    </section>
   </div>
 
 <script>
@@ -536,6 +608,39 @@ let halftimeTimer = null; // 5:00 halftime
 let clockTimer = null;    // game clock
 let activeValueEditor = null;
 let viewMode = loadViewMode();
+let currentPage = 'game';
+
+const teamsDirectory = {
+  loading: false,
+  error: null,
+  data: {},
+  orderedTeamIds: [],
+  activeTeamId: null,
+  orderedPlayerIds: [],
+  activePlayerId: null,
+  unsubscribe: null
+};
+
+const TEAM_STAT_FIELDS = [
+  { label: 'Passing TD', keys: ['passingTd', 'passingTD', 'passing_td', 'passingTouchdown', 'passingTouchdowns'] },
+  { label: 'Receiving TD', keys: ['receivingTd', 'receivingTD', 'receiving_td', 'receivingTouchdown', 'receivingTouchdowns'] },
+  { label: 'Rushing TD', keys: ['rushingTd', 'rushingTD', 'rushing_td', 'rushingTouchdown', 'rushingTouchdowns'] },
+  { label: 'Interception', keys: ['interception', 'interceptions'] },
+  { label: 'Flag Pull', keys: ['flagPull', 'flag_pull', 'flagpulls', 'flagPulls'] }
+];
+
+TEAM_STAT_FIELDS.forEach(field => {
+  const keys = Array.isArray(field.keys) ? field.keys : [field.keys];
+  const variants = new Set();
+  keys.forEach(key => {
+    if (!key) return;
+    variants.add(key);
+    variants.add(String(key).toLowerCase());
+    variants.add(String(key).replace(/([A-Z])/g, '_$1').toLowerCase());
+    variants.add(String(key).replace(/_/g, '').toLowerCase());
+  });
+  field.resolvedKeys = Array.from(variants);
+});
 
 const remoteSync = {
   config: loadRemoteConfig(),
@@ -564,7 +669,7 @@ function render(){
   document.body.dataset.view = viewMode;
   const indicator = $('#viewIndicator');
   if (indicator) indicator.textContent = viewMode === 'ref' ? 'Ref View' : 'Player View';
-  $$('#menuDrawer .drawer-item').forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewMode));
+  $$('#menuDrawer .drawer-item[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewMode));
   const isRef = viewMode === 'ref';
   $$('button[data-role="ref-only"]').forEach(btn => { btn.disabled = !isRef; });
 
@@ -606,6 +711,7 @@ function render(){
     activeTeamLabel.textContent = activeTeam.name;
   }
   renderTeams();
+  renderPage();
 }
 
 function renderTeams(){
@@ -668,6 +774,312 @@ function renderTeams(){
       beginEditValue(valEl, restoreEdit.kind, restoreEdit.team, { skipCancelExisting: true, restore: restoreEdit });
     }
   }
+}
+
+function entityName(entity, fallback = ''){
+  if (!entity || typeof entity !== 'object') return fallback;
+  const raw = entity.name;
+  if (raw == null) return fallback;
+  const str = String(raw).trim();
+  return str || fallback;
+}
+
+function sortKeysByName(map){
+  if (!map) return [];
+  return Object.keys(map).sort((a, b) => {
+    const nameA = entityName(map[a], `zzzz${a}`).toLowerCase();
+    const nameB = entityName(map[b], `zzzz${b}`).toLowerCase();
+    if (nameA === nameB) return a.localeCompare(b);
+    return nameA.localeCompare(nameB);
+  });
+}
+
+function valueFromField(player, field){
+  if (!player || typeof player !== 'object') return 0;
+  const sources = [];
+  if (player.stats && typeof player.stats === 'object') sources.push(player.stats);
+  sources.push(player);
+  for (const source of sources){
+    if (!source || typeof source !== 'object') continue;
+    const keys = field.resolvedKeys || [];
+    for (const key of keys){
+      if (Object.prototype.hasOwnProperty.call(source, key)){
+        const raw = source[key];
+        if (raw == null || raw === '') continue;
+        const num = Number(raw);
+        if (Number.isFinite(num)) return num;
+        if (typeof raw === 'string'){
+          const trimmed = raw.trim();
+          if (!trimmed) continue;
+          const parsed = Number(trimmed);
+          if (Number.isFinite(parsed)) return parsed;
+          return trimmed;
+        }
+        return raw;
+      }
+    }
+  }
+  return 0;
+}
+
+function renderPage(){
+  document.body.dataset.page = currentPage;
+  $$('.page').forEach(sec => {
+    const isActive = sec.dataset.page === currentPage;
+    sec.classList.toggle('active', isActive);
+    sec.hidden = !isActive;
+  });
+  $$('#menuDrawer .drawer-item[data-page]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.page === currentPage);
+  });
+  if (currentPage === 'teams') {
+    ensureTeamsListener();
+    renderTeamsDirectory();
+  }
+}
+
+function ensureTeamsListener(){
+  if (!db) {
+    teamsDirectory.loading = false;
+    teamsDirectory.error = null;
+    teamsDirectory.data = {};
+    teamsDirectory.orderedTeamIds = [];
+    teamsDirectory.orderedPlayerIds = [];
+    renderTeamsDirectory();
+    return;
+  }
+  if (teamsDirectory.unsubscribe) return;
+  teamsDirectory.loading = true;
+  teamsDirectory.error = null;
+  renderTeamsDirectory();
+  const ref = db.ref('teams');
+  const handler = snap => {
+    teamsDirectory.loading = false;
+    teamsDirectory.error = null;
+    const raw = snap.val() || {};
+    teamsDirectory.data = raw;
+    teamsDirectory.orderedTeamIds = sortKeysByName(raw);
+    if (!teamsDirectory.orderedTeamIds.includes(teamsDirectory.activeTeamId)) {
+      teamsDirectory.activeTeamId = teamsDirectory.orderedTeamIds[0] || null;
+    }
+    const activeTeam = teamsDirectory.activeTeamId ? raw[teamsDirectory.activeTeamId] : null;
+    const players = activeTeam && activeTeam.players ? activeTeam.players : {};
+    teamsDirectory.orderedPlayerIds = sortKeysByName(players);
+    if (!teamsDirectory.orderedPlayerIds.includes(teamsDirectory.activePlayerId)) {
+      teamsDirectory.activePlayerId = teamsDirectory.orderedPlayerIds[0] || null;
+    }
+    renderTeamsDirectory();
+  };
+  const errHandler = err => {
+    teamsDirectory.loading = false;
+    teamsDirectory.error = err && err.message ? err.message : String(err);
+    renderTeamsDirectory();
+  };
+  ref.on('value', handler, errHandler);
+  teamsDirectory.unsubscribe = () => ref.off('value', handler);
+}
+
+function selectTeam(teamId){
+  if (!teamId || !teamsDirectory.data || !teamsDirectory.data[teamId]) return;
+  teamsDirectory.activeTeamId = teamId;
+  const team = teamsDirectory.data[teamId] || {};
+  const players = team.players || {};
+  teamsDirectory.orderedPlayerIds = sortKeysByName(players);
+  teamsDirectory.activePlayerId = teamsDirectory.orderedPlayerIds[0] || null;
+  renderTeamsDirectory();
+}
+
+function selectPlayer(playerId){
+  teamsDirectory.activePlayerId = playerId || null;
+  renderTeamsDirectory();
+}
+
+function renderTeamsDirectory(){
+  const statusEl = $('#teamsPageStatus');
+  const teamListEl = $('#teamsDirectoryList');
+  const playerListEl = $('#teamsPlayerList');
+  const statsEl = $('#teamsStatsList');
+  const playerTitleEl = $('#teamsSelectedPlayer');
+  const addTeamBtn = $('#teamsAddTeam');
+  const addPlayerBtn = $('#teamsAddPlayer');
+
+  if (!statusEl || !teamListEl || !playerListEl || !statsEl) return;
+  if (addTeamBtn) addTeamBtn.disabled = !db;
+  if (addPlayerBtn) addPlayerBtn.disabled = !db || !teamsDirectory.activeTeamId;
+  if (currentPage !== 'teams') return;
+
+  const firebaseReady = !!db;
+  if (!firebaseReady) {
+    statusEl.textContent = 'Connect to Firebase to manage teams.';
+    statusEl.classList.remove('error');
+    teamListEl.innerHTML = '';
+    playerListEl.innerHTML = '';
+    statsEl.innerHTML = '';
+    const teamsEmpty = document.createElement('div');
+    teamsEmpty.className = 'empty';
+    teamsEmpty.textContent = 'Firebase connection unavailable.';
+    teamListEl.appendChild(teamsEmpty);
+    const playersEmpty = document.createElement('div');
+    playersEmpty.className = 'empty';
+    playersEmpty.textContent = 'Connect to select players.';
+    playerListEl.appendChild(playersEmpty);
+    const statsEmpty = document.createElement('p');
+    statsEmpty.className = 'teams-placeholder';
+    statsEmpty.textContent = 'Firebase connection unavailable.';
+    statsEl.appendChild(statsEmpty);
+    if (playerTitleEl) playerTitleEl.textContent = '';
+    return;
+  }
+
+  if (teamsDirectory.error) {
+    statusEl.textContent = `Error loading teams: ${teamsDirectory.error}`;
+    statusEl.classList.add('error');
+  } else if (teamsDirectory.loading) {
+    statusEl.textContent = 'Loading teams…';
+    statusEl.classList.remove('error');
+  } else if (!teamsDirectory.orderedTeamIds.length) {
+    statusEl.textContent = 'No teams yet. Add your first team to get started.';
+    statusEl.classList.remove('error');
+  } else {
+    statusEl.textContent = '';
+    statusEl.classList.remove('error');
+  }
+
+  const teams = teamsDirectory.data || {};
+  teamListEl.innerHTML = '';
+  if (!teamsDirectory.orderedTeamIds.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No teams found.';
+    teamListEl.appendChild(empty);
+  } else {
+    teamsDirectory.orderedTeamIds.forEach(id => {
+      const team = teams[id] || {};
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('role', 'option');
+      btn.dataset.teamId = id;
+      btn.textContent = entityName(team, 'Unnamed team');
+      if (id === teamsDirectory.activeTeamId) btn.classList.add('active');
+      btn.setAttribute('aria-selected', id === teamsDirectory.activeTeamId ? 'true' : 'false');
+      btn.addEventListener('click', () => selectTeam(id));
+      teamListEl.appendChild(btn);
+    });
+  }
+
+  const activeTeam = teamsDirectory.activeTeamId ? teams[teamsDirectory.activeTeamId] : null;
+  const players = activeTeam && activeTeam.players ? activeTeam.players : {};
+
+  playerListEl.innerHTML = '';
+  if (!teamsDirectory.activeTeamId) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'Pick a team first.';
+    playerListEl.appendChild(empty);
+  } else if (!teamsDirectory.orderedPlayerIds.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No players yet.';
+    playerListEl.appendChild(empty);
+  } else {
+    teamsDirectory.orderedPlayerIds.forEach(id => {
+      const player = players[id] || {};
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('role', 'option');
+      btn.dataset.playerId = id;
+      btn.textContent = entityName(player, 'Unnamed player');
+      if (id === teamsDirectory.activePlayerId) btn.classList.add('active');
+      btn.setAttribute('aria-selected', id === teamsDirectory.activePlayerId ? 'true' : 'false');
+      btn.addEventListener('click', () => selectPlayer(id));
+      playerListEl.appendChild(btn);
+    });
+  }
+
+  const activePlayer = teamsDirectory.activePlayerId ? players[teamsDirectory.activePlayerId] : null;
+  if (playerTitleEl) playerTitleEl.textContent = activePlayer ? entityName(activePlayer, '') : '';
+  statsEl.innerHTML = '';
+  if (!activePlayer) {
+    const empty = document.createElement('p');
+    empty.className = 'teams-placeholder';
+    empty.textContent = teamsDirectory.activeTeamId ? 'Select a player to view stats.' : 'Select a team to get started.';
+    statsEl.appendChild(empty);
+  } else {
+    TEAM_STAT_FIELDS.forEach(field => {
+      const row = document.createElement('div');
+      row.className = 'teams-stat-row';
+      const label = document.createElement('span');
+      label.textContent = field.label;
+      const valueEl = document.createElement('span');
+      const value = valueFromField(activePlayer, field);
+      valueEl.textContent = (value == null || value === '') ? '0' : value;
+      row.appendChild(label);
+      row.appendChild(valueEl);
+      statsEl.appendChild(row);
+    });
+  }
+}
+
+async function handleAddTeam(){
+  if (!db) { alert('Firebase connection required to add a team.'); return; }
+  const name = prompt('Team name');
+  if (!name) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  try {
+    const ref = db.ref('teams').push();
+    await ref.set({ name: trimmed });
+    teamsDirectory.activeTeamId = ref.key;
+    teamsDirectory.activePlayerId = null;
+    if (!teamsDirectory.data) teamsDirectory.data = {};
+    teamsDirectory.data[ref.key] = { name: trimmed };
+    teamsDirectory.orderedTeamIds = sortKeysByName(teamsDirectory.data);
+    teamsDirectory.orderedPlayerIds = [];
+    renderTeamsDirectory();
+  } catch (err) {
+    alert('Unable to add team: ' + (err && err.message ? err.message : err));
+  }
+}
+
+async function handleAddPlayer(){
+  if (!db) { alert('Firebase connection required to add a player.'); return; }
+  const teamId = teamsDirectory.activeTeamId;
+  if (!teamId) { alert('Select a team first.'); return; }
+  const name = prompt('Player name');
+  if (!name) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  try {
+    const ref = db.ref(`teams/${teamId}/players`).push();
+    const stats = {};
+    TEAM_STAT_FIELDS.forEach(field => {
+      const primaryKey = Array.isArray(field.keys) && field.keys.length ? field.keys[0] : (field.resolvedKeys && field.resolvedKeys[0]);
+      if (primaryKey) stats[primaryKey] = 0;
+    });
+    await ref.set({ name: trimmed, stats });
+    teamsDirectory.activePlayerId = ref.key;
+    if (!teamsDirectory.data) teamsDirectory.data = {};
+    let team = teamsDirectory.data[teamId];
+    if (!team) {
+      team = { name: entityName(team, '') };
+      teamsDirectory.data[teamId] = team;
+    }
+    if (!team.players) team.players = {};
+    team.players[ref.key] = { name: trimmed, stats };
+    teamsDirectory.orderedPlayerIds = sortKeysByName(team.players);
+    renderTeamsDirectory();
+  } catch (err) {
+    alert('Unable to add player: ' + (err && err.message ? err.message : err));
+  }
+}
+
+function setPage(page){
+  const next = page === 'teams' ? 'teams' : 'game';
+  if (currentPage !== next) {
+    currentPage = next;
+  }
+  renderPage();
+  closeMenu();
 }
 
 /**********************
@@ -1445,7 +1857,10 @@ if (menuBackdrop) menuBackdrop.addEventListener('click', closeMenu);
 document.addEventListener('keydown', (ev)=>{ if (ev.key === 'Escape') closeMenu(); });
 
 $$('#menuDrawer .drawer-item').forEach(btn => {
-  btn.addEventListener('click', ()=>{ if (btn.dataset.view) setViewMode(btn.dataset.view); });
+  btn.addEventListener('click', () => {
+    if (btn.dataset.view) setViewMode(btn.dataset.view);
+    if (btn.dataset.page) setPage(btn.dataset.page);
+  });
 });
 
 // === SDK form wiring (Game code only) ===
@@ -1505,6 +1920,12 @@ if (disconnectBtn){
     populateSyncForm();
   });
 }
+
+const addTeamBtn = $('#teamsAddTeam');
+if (addTeamBtn) addTeamBtn.addEventListener('click', handleAddTeam);
+
+const addPlayerBtn = $('#teamsAddPlayer');
+if (addPlayerBtn) addPlayerBtn.addEventListener('click', handleAddPlayer);
 
 console.log('About to render()');
 render();
