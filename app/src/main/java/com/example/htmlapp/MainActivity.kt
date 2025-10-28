@@ -31,10 +31,11 @@ import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 private const val ASSET_URL = "https://appassets.androidplatform.net/assets/index.html"
 private const val KEY_WEBVIEW_LOADED = "webview_loaded"
-private const val TAG = "MainActivity"
 
 class MainActivity : AppCompatActivity() {
 
@@ -57,8 +58,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
     private lateinit var signInLauncher: ActivityResultLauncher<Intent>
 
-    private var auth: FirebaseAuth? = null
-    private var authStateListener: FirebaseAuth.AuthStateListener? = null
+    private lateinit var auth: FirebaseAuth
+    private lateinit var authStateListener: FirebaseAuth.AuthStateListener
     private var hasLoadedInitialUrl = false
     private var pendingWebViewState: Bundle? = null
 
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        FirebaseApp.initializeApp(this)
         setContentView(R.layout.activity_main)
 
         progressBar = findViewById(R.id.progressBar)
@@ -99,30 +101,16 @@ class MainActivity : AppCompatActivity() {
             pendingWebViewState = savedInstanceState
         }
 
+        auth = Firebase.auth
+        authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            updateUiForUser(firebaseAuth.currentUser)
+        }
+
         signInButton.setOnClickListener {
-            if (auth == null) {
-                showMissingFirebaseConfigMessage()
-            } else {
-                launchSignIn()
-            }
+            launchSignIn()
         }
 
-        val firebaseApp = try {
-            FirebaseApp.initializeApp(this) ?: FirebaseApp.getApps(this).firstOrNull()
-        } catch (error: IllegalStateException) {
-            Log.w(TAG, "Unable to initialize Firebase", error)
-            null
-        }
-
-        if (firebaseApp == null) {
-            handleMissingFirebaseConfig()
-        } else {
-            auth = FirebaseAuth.getInstance(firebaseApp)
-            authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-                updateUiForUser(firebaseAuth.currentUser)
-            }
-            updateUiForUser(auth?.currentUser)
-        }
+        updateUiForUser(auth.currentUser)
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
     }
@@ -164,19 +152,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        val listener = authStateListener
-        val firebaseAuth = auth
-        if (listener != null && firebaseAuth != null) {
-            firebaseAuth.addAuthStateListener(listener)
-        }
+        auth.addAuthStateListener(authStateListener)
     }
 
     override fun onStop() {
-        val listener = authStateListener
-        val firebaseAuth = auth
-        if (listener != null && firebaseAuth != null) {
-            firebaseAuth.removeAuthStateListener(listener)
-        }
+        auth.removeAuthStateListener(authStateListener)
         super.onStop()
     }
 
@@ -387,29 +367,6 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
     }
 
-    private fun handleMissingFirebaseConfig() {
-        showFirebaseConfigError(showToast = true)
-        signInButton.isEnabled = false
-        progressBar.isVisible = false
-        progressBar.progress = 0
-        webView.isVisible = false
-        backCallback.isEnabled = false
-        pendingWebViewState = null
-    }
-
-    private fun showMissingFirebaseConfigMessage() {
-        showFirebaseConfigError(showToast = true)
-    }
-
-    private fun showFirebaseConfigError(showToast: Boolean) {
-        loginContainer.isVisible = true
-        loginStatus.setText(R.string.firebase_missing_config)
-        loginStatus.isVisible = true
-        if (showToast) {
-            showToast(R.string.firebase_missing_config)
-        }
-    }
-
     private fun updateUiForUser(user: com.google.firebase.auth.FirebaseUser?) {
         if (user == null) {
             showLoginUi()
@@ -453,10 +410,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchSignIn() {
-        if (auth == null) {
-            showMissingFirebaseConfigMessage()
-            return
-        }
         signInButton.isEnabled = false
         loginStatus.isVisible = false
 

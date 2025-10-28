@@ -6,5 +6,4 @@
     <string name="login_subtitle">Use your account to unlock the playbook.</string>
     <string name="login_button">Sign in with Firebase</string>
     <string name="login_failure">Sign-in was cancelled or failed. Please try again.</string>
-    <string name="firebase_missing_config">Firebase configuration file is missing. Add google-services.json to the app module to enable sign-in.</string>
 </resources>
