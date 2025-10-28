@@ -2,4 +2,8 @@
     <string name="app_name">HTML App</string>
     <string name="webview_unable_to_open_link">No application can open this link.</string>
     <string name="webview_no_file_picker">No app available to select files.</string>
+    <string name="login_title">Sign in to continue</string>
+    <string name="login_subtitle">Use your account to unlock the playbook.</string>
+    <string name="login_button">Sign in with Firebase</string>
+    <string name="login_failure">Sign-in was cancelled or failed. Please try again.</string>
 </resources>
