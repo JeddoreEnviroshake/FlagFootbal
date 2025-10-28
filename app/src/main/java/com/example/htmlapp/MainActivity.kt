@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.webkit.CookieManager
@@ -15,7 +16,9 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
 import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
@@ -24,13 +27,22 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.webkit.WebViewAssetLoader
 import com.example.htmlapp.BuildConfig
+import com.firebase.ui.auth.AuthUI
+import com.firebase.ui.auth.IdpResponse
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 
 private const val ASSET_URL = "https://appassets.androidplatform.net/assets/index.html"
+private const val KEY_WEBVIEW_LOADED = "webview_loaded"
+private const val TAG = "MainActivity"
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
+    private lateinit var loginContainer: View
+    private lateinit var signInButton: Button
+    private lateinit var loginStatus: TextView
     private lateinit var backCallback: OnBackPressedCallback
 
     private val assetLoader by lazy {
@@ -43,14 +55,24 @@ class MainActivity : AppCompatActivity() {
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
+    private lateinit var signInLauncher: ActivityResultLauncher<Intent>
+
+    private var auth: FirebaseAuth? = null
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
+    private var hasLoadedInitialUrl = false
+    private var pendingWebViewState: Bundle? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_main)
 
         progressBar = findViewById(R.id.progressBar)
         webView = findViewById(R.id.webView)
+        loginContainer = findViewById(R.id.loginContainer)
+        signInButton = findViewById(R.id.signInButton)
+        loginStatus = findViewById(R.id.loginStatus)
 
         // FIX: create an OnBackPressedCallback object and register it
         backCallback = object : OnBackPressedCallback(false) {
@@ -69,12 +91,37 @@ class MainActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, backCallback)
 
         setupFileChooser()
+        setupSignInLauncher()
         configureWebView()
 
         if (savedInstanceState != null) {
-            webView.restoreState(savedInstanceState)
+            hasLoadedInitialUrl = savedInstanceState.getBoolean(KEY_WEBVIEW_LOADED, false)
+            pendingWebViewState = savedInstanceState
+        }
+
+        signInButton.setOnClickListener {
+            if (auth == null) {
+                showMissingFirebaseConfigMessage()
+            } else {
+                launchSignIn()
+            }
+        }
+
+        val firebaseApp = try {
+            FirebaseApp.initializeApp(this) ?: FirebaseApp.getApps(this).firstOrNull()
+        } catch (error: IllegalStateException) {
+            Log.w(TAG, "Unable to initialize Firebase", error)
+            null
+        }
+
+        if (firebaseApp == null) {
+            handleMissingFirebaseConfig()
         } else {
-            webView.loadUrl(ASSET_URL)
+            auth = FirebaseAuth.getInstance(firebaseApp)
+            authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+                updateUiForUser(firebaseAuth.currentUser)
+            }
+            updateUiForUser(auth?.currentUser)
         }
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
@@ -82,7 +129,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        webView.saveState(outState)
+        if (webView.isVisible) {
+            webView.saveState(outState)
+            outState.putBoolean(KEY_WEBVIEW_LOADED, true)
+        }
     }
 
     override fun onDestroy() {
@@ -97,19 +147,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
-        webView.apply {
-            onPause()
-            pauseTimers()
+        if (webView.isVisible) {
+            webView.onPause()
+            webView.pauseTimers()
         }
         super.onPause()
     }
 
     override fun onResume() {
-        webView.apply {
-            onResume()
-            resumeTimers()
+        if (webView.isVisible) {
+            webView.onResume()
+            webView.resumeTimers()
         }
         super.onResume()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val listener = authStateListener
+        val firebaseAuth = auth
+        if (listener != null && firebaseAuth != null) {
+            firebaseAuth.addAuthStateListener(listener)
+        }
+    }
+
+    override fun onStop() {
+        val listener = authStateListener
+        val firebaseAuth = auth
+        if (listener != null && firebaseAuth != null) {
+            firebaseAuth.removeAuthStateListener(listener)
+        }
+        super.onStop()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
@@ -165,6 +233,23 @@ class MainActivity : AppCompatActivity() {
 
                 callback.onReceiveValue(uris)
                 filePathCallback = null
+            }
+    }
+
+    private fun setupSignInLauncher() {
+        signInLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    loginStatus.isVisible = false
+                    signInButton.isEnabled = true
+                    return@registerForActivityResult
+                }
+
+                val response = IdpResponse.fromResultIntent(result.data)
+                val message = response?.error?.localizedMessage
+                loginStatus.text = message ?: getString(R.string.login_failure)
+                loginStatus.isVisible = true
+                signInButton.isEnabled = true
             }
     }
 
@@ -229,7 +314,7 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 if (::backCallback.isInitialized) {
-                    backCallback.isEnabled = webView.canGoBack()
+                    backCallback.isEnabled = webView.canGoBack() && webView.isVisible
                 }
             }
         }
@@ -300,5 +385,91 @@ class MainActivity : AppCompatActivity() {
 
     private fun showToast(messageRes: Int) {
         Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun handleMissingFirebaseConfig() {
+        showFirebaseConfigError(showToast = true)
+        signInButton.isEnabled = false
+        progressBar.isVisible = false
+        progressBar.progress = 0
+        webView.isVisible = false
+        backCallback.isEnabled = false
+        pendingWebViewState = null
+    }
+
+    private fun showMissingFirebaseConfigMessage() {
+        showFirebaseConfigError(showToast = true)
+    }
+
+    private fun showFirebaseConfigError(showToast: Boolean) {
+        loginContainer.isVisible = true
+        loginStatus.setText(R.string.firebase_missing_config)
+        loginStatus.isVisible = true
+        if (showToast) {
+            showToast(R.string.firebase_missing_config)
+        }
+    }
+
+    private fun updateUiForUser(user: com.google.firebase.auth.FirebaseUser?) {
+        if (user == null) {
+            showLoginUi()
+        } else {
+            showWebContent()
+        }
+    }
+
+    private fun showLoginUi() {
+        loginContainer.isVisible = true
+        signInButton.isEnabled = true
+        progressBar.isVisible = false
+        progressBar.progress = 0
+        webView.isVisible = false
+        backCallback.isEnabled = false
+        pendingWebViewState = null
+        if (hasLoadedInitialUrl) {
+            webView.apply {
+                stopLoading()
+                loadUrl("about:blank")
+                clearHistory()
+            }
+            hasLoadedInitialUrl = false
+        }
+    }
+
+    private fun showWebContent() {
+        loginContainer.isVisible = false
+        webView.isVisible = true
+        progressBar.progress = 0
+
+        val state = pendingWebViewState
+        if (state != null) {
+            webView.restoreState(state)
+            pendingWebViewState = null
+            hasLoadedInitialUrl = true
+        } else if (!hasLoadedInitialUrl) {
+            webView.loadUrl(ASSET_URL)
+            hasLoadedInitialUrl = true
+        }
+    }
+
+    private fun launchSignIn() {
+        if (auth == null) {
+            showMissingFirebaseConfigMessage()
+            return
+        }
+        signInButton.isEnabled = false
+        loginStatus.isVisible = false
+
+        val providers = listOf(
+            AuthUI.IdpConfig.EmailBuilder().build()
+        )
+
+        val intent = AuthUI.getInstance()
+            .createSignInIntentBuilder()
+            .setAvailableProviders(providers)
+            .setIsSmartLockEnabled(false)
+            .build()
+
+        signInLauncher.launch(intent)
     }
 }
