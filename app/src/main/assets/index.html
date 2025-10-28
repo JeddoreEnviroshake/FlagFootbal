@@ -221,6 +221,12 @@
     .btn.primary { background: var(--accent); border-color: var(--accent); color:white; }
     .btn.warn { background:#fee2e2; color:#7f1d1d; border-color:#fecaca; }
 
+    .stats-duo { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+    .stats-duo .team-slot { display: flex; flex-direction: column; gap: 8px; }
+    .stats-duo h4 { margin: 0; font-size: 13px; font-weight: 800; color: #94a3b8; }
+    @media (max-width: 860px) { .stats-duo { grid-template-columns: 1fr; } }
+
+
     /* Teams directory page */
     .teams-page { display: flex; flex-direction: column; gap: 18px; }
     .teams-page .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
@@ -265,6 +271,45 @@
     .team-popover button:hover, .team-popover button:focus {
       background: rgba(16,185,129,.16); outline: none;
     }
+
+/* Stats grid */
+.stats-grid {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(15,23,42,0.55);
+  border: 1px solid rgba(148,163,184,0.35);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.stats-grid th, .stats-grid td {
+  border-bottom: 1px solid rgba(148,163,184,0.25);
+  padding: 10px 12px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+.stats-grid th {
+  background: rgba(15,23,42,0.8);
+  position: sticky; top: 0; z-index: 1;
+  text-transform: uppercase; font-size: 12px; letter-spacing: .06em;
+}
+.stats-grid td:first-child, .stats-grid th:first-child {
+  position: sticky; left: 0; z-index: 2;
+  background: rgba(15,23,42,0.85);
+  white-space: nowrap;
+}
+.stat-cell {
+  width: 100%;
+  text-align: center;
+  border: 1px solid rgba(148,163,184,0.25);
+  background: rgba(15,23,42,0.35);
+  color: #e2e8f0; font-weight: 900;
+  padding: 8px 10px; border-radius: 10px;
+  cursor: pointer;
+}
+.stat-cell:active { transform: scale(0.98); }
+.stats-grid-empty {
+  padding: 10px 12px; color: #94a3b8; font-style: italic;
+}
 
 
     button:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -350,6 +395,7 @@
       <h2>View</h2>
       <button class="drawer-item" data-view="ref" type="button">Ref view</button>
       <button class="drawer-item" data-view="player" type="button">Player view</button>
+      <button class="drawer-item" data-view="stats" type="button">Stats view</button>
       <p class="drawer-note">Refs can update the score, clock, and stats. Players and spectators see a read-only dashboard.</p>
     </div>
 
@@ -406,7 +452,27 @@
         <section class="teams" id="teams"></section>
       </div>
 
-      <!-- Global Controls (shared by both teams) -->
+        <!-- Stats view panel (hidden unless View=Stats) -->
+        <section class="teams-panel" id="gameStatsPanel" style="display:none;">
+          <header>
+            <h3>Team stats (click a cell to +1)</h3>
+            <span class="muted">Live totals stored in Firebase</span>
+          </header>
+
+          <div class="stats-duo" id="gameStatsDuo">
+            <div class="team-slot">
+              <h4 class="muted" id="gameStatsHomeTitle">Home</h4>
+              <div class="stats-grid-container" id="gameStatsHome"></div>
+            </div>
+            <div class="team-slot">
+              <h4 class="muted" id="gameStatsAwayTitle">Away</h4>
+              <div class="stats-grid-container" id="gameStatsAway"></div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- Global Controls (shared by both teams) -->
       <aside class="controls-card">
         <div class="controls">
           <div class="label">Active team: <span id="activeTeamLabel">Home</span> — tap a team card to switch</div>
@@ -464,6 +530,15 @@
             </header>
             <div class="teams-stats" id="teamsStatsList"></div>
           </section>
+          <!-- Team Stats Grid -->
+          <section class="teams-panel" aria-labelledby="teamStatsGridHeading">
+            <header>
+              <h3 id="teamStatsGridHeading">Team stats (click a cell to +1)</h3>
+              <span class="muted">Live totals stored in Firebase</span>
+            </header>
+            <div id="teamStatsGrid" class="stats-grid-container" role="region" aria-live="polite"></div>
+          </section>
+
         </div>
       </div>
     </section>
@@ -627,7 +702,7 @@ function loadMigrated(){
 function loadViewMode(){
   try {
     const raw = localStorage.getItem(VIEW_MODE_KEY);
-    if (raw === 'ref' || raw === 'player') return raw;
+    if (raw === 'ref' || raw === 'player' || raw === 'stats') return raw;
   } catch {}
   return 'ref';
 }
@@ -702,7 +777,13 @@ function fmtGirl(val){ return val===0 ? 'Now' : String(val); }
 function render(){
   document.body.dataset.view = viewMode;
   const indicator = $('#viewIndicator');
-  if (indicator) indicator.textContent = viewMode === 'ref' ? 'Ref View' : 'Player View';
+if (indicator) {
+  indicator.textContent =
+    viewMode === 'ref' ? 'Ref View' :
+    viewMode === 'stats' ? 'Stats View' :
+    'Player View';
+}
+
   $$('#menuDrawer .drawer-item[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewMode));
   const isRef = viewMode === 'ref';
   $$('button[data-role="ref-only"]').forEach(btn => { btn.disabled = !isRef; });
@@ -746,6 +827,7 @@ function render(){
   }
   renderTeams();
   renderPage();
+  renderGameStatsView();
 }
 
 function renderTeams(){
@@ -866,6 +948,133 @@ function valueFromField(player, field){
   return 0;
 }
 
+// === Stats View: helpers for Game dashboard ===
+
+// Find the first teamId in /teams whose name matches (case-insensitive)
+function findTeamIdByName(name){
+  if (!name || !teamsDirectory.data) return null;
+  const needle = String(name).trim().toLowerCase();
+  const ids = Object.keys(teamsDirectory.data);
+  for (const id of ids){
+    const t = teamsDirectory.data[id];
+    const n = (t && t.name ? String(t.name) : '').trim().toLowerCase();
+    if (n && n === needle) return id;
+  }
+  return null;
+}
+
+// Build a stats grid for a specific teamId into a given host element
+function renderStatsGridForTeam(teamId, hostEl){
+  if (!hostEl) return;
+
+  if (!db) {
+    hostEl.innerHTML = '<div class="stats-grid-empty">Connect to Firebase to record stats.</div>';
+    return;
+  }
+  if (!teamId) {
+    hostEl.innerHTML = '<div class="stats-grid-empty">No matching team found.</div>';
+    return;
+  }
+
+  const team = teamsDirectory.data?.[teamId] || {};
+  const players = team.players || {};
+  const playerIds = sortKeysByName(players);
+
+  if (!playerIds.length){
+    hostEl.innerHTML = '<div class="stats-grid-empty">No players yet.</div>';
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'stats-grid';
+
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
+  const thName = document.createElement('th'); thName.textContent = 'Player';
+  trh.appendChild(thName);
+  TEAM_STAT_FIELDS.forEach(field => {
+    const th = document.createElement('th'); th.textContent = field.label;
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  playerIds.forEach(pid => {
+    const p = players[pid] || {};
+    const tr = document.createElement('tr');
+
+    const nameTd = document.createElement('td');
+    nameTd.textContent = entityName(p, 'Unnamed player');
+    tr.appendChild(nameTd);
+
+    TEAM_STAT_FIELDS.forEach(field => {
+      const key = getPrimaryKeyForField(field);
+      const td = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'stat-cell';
+      btn.dataset.teamId = teamId;
+      btn.dataset.playerId = pid;
+      btn.dataset.statKey = key;
+      const val = valueFromField(p, field);
+      btn.textContent = Number.isFinite(val) ? String(val) : String(Number(val || 0));
+      btn.setAttribute('aria-label', `Add 1 to ${field.label} for ${entityName(p, 'player')}`);
+      td.appendChild(btn);
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  hostEl.innerHTML = '';
+  hostEl.appendChild(table);
+
+  // Delegate clicks once per host
+  if (!hostEl.__wired) {
+    hostEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button.stat-cell');
+      if (!btn) return;
+      e.stopPropagation();
+      const { teamId, playerId, statKey } = btn.dataset;
+      incPlayerStat(teamId, playerId, statKey);
+    });
+    hostEl.__wired = true;
+  }
+}
+
+// Render the two-team stats panel on the Game dashboard
+function renderGameStatsView(){
+  const panel = document.getElementById('gameStatsPanel');
+  if (!panel) return;
+
+  // Show only when on Game page AND View=Stats
+  const shouldShow = (currentPage === 'game' && viewMode === 'stats');
+  panel.style.display = shouldShow ? '' : 'none';
+  if (!shouldShow) return;
+
+  // Ensure we have live /teams data
+  ensureTeamsListener();
+
+  // Figure out the two names from current game state
+  const homeName = state.teams?.[0]?.name || 'Home';
+  const awayName = state.teams?.[1]?.name || 'Away';
+  const homeId = findTeamIdByName(homeName);
+  const awayId = findTeamIdByName(awayName);
+
+  // Titles
+  const hTitle = document.getElementById('gameStatsHomeTitle');
+  const aTitle = document.getElementById('gameStatsAwayTitle');
+  if (hTitle) hTitle.textContent = homeName;
+  if (aTitle) aTitle.textContent = awayName;
+
+  // Grids
+  renderStatsGridForTeam(homeId, document.getElementById('gameStatsHome'));
+  renderStatsGridForTeam(awayId, document.getElementById('gameStatsAway'));
+}
+
+
 function renderPage(){
   document.body.dataset.page = currentPage;
   $$('.page').forEach(sec => {
@@ -879,6 +1088,10 @@ function renderPage(){
   if (currentPage === 'teams') {
     ensureTeamsListener();
     renderTeamsDirectory();
+  }
+  // NEW: show two-team stats on Game dashboard when View=Stats
+  if (currentPage === 'game' && viewMode === 'stats') {
+    renderGameStatsView();
   }
 }
 
@@ -938,6 +1151,128 @@ function selectPlayer(playerId){
   renderTeamsDirectory();
 }
 
+// === Stats Grid helpers ===
+
+// Return the canonical key we'll use to store a field in Firebase
+function getPrimaryKeyForField(field){
+  if (Array.isArray(field.keys) && field.keys.length) return field.keys[0];
+  if (Array.isArray(field.resolvedKeys) && field.resolvedKeys.length) return field.resolvedKeys[0];
+  return null;
+}
+
+// Increment a player's stat by 1 (optimistic UI + Firebase transaction)
+async function incPlayerStat(teamId, playerId, statKey){
+  if (!teamId || !playerId || !statKey) return;
+  // Optimistic local bump (so UI feels instant)
+  const team = teamsDirectory.data?.[teamId];
+  if (team) {
+    if (!team.players) team.players = {};
+    const player = team.players[playerId] || (team.players[playerId] = { name: 'Player', stats: {} });
+    if (!player.stats) player.stats = {};
+    const before = Number(player.stats[statKey] ?? 0);
+    player.stats[statKey] = before + 1;
+    renderTeamStatsGrid(); // re-render grid quickly
+  }
+
+  if (!db) return; // if offline, local-only
+
+  try {
+    const ref = db.ref(`teams/${teamId}/players/${playerId}/stats/${statKey}`);
+    await ref.transaction(v => (v|0) + 1);
+    // Listener will sync the authoritative value shortly
+  } catch (e) {
+    console.warn('[incPlayerStat] transaction failed', e);
+  }
+}
+
+// Build/refresh the grid for the active team
+function renderTeamStatsGrid(){
+  const host = document.getElementById('teamStatsGrid');
+  if (!host) return;
+
+  // Guard: require Firebase + active team
+  if (!db) {
+    host.innerHTML = '<div class="stats-grid-empty">Connect to Firebase to record stats.</div>';
+    return;
+  }
+  const teamId = teamsDirectory.activeTeamId;
+  if (!teamId) {
+    host.innerHTML = '<div class="stats-grid-empty">Select a team to view and record stats.</div>';
+    return;
+  }
+  const team = teamsDirectory.data?.[teamId] || {};
+  const players = team.players || {};
+  const playerIds = teamsDirectory.orderedPlayerIds || Object.keys(players);
+
+  // No players yet
+  if (!playerIds.length) {
+    host.innerHTML = '<div class="stats-grid-empty">No players yet. Add players to start recording stats.</div>';
+    return;
+  }
+
+  // Build table
+  const table = document.createElement('table');
+  table.className = 'stats-grid';
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
+
+  // Header: Player + stat labels
+  const thName = document.createElement('th'); thName.textContent = 'Player';
+  trh.appendChild(thName);
+  TEAM_STAT_FIELDS.forEach(field => {
+    const th = document.createElement('th'); th.textContent = field.label;
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+
+  playerIds.forEach(pid => {
+    const p = players[pid] || {};
+    const tr = document.createElement('tr');
+
+    const nameTd = document.createElement('td');
+    nameTd.textContent = entityName(p, 'Unnamed player');
+    tr.appendChild(nameTd);
+
+    TEAM_STAT_FIELDS.forEach(field => {
+      const key = getPrimaryKeyForField(field);
+      const td = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'stat-cell';
+      btn.dataset.teamId = teamId;
+      btn.dataset.playerId = pid;
+      btn.dataset.statKey = key;
+      // show current value (fallback to 0)
+      const val = valueFromField(p, field);
+      btn.textContent = Number.isFinite(val) ? String(val) : String(Number(val || 0));
+      btn.setAttribute('aria-label', `Add 1 to ${field.label} for ${entityName(p, 'player')}`);
+      td.appendChild(btn);
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  host.innerHTML = '';
+  host.appendChild(table);
+
+  // Wire click handler once (event delegation)
+  if (!host.__wired) {
+    host.addEventListener('click', (e) => {
+      const btn = e.target.closest('button.stat-cell');
+      if (!btn) return;
+      e.stopPropagation();
+      const { teamId, playerId, statKey } = btn.dataset;
+      incPlayerStat(teamId, playerId, statKey);
+    });
+    host.__wired = true;
+  }
+}
+
 function renderTeamsDirectory(){
   const statusEl = $('#teamsPageStatus');
   const teamListEl = $('#teamsDirectoryList');
@@ -946,6 +1281,7 @@ function renderTeamsDirectory(){
   const playerTitleEl = $('#teamsSelectedPlayer');
   const addTeamBtn = $('#teamsAddTeam');
   const addPlayerBtn = $('#teamsAddPlayer');
+
 
   if (!statusEl || !teamListEl || !playerListEl || !statsEl) return;
   if (addTeamBtn) addTeamBtn.disabled = !db;
@@ -972,6 +1308,7 @@ function renderTeamsDirectory(){
     statsEmpty.textContent = 'Firebase connection unavailable.';
     statsEl.appendChild(statsEmpty);
     if (playerTitleEl) playerTitleEl.textContent = '';
+    renderTeamStatsGrid();
     return;
   }
 
@@ -1062,6 +1399,7 @@ function renderTeamsDirectory(){
       statsEl.appendChild(row);
     });
   }
+renderTeamStatsGrid();
 }
 
 async function handleAddTeam(){
