@@ -14,6 +14,29 @@
       background: #020617;
     }
 
+    body[data-view="player"] .app {
+      max-width: none;
+      min-height: 100vh;
+      padding: 24px 20px 32px;
+    }
+
+    body[data-view="player"] .page.active {
+      flex: 1 1 auto;
+    }
+
+    body[data-view="player"] .game-board {
+      flex: 1 1 auto;
+      justify-content: center;
+    }
+
+    body[data-view="player"] .scoreboard {
+      height: 100%;
+    }
+
+    body[data-view="player"] [data-role="ref-only"] {
+      display: none !important;
+    }
+
     .topbar {
       position: sticky;
       top: 0;
