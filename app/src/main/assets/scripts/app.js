@@ -313,11 +313,11 @@ if (indicator) {
   const btnHomeBlitz = $('#blitzHome');
   const btnAwayBlitz = $('#blitzAway');
   if (btnHomeTO) {
-    btnHomeTO.textContent = `Timeout (${homeName})`;
+    btnHomeTO.textContent = 'Timeout';
     btnHomeTO.setAttribute('aria-label', `Timeout for ${homeName}`);
   }
   if (btnAwayTO) {
-    btnAwayTO.textContent = `Timeout (${awayName})`;
+    btnAwayTO.textContent = 'Timeout';
     btnAwayTO.setAttribute('aria-label', `Timeout for ${awayName}`);
   }
   if (btnHomeBlitz) {

@@ -167,9 +167,8 @@
     .clock-card { background:rgba(2,6,23,0.7); border:1px solid rgba(148,163,184,0.35); border-radius:22px; padding:20px 18px; display:flex; flex-direction:column; gap:16px; align-items:center; text-align:center; justify-content:center; }
     .time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:44px; font-weight:900; cursor:pointer; }
     .banner { font-size:12px; color:#cbd5e1; font-weight:800; letter-spacing:.02em; }
-    .down-controls { display:flex; align-items:center; gap:18px; justify-content:center; }
-    .down-btn { width:56px; height:56px; border-radius:18px; border:1px solid rgba(148,163,184,0.4); background:rgba(15,23,42,0.9); color:#e2e8f0; font-size:30px; font-weight:800; cursor:pointer; }
-    .down-btn:active { transform:scale(0.96); }
+    .down-controls { display:flex; flex-direction:column; align-items:center; gap:4px; justify-content:center; }
+    .down-label { font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:#cbd5e1; font-weight:700; }
     .down-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:46px; font-weight:900; min-width:58px; text-align:center; }
     .girl-indicator { width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; }
     .girl-track { width:100%; max-width:220px; display:flex; gap:12px; justify-content:center; }
@@ -203,10 +202,10 @@
     .score-actions .score-row { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
     .score-actions .action-row { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
 
-    .manual-adjust { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:12px; }
-    .adjust-card { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.3); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:12px; align-items:center; }
-    .adjust-title { font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:#f8fafc; font-weight:800; }
-    .adjust-buttons { display:flex; gap:10px; }
+    .manual-adjust { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+    .adjust-card { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.3); border-radius:16px; padding:10px 14px; display:flex; align-items:center; gap:12px; }
+    .adjust-title { font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:#f8fafc; font-weight:800; white-space:nowrap; }
+    .adjust-buttons { display:flex; gap:10px; align-items:center; }
     .adjust-btn { width:44px; height:44px; border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:rgba(15,23,42,0.9); color:#e2e8f0; font-size:20px; font-weight:800; cursor:pointer; }
     .adjust-btn:active { transform:scale(0.96); }
 
@@ -228,8 +227,7 @@
       .clock-actions .action-stack .btn { min-width:140px; }
       .score-actions .score-row { grid-template-columns: 1fr; }
       .score-actions .action-row { grid-template-columns: 1fr; }
-      .down-controls { gap:12px; }
-      .down-btn { width:48px; height:48px; font-size:26px; }
+      .down-controls { gap:4px; }
       .score-value { font-size:48px; }
     }
 
@@ -246,7 +244,7 @@
       .score-actions { grid-column: 1 / span 3; grid-row: 3; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
       .score-actions .score-row { grid-column: 1 / span 3; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
       .score-actions .action-row { grid-column: 1 / span 3; display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
-      .manual-adjust { grid-column: 1 / span 3; grid-row: 4; grid-template-columns: repeat(3, minmax(0,1fr)); }
+      .manual-adjust { grid-column: 1 / span 3; grid-row: 4; justify-content:space-between; }
     }
 
     /* Inline numeric editor (kept from codex/refactor-inline-editor...) */
