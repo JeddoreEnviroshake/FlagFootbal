@@ -65,24 +65,94 @@
     <section class="page active" data-page="game">
       <h1>Flag Football Game Tracker</h1>
 
-      <div class="layout">
-        <div class="primary">
-          <!-- Teams -->
-          <section class="teams" id="teams"></section>
+      <div class="game-board">
+        <div class="scoreboard">
+          <section class="team-card" id="teamCard0"></section>
 
-          <!-- Game Clock -->
-          <div class="clock">
-            <div class="left">
-              <div class="muted">Game Clock</div>
-              <div class="banner" id="timeoutBanner" style="display:none;">Timeout — <span id="timeoutTeam"></span> <span id="timeoutTime">1:00</span></div>
-              <div class="banner" id="halftimeBanner" style="display:none;">Halftime — <span id="halftimeTime">5:00</span></div>
+          <div class="scoreboard-center">
+            <div class="clock-card">
+              <div class="clock-header">
+                <span class="muted">Game Clock</span>
+                <div class="banner" id="timeoutBanner" style="display:none;">Timeout — <span id="timeoutTeam"></span> <span id="timeoutTime">1:00</span></div>
+              </div>
+              <div class="time" id="gameTime" title="Tap to edit when paused">25:00</div>
+              <div class="clock-actions">
+                <div class="action-stack">
+                  <button class="btn" id="timeoutHome" data-role="ref-only">Timeout (Home)</button>
+                  <button class="btn" id="blitzHome" data-role="ref-only">Blitz</button>
+                </div>
+                <button class="btn primary start-btn" id="clockStartPause" data-role="ref-only">Start</button>
+                <div class="action-stack">
+                  <button class="btn" id="timeoutAway" data-role="ref-only">Timeout (Away)</button>
+                  <button class="btn" id="blitzAway" data-role="ref-only">Blitz</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="down-card">
+              <div class="down-label">Down</div>
+              <div class="down-controls">
+                <button class="down-btn" id="downMinus" data-role="ref-only" aria-label="Previous down">&#8722;</button>
+                <div class="down-value" id="downValue">1</div>
+                <button class="down-btn" id="downPlus" data-role="ref-only" aria-label="Next down">&#43;</button>
+              </div>
+              <div class="girl-indicator">
+                <div class="muted">Girl Play In</div>
+                <div class="girl-track" id="girlPlayTrack" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                </div>
+                <span id="girlPlayText" class="sr-only">Girl play in 2</span>
+              </div>
+            </div>
+
+            <div class="possession-note">Active Team: <span id="activeTeamLabel">Home</span></div>
+            <div class="possession-hint">Tap a team card to switch</div>
           </div>
-          <div class="time" id="gameTime" title="Tap to edit when paused">25:00</div>
-          <div class="clock-controls">
-            <button class="btn" id="clockStartPause" data-role="ref-only">Start</button>
-            <button class="btn" id="timeoutHome" data-role="ref-only">Timeout (Home)</button>
-            <button class="btn" id="timeoutAway" data-role="ref-only">Timeout (Away)</button>
-            <button class="btn" id="halftimeBtn" data-role="ref-only">Halftime</button>
+
+          <section class="team-card" id="teamCard1"></section>
+        </div>
+
+        <div class="score-actions" data-role="ref-only">
+          <div class="score-row">
+            <button class="btn primary" id="g_score6" data-role="ref-only">+6</button>
+            <button class="btn" id="g_score1" data-role="ref-only">+1</button>
+            <button class="btn warn" id="g_scorem1" data-role="ref-only">-1</button>
+          </div>
+          <div class="action-row">
+            <button class="btn tall" id="g_downReset" data-role="ref-only">First Down</button>
+            <button class="btn tall warn" id="g_turnover" data-role="ref-only">Turnover</button>
+          </div>
+        </div>
+
+        <div class="manual-adjust" data-role="ref-only">
+          <div class="adjust-card" data-kind="timeouts">
+            <div class="adjust-label">Timeout</div>
+            <div class="adjust-buttons">
+              <button class="adjust-btn" data-role="ref-only" data-kind="timeouts" data-adjust="1">+</button>
+              <button class="adjust-btn" data-role="ref-only" data-kind="timeouts" data-adjust="-1">-</button>
+            </div>
+          </div>
+          <div class="adjust-card" data-kind="rushes">
+            <div class="adjust-label">Blitz</div>
+            <div class="adjust-buttons">
+              <button class="adjust-btn" data-role="ref-only" data-kind="rushes" data-adjust="1">+</button>
+              <button class="adjust-btn" data-role="ref-only" data-kind="rushes" data-adjust="-1">-</button>
+            </div>
+          </div>
+          <div class="adjust-card" data-kind="girlPlay">
+            <div class="adjust-label">Girl Play</div>
+            <div class="adjust-buttons">
+              <button class="adjust-btn" data-role="ref-only" data-kind="girlPlay" data-adjust="1">+</button>
+              <button class="adjust-btn" data-role="ref-only" data-kind="girlPlay" data-adjust="-1">-</button>
+            </div>
+          </div>
+          <div class="adjust-card" data-kind="downs">
+            <div class="adjust-label">Down</div>
+            <div class="adjust-buttons">
+              <button class="adjust-btn" data-role="ref-only" data-kind="downs" data-adjust="1">+</button>
+              <button class="adjust-btn" data-role="ref-only" data-kind="downs" data-adjust="-1">-</button>
+            </div>
           </div>
         </div>
       </div>
@@ -106,30 +176,6 @@
           </div>
         </section>
 
-
-        <!-- Global Controls (shared by both teams) -->
-      <aside class="controls-card">
-        <div class="controls">
-          <div class="label">Active team: <span id="activeTeamLabel">Home</span> — tap a team card to switch</div>
-          <div class="row3">
-            <button class="btn primary" id="g_score6" data-role="ref-only">+6</button>
-            <button class="btn" id="g_score1" data-role="ref-only">+1</button>
-            <button class="btn warn" id="g_scorem1" data-role="ref-only">-1</button>
-          </div>
-          <!-- Reordered: First Down, Guy Play, Rush, Girl Play -->
-          <div class="row2">
-            <button class="btn tall" id="g_downReset" data-role="ref-only">First Down</button>
-            <button class="btn tall" id="g_guyPlay" data-role="ref-only">Guy Play</button>
-          </div>
-          <div class="row2">
-            <button class="btn tall" id="g_rushm1" data-role="ref-only">Rush</button>
-            <button class="btn tall" id="g_girlPlay" data-role="ref-only">Girl Play</button>
-          </div>
-          <div class="row1">
-            <button class="btn tall warn" id="g_turnover" data-role="ref-only">Turnover</button>
-          </div>
-        </div>
-      </aside>
     </div>
     </section>
 

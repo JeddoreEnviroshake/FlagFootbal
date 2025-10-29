@@ -2,7 +2,9 @@
 window.triggerGuyPlay = function () {
   try {
     if (document.body?.dataset?.view !== 'ref') return;
-    document.getElementById('g_guyPlay')?.click();
+    if (typeof window.performGuyPlay === 'function') {
+      window.performGuyPlay();
+    }
   } catch (e) {
     console.warn('triggerGuyPlay error', e);
   }
@@ -11,7 +13,9 @@ window.triggerGuyPlay = function () {
 window.triggerGirlPlay = function () {
   try {
     if (document.body?.dataset?.view !== 'ref') return;
-    document.getElementById('g_girlPlay')?.click();
+    if (typeof window.performGirlPlay === 'function') {
+      window.performGirlPlay();
+    }
   } catch (e) {
     console.warn('triggerGirlPlay error', e);
   }
