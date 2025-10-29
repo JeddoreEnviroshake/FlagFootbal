@@ -67,12 +67,15 @@
 
       <div class="layout">
         <div class="primary">
+          <!-- Teams -->
+          <section class="teams" id="teams"></section>
+
           <!-- Game Clock -->
           <div class="clock">
             <div class="left">
               <div class="muted">Game Clock</div>
-            <div class="banner" id="timeoutBanner" style="display:none;">Timeout — <span id="timeoutTeam"></span> <span id="timeoutTime">1:00</span></div>
-            <div class="banner" id="halftimeBanner" style="display:none;">Halftime — <span id="halftimeTime">5:00</span></div>
+              <div class="banner" id="timeoutBanner" style="display:none;">Timeout — <span id="timeoutTeam"></span> <span id="timeoutTime">1:00</span></div>
+              <div class="banner" id="halftimeBanner" style="display:none;">Halftime — <span id="halftimeTime">5:00</span></div>
           </div>
           <div class="time" id="gameTime" title="Tap to edit when paused">25:00</div>
           <div class="clock-controls">
@@ -82,9 +85,6 @@
             <button class="btn" id="halftimeBtn" data-role="ref-only">Halftime</button>
           </div>
         </div>
-
-        <!-- Teams -->
-        <section class="teams" id="teams"></section>
       </div>
 
         <!-- Stats view panel (hidden unless View=Stats) -->
