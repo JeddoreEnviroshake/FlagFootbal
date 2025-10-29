@@ -227,6 +227,70 @@ const remoteSync = {
 function fmt(sec){ const m=Math.floor(sec/60); const s=sec%60; const padded = ('0' + s).slice(-2); return `${m}:${padded}`; }
 function fmtGirl(val){ return val===0 ? 'Now' : String(val); }
 
+const clampGirl = (val) => Math.max(0, Math.min(2, val|0));
+const clampTimeouts = (val) => Math.max(0, Math.min(3, val|0));
+const clampRushes = (val) => Math.max(0, Math.min(2, val|0));
+const clampDown = (val) => {
+  const n = val|0;
+  if (n < 1) return 1;
+  if (n > 4) return 4;
+  return n;
+};
+const wrapDown = (val) => {
+  const n = val|0;
+  if (n > 4) return 1;
+  if (n < 1) return 4;
+  return n;
+};
+
+function buildTimeoutPips(count){
+  const value = clampTimeouts(count);
+  let html = '<div class="pip-row" aria-hidden="true">';
+  for (let i=0;i<3;i++){
+    const used = i >= value;
+    html += `<span class="pip-timeout${used?' used':''}"></span>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function buildBlitzPips(count){
+  const value = clampRushes(count);
+  let html = '<div class="pip-row" aria-hidden="true">';
+  for (let i=0;i<2;i++){
+    const used = i >= value;
+    html += `<span class="pip-blitz${used?' used':''}"></span>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function describeGirlPlay(val){
+  const v = clampGirl(val);
+  if (v === 0) return 'Girl play now';
+  if (v === 1) return 'Girl play in 1 play';
+  return 'Girl play in 2 plays';
+}
+
+function describeTimeouts(val){
+  const v = clampTimeouts(val);
+  return `${v} timeout${v===1?'':'s'} remaining`;
+}
+
+function describeBlitzes(val){
+  const v = clampRushes(val);
+  return `${v} blitz${v===1?'':'es'} remaining`;
+}
+
+function updateGirlTrack(trackEl, value){
+  if (!trackEl) return;
+  const v = clampGirl(value);
+  const spans = Array.from(trackEl.children);
+  spans.forEach((span, idx) => {
+    span.classList.toggle('used', idx >= v);
+  });
+}
+
 function render(){
   document.body.dataset.view = viewMode;
   const indicator = $('#viewIndicator');
@@ -246,6 +310,8 @@ if (indicator) {
   const awayName = state.teams[1]?.name || 'Away';
   const btnHomeTO = $('#timeoutHome');
   const btnAwayTO = $('#timeoutAway');
+  const btnHomeBlitz = $('#blitzHome');
+  const btnAwayBlitz = $('#blitzAway');
   if (btnHomeTO) {
     btnHomeTO.textContent = `Timeout (${homeName})`;
     btnHomeTO.setAttribute('aria-label', `Timeout for ${homeName}`);
@@ -253,6 +319,12 @@ if (indicator) {
   if (btnAwayTO) {
     btnAwayTO.textContent = `Timeout (${awayName})`;
     btnAwayTO.setAttribute('aria-label', `Timeout for ${awayName}`);
+  }
+  if (btnHomeBlitz) {
+    btnHomeBlitz.setAttribute('aria-label', `Log blitz for ${homeName}`);
+  }
+  if (btnAwayBlitz) {
+    btnAwayBlitz.setAttribute('aria-label', `Log blitz for ${awayName}`);
   }
 
   // Clock & banners
@@ -267,10 +339,6 @@ if (indicator) {
     $('#timeoutTeam').textContent = timeoutName;
     $('#timeoutTime').textContent = fmt(state.game.timeoutSecondsRemaining);
   } else { $('#timeoutBanner').style.display='none'; }
-  if (state.game.halftimeSecondsRemaining>0){
-    $('#halftimeBanner').style.display='';
-    $('#halftimeTime').textContent = fmt(state.game.halftimeSecondsRemaining);
-  } else { $('#halftimeBanner').style.display='none'; }
 
   $('#clockStartPause').textContent = state.game.running ? 'Pause' : 'Start';
   const activeTeam = state.teams[state.activeTeam] || state.teams[0];
@@ -278,13 +346,21 @@ if (indicator) {
   if (activeTeamLabel && activeTeam) {
     activeTeamLabel.textContent = activeTeam.name;
   }
+  const downValueEl = $('#downValue');
+  const girlTrackEl = $('#girlPlayTrack');
+  const girlTextEl = $('#girlPlayText');
+  if (activeTeam) {
+    if (downValueEl) downValueEl.textContent = clampDown(activeTeam.downs != null ? activeTeam.downs : 1);
+    updateGirlTrack(girlTrackEl, activeTeam.girlPlay);
+    if (girlTextEl) girlTextEl.textContent = describeGirlPlay(activeTeam.girlPlay);
+  }
   renderTeams();
   renderPage();
   renderGameStatsView();
 }
 
 function renderTeams(){
-  const editingVal = document.querySelector('.val.editing');
+  const editingVal = document.querySelector('.team-card .val.editing');
   let restoreEdit = null;
   if (editingVal) {
     const { team, kind } = editingVal.dataset;
@@ -305,54 +381,155 @@ function renderTeams(){
     try { activeValueEditor(false); } catch {}
   }
   activeValueEditor = null;
-  const host = $('#teams'); host.innerHTML = '';
-  state.teams.forEach((t, idx) => {
-    const sec = document.createElement('section'); sec.className = 'team' + (state.activeTeam===idx?' active':'');
-    if (editingEnabled){
-  sec.addEventListener('click', (e)=>{
-    // 🛡️ If a team dropdown is open, ignore card clicks
-    if (document.querySelector('.team-select')) return;
-    state.activeTeam = idx;
-    renderAndPersist();
-  });
-}
 
+  const teamSlots = [$('#teamCard0'), $('#teamCard1')];
+  teamSlots.forEach((slot, idx) => {
+    if (!slot) return;
+    slot.className = 'team-card';
+    const isActiveTeam = state.activeTeam === idx;
+    slot.classList.toggle('active', isActiveTeam);
+    slot.dataset.team = idx;
+    slot.innerHTML = '';
+    if (editingEnabled) {
+      slot.setAttribute('role', 'button');
+      slot.setAttribute('tabindex', '0');
+      slot.setAttribute('aria-pressed', isActiveTeam ? 'true' : 'false');
+    } else {
+      slot.removeAttribute('role');
+      slot.removeAttribute('tabindex');
+      slot.removeAttribute('aria-pressed');
+    }
+
+    const team = state.teams[idx];
+    if (!team) {
+      const empty = document.createElement('div');
+      empty.style.color = '#94a3b8';
+      empty.style.fontWeight = '700';
+      empty.style.textAlign = 'center';
+      empty.textContent = 'No team';
+      slot.appendChild(empty);
+      slot.onclick = null;
+      return;
+    }
 
     const header = document.createElement('header');
-    const nameSpan = document.createElement('span'); nameSpan.className = 'name'; nameSpan.textContent = t.name;
-if (editingEnabled){
-  nameSpan.addEventListener('click', (ev)=>{
-    ev.stopPropagation();
-    openTeamPopover(idx, nameSpan);
-  });
-}
-
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'name';
+    nameSpan.textContent = team.name;
+    if (editingEnabled){
+      nameSpan.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        openTeamPopover(idx, nameSpan);
+      });
+    }
     header.appendChild(nameSpan);
+    slot.appendChild(header);
 
-    const stats = document.createElement('div'); stats.className = 'stats';
-    const score = document.createElement('div'); score.className = 'stat full'; score.innerHTML = `<label>Score</label><div class="val" data-kind="score" data-team="${idx}">${t.score}</div>`;
-    const down = document.createElement('div'); down.className='stat'; down.innerHTML = `<label>Down</label><div class="val" data-kind="downs" data-team="${idx}">${t.downs}</div>`;
-    const girl = document.createElement('div'); girl.className='stat'; girl.innerHTML = `<label>Girl Play In</label><div class="val" data-kind="girlPlay" data-team="${idx}">${fmtGirl(t.girlPlay)}</div>`;
-    const rush = document.createElement('div'); rush.className='stat'; rush.innerHTML = `<label>Rushes</label><div class="val" data-kind="rushes" data-team="${idx}">${t.rushes}</div>`;
-    const to = document.createElement('div'); to.className='stat'; to.innerHTML = `<label>Timeouts</label><div class="val" data-kind="timeouts" data-team="${idx}">${t.timeouts}</div>`;
+    const scoreDisplay = document.createElement('div');
+    scoreDisplay.className = 'score-display';
+    const scoreLabel = document.createElement('label');
+    scoreLabel.textContent = 'Score';
+    scoreDisplay.appendChild(scoreLabel);
+    const scoreVal = document.createElement('div');
+    scoreVal.className = 'val';
+    scoreVal.dataset.kind = 'score';
+    scoreVal.dataset.team = idx;
+    scoreVal.textContent = team.score != null ? team.score : 0;
+    scoreDisplay.appendChild(scoreVal);
+    slot.appendChild(scoreDisplay);
 
-    [score,down,girl,rush,to].forEach(el=>stats.appendChild(el));
+    const metrics = document.createElement('div');
+    metrics.className = 'team-metrics';
 
-    sec.appendChild(header); sec.appendChild(stats); host.appendChild(sec);
+    const timeoutMetric = document.createElement('div');
+    timeoutMetric.className = 'metric';
+    const timeoutLabel = document.createElement('div');
+    timeoutLabel.className = 'metric-label';
+    timeoutLabel.textContent = 'Timeout';
+    timeoutMetric.appendChild(timeoutLabel);
+    const timeoutVal = document.createElement('div');
+    timeoutVal.className = 'val';
+    timeoutVal.dataset.kind = 'timeouts';
+    timeoutVal.dataset.team = idx;
+    timeoutVal.innerHTML = buildTimeoutPips(team.timeouts);
+    timeoutVal.setAttribute('aria-label', describeTimeouts(team.timeouts));
+    timeoutVal.setAttribute('title', describeTimeouts(team.timeouts));
+    timeoutMetric.appendChild(timeoutVal);
+    metrics.appendChild(timeoutMetric);
+
+    const blitzMetric = document.createElement('div');
+    blitzMetric.className = 'metric';
+    const blitzLabel = document.createElement('div');
+    blitzLabel.className = 'metric-label';
+    blitzLabel.textContent = 'Blitz';
+    blitzMetric.appendChild(blitzLabel);
+    const blitzVal = document.createElement('div');
+    blitzVal.className = 'val';
+    blitzVal.dataset.kind = 'rushes';
+    blitzVal.dataset.team = idx;
+    blitzVal.innerHTML = buildBlitzPips(team.rushes);
+    blitzVal.setAttribute('aria-label', describeBlitzes(team.rushes));
+    blitzVal.setAttribute('title', describeBlitzes(team.rushes));
+    blitzMetric.appendChild(blitzVal);
+    metrics.appendChild(blitzMetric);
+
+    slot.appendChild(metrics);
+
+    if (editingEnabled) {
+      const activate = () => {
+        if (document.querySelector('.team-select')) return;
+        state.activeTeam = idx;
+        renderAndPersist();
+      };
+      slot.onclick = (ev) => {
+        if (ev.target.closest('.val.editing')) return;
+        if (ev.target.closest('.name')) return;
+        activate();
+      };
+      slot.onkeydown = (ev) => {
+        if (ev.defaultPrevented) return;
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          activate();
+        }
+      };
+    } else {
+      slot.onclick = null;
+      slot.onkeydown = null;
+    }
   });
 
   if (editingEnabled){
-    $$('#teams .val').forEach(v => {
+    document.querySelectorAll('.team-card .val[data-kind]').forEach(v => {
       v.addEventListener('click', (ev)=>{ ev.stopPropagation(); beginEditValue(v, v.dataset.kind, +v.dataset.team); });
     });
   }
 
   if (restoreEdit && editingEnabled) {
-    const valEl = host.querySelector(`.val[data-team="${restoreEdit.team}"][data-kind="${restoreEdit.kind}"]`);
+    const valEl = document.querySelector(`.team-card .val[data-team="${restoreEdit.team}"][data-kind="${restoreEdit.kind}"]`);
     if (valEl) {
       beginEditValue(valEl, restoreEdit.kind, restoreEdit.team, { skipCancelExisting: true, restore: restoreEdit });
     }
   }
+}
+
+function mutateTeam(teamIdx, mutator){
+  if (viewMode !== 'ref') return false;
+  if (teamIdx == null || teamIdx < 0) return false;
+  if (isOnlineWriter()){
+    txnState(s => {
+      if (!s || !Array.isArray(s.teams) || !s.teams[teamIdx]) return s;
+      mutator(s.teams[teamIdx]);
+      return s;
+    });
+    return true;
+  }
+
+  const team = state.teams[teamIdx];
+  if (!team) return false;
+  mutator(team);
+  renderAndPersist();
+  return true;
 }
 
 function entityName(entity, fallback = ''){
@@ -1618,47 +1795,54 @@ $('#g_scorem1').addEventListener('click', ()=>{
 });
 
 
-// Guy/Girl play (v9 semantics)
-$('#g_guyPlay').addEventListener('click', ()=>{
-  if (isOnlineWriter()) {
-    txnState(s => {
-      const t = s.teams[s.activeTeam];
-      t.downs = t.downs >= 4 ? 1 : (t.downs|0) + 1;
-      t.girlPlay = Math.max(0, (t.girlPlay|0) - 1);
-      return s;
-    });
-  } else if (viewMode === 'ref') {
-    const t = state.teams[state.activeTeam];
-    t.downs = t.downs >= 4 ? 1 : t.downs + 1;
-    t.girlPlay = Math.max(0, (t.girlPlay|0) - 1);
-    renderAndPersist();
-  }
-});
+function performGuyPlay(){
+  mutateTeam(state.activeTeam, team => {
+    team.downs = wrapDown((team.downs|0) + 1);
+    team.girlPlay = Math.max(0, (team.girlPlay|0) - 1);
+  });
+}
 
-$('#g_girlPlay').addEventListener('click', ()=>{
-  if (isOnlineWriter()) {
-    txnState(s => {
-      const t = s.teams[s.activeTeam];
-      t.girlPlay = 2;
-      t.downs = t.downs >= 4 ? 1 : (t.downs|0) + 1;
-      return s;
-    });
-  } else if (viewMode === 'ref') {
-    const t = state.teams[state.activeTeam];
-    t.girlPlay = 2;
-    t.downs = t.downs >= 4 ? 1 : t.downs + 1;
-    renderAndPersist();
-  }
-});
+function performGirlPlay(){
+  mutateTeam(state.activeTeam, team => {
+    team.girlPlay = 2;
+    team.downs = wrapDown((team.downs|0) + 1);
+  });
+}
+window.performGuyPlay = performGuyPlay;
+window.performGirlPlay = performGirlPlay;
+
+function adjustDown(teamIdx, delta){
+  mutateTeam(teamIdx, team => {
+    const current = team.downs != null ? team.downs : 1;
+    team.downs = clampDown(current + delta);
+  });
+}
+
+function adjustGirl(teamIdx, delta){
+  mutateTeam(teamIdx, team => {
+    const current = team.girlPlay != null ? team.girlPlay : 2;
+    team.girlPlay = clampGirl(current + delta);
+  });
+}
+
+function adjustTimeout(teamIdx, delta){
+  mutateTeam(teamIdx, team => {
+    const current = team.timeouts != null ? team.timeouts : 3;
+    team.timeouts = clampTimeouts(current + delta);
+  });
+}
+
+function adjustBlitz(teamIdx, delta){
+  mutateTeam(teamIdx, team => {
+    const current = team.rushes != null ? team.rushes : 2;
+    team.rushes = clampRushes(current + delta);
+  });
+}
 
 
 // First Down
 $('#g_downReset').addEventListener('click', ()=>{
-  if (isOnlineWriter()) {
-    txnField(`teams/${state.activeTeam}/downs`, () => 1);
-  } else if (viewMode === 'ref') {
-    state.teams[state.activeTeam].downs = 1; renderAndPersist();
-  }
+  mutateTeam(state.activeTeam, team => { team.downs = 1; });
 });
 
 
@@ -1683,16 +1867,27 @@ $('#g_turnover').addEventListener('click', ()=>{
 });
 
 
-// Rush (defense)
-$('#g_rushm1').addEventListener('click', ()=>{
-  if (isOnlineWriter()) {
-    const def = state.activeTeam === 0 ? 1 : 0;
-    txnField(`teams/${def}/rushes`, v => Math.max(0, (v|0) - 1));
-  } else if (viewMode === 'ref') {
-    const def = state.activeTeam === 0 ? 1 : 0;
-    state.teams[def].rushes = Math.max(0, state.teams[def].rushes - 1);
-    renderAndPersist();
-  }
+const downMinus = $('#downMinus');
+if (downMinus) downMinus.addEventListener('click', ()=> adjustDown(state.activeTeam, -1));
+const downPlus = $('#downPlus');
+if (downPlus) downPlus.addEventListener('click', ()=> adjustDown(state.activeTeam, 1));
+
+const blitzHome = $('#blitzHome');
+if (blitzHome) blitzHome.addEventListener('click', ()=> adjustBlitz(0, -1));
+const blitzAway = $('#blitzAway');
+if (blitzAway) blitzAway.addEventListener('click', ()=> adjustBlitz(1, -1));
+
+document.querySelectorAll('.adjust-btn').forEach(btn => {
+  btn.addEventListener('click', ()=>{
+    if (viewMode !== 'ref') return;
+    const kind = btn.dataset.kind;
+    const delta = parseInt(btn.dataset.adjust, 10) || 0;
+    const activeIdx = state.activeTeam;
+    if (kind === 'timeouts') adjustTimeout(activeIdx, delta);
+    else if (kind === 'rushes') adjustBlitz(activeIdx, delta);
+    else if (kind === 'girlPlay') adjustGirl(activeIdx, delta);
+    else if (kind === 'downs') adjustDown(activeIdx, delta);
+  });
 });
 
 
@@ -1881,7 +2076,8 @@ if (res && res.snapshot && typeof res.snapshot.val === 'function') {
 $('#clockStartPause').addEventListener('click', toggleStartPause);
 $('#timeoutHome').addEventListener('click', ()=> startTimeout(0));
 $('#timeoutAway').addEventListener('click', ()=> startTimeout(1));
-$('#halftimeBtn').addEventListener('click', startHalftime);
+const halftimeBtn = $('#halftimeBtn');
+if (halftimeBtn) halftimeBtn.addEventListener('click', startHalftime);
 
 // Edit time when paused
 $('#gameTime').addEventListener('click', ()=>{
@@ -2053,18 +2249,18 @@ if (remoteConfigured()) connectRemote();
       pauseClock();
 
       // Rush affects defense
-      state.activeTeam = 0; const beforeDef = state.teams[1].rushes; document.getElementById('g_rushm1').click();
+      state.activeTeam = 0; const beforeDef = state.teams[1].rushes; adjustBlitz(1, -1);
       console.assert(state.teams[1].rushes === Math.max(0, beforeDef-1), 'Rush decrements defending');
 
       // v9 Girl Play semantics
       state.activeTeam = 0; state.teams[0].girlPlay = 2; state.teams[0].downs = 1; // reset
-      document.getElementById('g_guyPlay').click(); // expect 1
+      performGuyPlay(); // expect 1
       console.assert(state.teams[0].girlPlay === 1, 'Guy Play decrements to 1');
-      document.getElementById('g_guyPlay').click(); // expect 0
+      performGuyPlay(); // expect 0
       console.assert(state.teams[0].girlPlay === 0, 'Guy Play decrements to 0 (Now)');
-      document.getElementById('g_guyPlay').click(); // stays 0
+      performGuyPlay(); // stays 0
       console.assert(state.teams[0].girlPlay === 0, 'Guy Play stays at 0');
-      document.getElementById('g_girlPlay').click(); // reset to 2
+      performGirlPlay(); // reset to 2
       console.assert(state.teams[0].girlPlay === 2, 'Girl Play button resets to 2');
 
       // Halftime resets girl counter to 2
