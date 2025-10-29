@@ -36,6 +36,7 @@ import com.google.firebase.ktx.Firebase
 
 private const val ASSET_URL = "https://appassets.androidplatform.net/assets/index.html"
 private const val KEY_WEBVIEW_LOADED = "webview_loaded"
+private const val TAG = "MainActivity"
 
 class MainActivity : AppCompatActivity() {
 
@@ -58,8 +59,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
     private lateinit var signInLauncher: ActivityResultLauncher<Intent>
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var authStateListener: FirebaseAuth.AuthStateListener
+    private var auth: FirebaseAuth? = null
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
     private var hasLoadedInitialUrl = false
     private var pendingWebViewState: Bundle? = null
 
@@ -67,7 +68,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        FirebaseApp.initializeApp(this)
+        val firebaseApp = FirebaseApp.initializeApp(this)
         setContentView(R.layout.activity_main)
 
         progressBar = findViewById(R.id.progressBar)
@@ -101,16 +102,24 @@ class MainActivity : AppCompatActivity() {
             pendingWebViewState = savedInstanceState
         }
 
-        auth = Firebase.auth
-        authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            updateUiForUser(firebaseAuth.currentUser)
-        }
+        if (firebaseApp == null) {
+            Log.w(TAG, "FirebaseApp.initializeApp returned null; running in offline mode")
+            signInButton.isEnabled = false
+            loginContainer.isVisible = false
+            showToast(R.string.login_unavailable)
+            showWebContent()
+        } else {
+            auth = Firebase.auth(firebaseApp)
+            authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+                updateUiForUser(firebaseAuth.currentUser)
+            }
 
-        signInButton.setOnClickListener {
-            launchSignIn()
-        }
+            signInButton.setOnClickListener {
+                launchSignIn()
+            }
 
-        updateUiForUser(auth.currentUser)
+            updateUiForUser(auth?.currentUser)
+        }
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
     }
@@ -152,11 +161,19 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        auth.addAuthStateListener(authStateListener)
+        val listener = authStateListener
+        val firebaseAuth = auth
+        if (firebaseAuth != null && listener != null) {
+            firebaseAuth.addAuthStateListener(listener)
+        }
     }
 
     override fun onStop() {
-        auth.removeAuthStateListener(authStateListener)
+        val listener = authStateListener
+        val firebaseAuth = auth
+        if (firebaseAuth != null && listener != null) {
+            firebaseAuth.removeAuthStateListener(listener)
+        }
         super.onStop()
     }
 
@@ -410,6 +427,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchSignIn() {
+        if (auth == null) {
+            Log.w(TAG, "Ignoring sign-in launch request because Firebase is unavailable")
+            return
+        }
         signInButton.isEnabled = false
         loginStatus.isVisible = false
 

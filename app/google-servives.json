@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "207525608357",
+    "firebase_url": "https://flagfootball-4efca-default-rtdb.firebaseio.com",
+    "project_id": "flagfootball-4efca",
+    "storage_bucket": "flagfootball-4efca.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:207525608357:android:dfb501ff203d5671d4064c",
+        "android_client_info": {
+          "package_name": "com.example.htmlapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2mWpURGW_58mGGW3H7RHduBjUd-dUGEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
