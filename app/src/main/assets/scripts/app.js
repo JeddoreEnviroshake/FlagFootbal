@@ -425,30 +425,20 @@ function renderTeams(){
     header.appendChild(nameSpan);
     slot.appendChild(header);
 
-    const scoreDisplay = document.createElement('div');
-    scoreDisplay.className = 'score-display';
-    const scoreLabel = document.createElement('label');
-    scoreLabel.textContent = 'Score';
-    scoreDisplay.appendChild(scoreLabel);
     const scoreVal = document.createElement('div');
-    scoreVal.className = 'val';
+    scoreVal.className = 'val score-value';
     scoreVal.dataset.kind = 'score';
     scoreVal.dataset.team = idx;
     scoreVal.textContent = team.score != null ? team.score : 0;
-    scoreDisplay.appendChild(scoreVal);
-    slot.appendChild(scoreDisplay);
+    slot.appendChild(scoreVal);
 
     const metrics = document.createElement('div');
     metrics.className = 'team-metrics';
 
     const timeoutMetric = document.createElement('div');
     timeoutMetric.className = 'metric';
-    const timeoutLabel = document.createElement('div');
-    timeoutLabel.className = 'metric-label';
-    timeoutLabel.textContent = 'Timeout';
-    timeoutMetric.appendChild(timeoutLabel);
     const timeoutVal = document.createElement('div');
-    timeoutVal.className = 'val';
+    timeoutVal.className = 'val metric-track';
     timeoutVal.dataset.kind = 'timeouts';
     timeoutVal.dataset.team = idx;
     timeoutVal.innerHTML = buildTimeoutPips(team.timeouts);
@@ -459,12 +449,8 @@ function renderTeams(){
 
     const blitzMetric = document.createElement('div');
     blitzMetric.className = 'metric';
-    const blitzLabel = document.createElement('div');
-    blitzLabel.className = 'metric-label';
-    blitzLabel.textContent = 'Blitz';
-    blitzMetric.appendChild(blitzLabel);
     const blitzVal = document.createElement('div');
-    blitzVal.className = 'val';
+    blitzVal.className = 'val metric-track';
     blitzVal.dataset.kind = 'rushes';
     blitzVal.dataset.team = idx;
     blitzVal.innerHTML = buildBlitzPips(team.rushes);
