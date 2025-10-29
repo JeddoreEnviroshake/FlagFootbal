@@ -172,6 +172,47 @@ let activeValueEditor = null;
 let viewMode = loadViewMode();
 let currentPage = 'game';
 
+let playerOrientationLocked = false;
+
+function lockPlayerOrientation(){
+  const screenObj = window.screen;
+  if (!screenObj) return;
+  const orientation = screenObj.orientation;
+  if (orientation && typeof orientation.lock === 'function'){
+    playerOrientationLocked = true;
+    orientation.lock('landscape').then(()=>{
+      playerOrientationLocked = true;
+    }).catch(()=>{
+      playerOrientationLocked = false;
+    });
+    return;
+  }
+  const legacyLock = screenObj.lockOrientation || screenObj.mozLockOrientation || screenObj.msLockOrientation;
+  if (typeof legacyLock === 'function'){
+    try {
+      playerOrientationLocked = legacyLock.call(screenObj, 'landscape');
+    } catch {
+      playerOrientationLocked = false;
+    }
+  }
+}
+
+function unlockPlayerOrientation(){
+  const screenObj = window.screen;
+  if (!screenObj) return;
+  const orientation = screenObj.orientation;
+  if (orientation && typeof orientation.unlock === 'function'){
+    try {
+      orientation.unlock();
+    } catch {}
+  }
+  const legacyUnlock = screenObj.unlockOrientation || screenObj.mozUnlockOrientation || screenObj.msUnlockOrientation;
+  if (typeof legacyUnlock === 'function'){
+    try { legacyUnlock.call(screenObj); } catch {}
+  }
+  playerOrientationLocked = false;
+}
+
 const teamsDirectory = {
   loading: false,
   error: null,
@@ -2183,13 +2224,19 @@ function toggleMenu(){
 }
 
 function setViewMode(mode){
-  const next = mode === 'player' ? 'player' : 'ref';
+  const next = mode === 'player' ? 'player' : (mode === 'stats' ? 'stats' : 'ref');
   if (viewMode === next) return;
+  const previous = viewMode;
   viewMode = next;
   saveViewMode(viewMode);
   if (viewMode !== 'ref' && remoteSync.pushTimer){
     clearTimeout(remoteSync.pushTimer);
     remoteSync.pushTimer = null;
+  }
+  if (viewMode === 'player') {
+    lockPlayerOrientation();
+  } else if (previous === 'player') {
+    unlockPlayerOrientation();
   }
   closeMenu();
   render();
