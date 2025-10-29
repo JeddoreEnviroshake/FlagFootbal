@@ -177,12 +177,8 @@
     .girl-track span.used { background:#0f172a; }
 
     .clock-actions { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; align-items:stretch; }
-    .clock-actions .action-stack { display:flex; flex-direction:column; gap:10px; }
+    .clock-actions .action-stack { display:flex; flex-direction:column; gap:10px; width:100%; }
     .start-btn { min-height:68px; font-size:18px; letter-spacing:0.05em; }
-
-    .possession-note { font-size:13px; color:#94a3b8; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; text-align:center; }
-    .possession-note span { color:#f8fafc; }
-    .possession-hint { font-size:11px; color:#64748b; text-align:center; letter-spacing:0.04em; text-transform:uppercase; }
 
     .team-card { background:rgba(15,23,42,0.75); border:1px solid rgba(148,163,184,0.32); border-radius:24px; padding:22px 18px; display:flex; flex-direction:column; gap:18px; align-items:center; text-align:center; cursor:pointer; transition:border-color .2s ease, box-shadow .2s ease; }
     body[data-view="player"] .team-card { cursor:default; }
@@ -208,8 +204,8 @@
     .score-actions .action-row { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
 
     .manual-adjust { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:12px; }
-    .adjust-card { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.3); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:10px; align-items:center; }
-    .adjust-label { font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#94a3b8; font-weight:700; }
+    .adjust-card { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.3); border-radius:16px; padding:12px; display:flex; flex-direction:column; gap:12px; align-items:center; }
+    .adjust-title { font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:#f8fafc; font-weight:800; }
     .adjust-buttons { display:flex; gap:10px; }
     .adjust-btn { width:44px; height:44px; border-radius:12px; border:1px solid rgba(148,163,184,0.35); background:rgba(15,23,42,0.9); color:#e2e8f0; font-size:20px; font-weight:800; cursor:pointer; }
     .adjust-btn:active { transform:scale(0.96); }
@@ -235,6 +231,22 @@
       .down-controls { gap:12px; }
       .down-btn { width:48px; height:48px; font-size:26px; }
       .score-value { font-size:48px; }
+    }
+
+    @media (max-width: 720px) and (orientation: portrait) {
+      .game-board { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
+      .scoreboard { display: contents; }
+      #teamCard0 { grid-column: 1; grid-row: 1; }
+      .clock-card { grid-column: 2; grid-row: 1; }
+      #teamCard1 { grid-column: 3; grid-row: 1; }
+      .clock-actions { grid-column: 1 / span 3; grid-row: 2; grid-template-columns: repeat(3, minmax(0,1fr)); align-items: stretch; }
+      .clock-actions .start-btn { grid-column: 2; grid-row: 1; }
+      .clock-actions .action-stack { flex-direction: column; }
+      .clock-actions .action-stack .btn { min-width: 0; }
+      .score-actions { grid-column: 1 / span 3; grid-row: 3; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
+      .score-actions .score-row { grid-column: 1 / span 3; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
+      .score-actions .action-row { grid-column: 1 / span 3; display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+      .manual-adjust { grid-column: 1 / span 3; grid-row: 4; grid-template-columns: repeat(3, minmax(0,1fr)); }
     }
 
     /* Inline numeric editor (kept from codex/refactor-inline-editor...) */
