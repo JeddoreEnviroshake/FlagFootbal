@@ -1,6 +1,24 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
+}
+
+val googleServicesJson = listOf(
+    "google-services.json",
+    "src/debug/google-services.json",
+    "src/release/google-services.json"
+)
+    .map { file(it) }
+    .firstOrNull { it.exists() }
+
+if (googleServicesJson != null) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.warn(
+        "google-services.json not found in $projectDir. " +
+            "Firebase authentication will be disabled until the file is added."
+    )
 }
 
 val googleServicesJson = listOf(
