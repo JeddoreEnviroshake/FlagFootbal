@@ -165,7 +165,7 @@
 
     .scoreboard { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; align-items:stretch; }
     .clock-card { background:rgba(2,6,23,0.7); border:1px solid rgba(148,163,184,0.35); border-radius:22px; padding:20px 18px; display:flex; flex-direction:column; gap:16px; align-items:center; text-align:center; justify-content:center; }
-    .time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:44px; font-weight:900; cursor:pointer; }
+    .time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(28px, 7vw, 44px); font-weight:900; cursor:pointer; line-height:1.05; }
     .banner { font-size:12px; color:#cbd5e1; font-weight:800; letter-spacing:.02em; }
     .down-controls { display:flex; flex-direction:column; align-items:center; gap:4px; justify-content:center; }
     .down-label { font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:#cbd5e1; font-weight:700; }
@@ -201,6 +201,7 @@
     .score-actions { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.3); border-radius:18px; padding:16px; display:grid; gap:12px; }
     .score-actions .score-row { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
     .score-actions .action-row { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    .score-actions .action-row.action-row--single { grid-template-columns: 1fr; }
 
     .manual-adjust { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
     .adjust-card { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.3); border-radius:16px; padding:10px 14px; display:flex; align-items:center; gap:12px; }

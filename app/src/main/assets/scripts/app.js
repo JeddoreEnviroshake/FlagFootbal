@@ -357,6 +357,7 @@ if (indicator) {
   renderTeams();
   renderPage();
   renderGameStatsView();
+  syncTimersWithState();
 }
 
 function renderTeams(){
@@ -1314,6 +1315,8 @@ const wantsWriter = (_el && typeof _el.checked !== 'undefined') ? _el.checked : 
     remoteSync.canWrite = false;
   }
 
+  syncTimersWithState();
+
   // 4) seed state once if missing (only writers)
   try {
     if (remoteSync.canWrite) {
@@ -1890,6 +1893,139 @@ function clearHalftimeMode(){
   state.game.halftimeSecondsRemaining=0;
 }
 
+function canControlClock(){
+  if (viewMode !== 'ref') return false;
+  if (!remoteConfigured()) return true;
+  return isOnlineWriter();
+}
+
+function createWriterClockInterval(){
+  if (clockTimer) return;
+  clockTimer = setInterval(()=>{
+    txnField('game/seconds', v => {
+      const next = Math.max(0, (v|0) - 1);
+      return next;
+    }).then(res => {
+      var after;
+      if (res && res.snapshot && typeof res.snapshot.val === 'function') {
+        after = res.snapshot.val();
+      }
+      if ((after ?? state.game.seconds) <= 0) pauseClock();
+    }).catch(()=>{ /* ignore transient failures */ });
+  }, 1000);
+}
+
+function createLocalClockInterval(){
+  if (clockTimer) return;
+  clockTimer = setInterval(()=>{
+    if (state.game.seconds>0){
+      state.game.seconds--;
+      renderAndPersist();
+    } else {
+      pauseClock();
+    }
+  }, 1000);
+}
+
+function createWriterTimeoutInterval(){
+  if (timeoutTimer) clearInterval(timeoutTimer);
+  timeoutTimer = setInterval(()=>{
+    txnField('game/timeoutSecondsRemaining', v => Math.max(0, (v|0) - 1))
+      .then(res => {
+        var after;
+        if (res && res.snapshot && typeof res.snapshot.val === 'function') {
+          after = res.snapshot.val();
+        }
+        if ((after ?? state.game.timeoutSecondsRemaining) <= 0){
+          clearInterval(timeoutTimer);
+          timeoutTimer = null;
+          txnState(s => { s.game.timeoutSecondsRemaining=0; s.game.timeoutTeam=null; return s; });
+        }
+      }).catch(()=>{});
+  }, 1000);
+}
+
+function createLocalTimeoutInterval(){
+  if (timeoutTimer) return;
+  timeoutTimer = setInterval(()=>{
+    if (state.game.timeoutSecondsRemaining>0){
+      state.game.timeoutSecondsRemaining--;
+      renderAndPersist();
+    } else {
+      clearTimeoutMode();
+      renderAndPersist();
+    }
+  },1000);
+}
+
+function createWriterHalftimeInterval(){
+  if (halftimeTimer) clearInterval(halftimeTimer);
+  halftimeTimer = setInterval(()=>{
+    txnField('game/halftimeSecondsRemaining', v => Math.max(0, (v|0) - 1))
+      .then(res => {
+        var after;
+        if (res && res.snapshot && typeof res.snapshot.val === 'function') {
+          after = res.snapshot.val();
+        }
+        if ((after ?? state.game.halftimeSecondsRemaining) <= 0){
+          clearInterval(halftimeTimer);
+          halftimeTimer = null;
+          txnField('game/halftimeSecondsRemaining', () => 0);
+        }
+      }).catch(()=>{});
+  }, 1000);
+}
+
+function createLocalHalftimeInterval(){
+  if (halftimeTimer) return;
+  halftimeTimer = setInterval(()=>{
+    if (state.game.halftimeSecondsRemaining>0){
+      state.game.halftimeSecondsRemaining--;
+      renderAndPersist();
+    } else {
+      clearHalftimeMode();
+      renderAndPersist();
+    }
+  }, 1000);
+}
+
+function syncTimersWithState(){
+  const controlling = canControlClock();
+  if (!controlling){
+    if (clockTimer){ clearInterval(clockTimer); clockTimer=null; }
+    if (timeoutTimer){ clearInterval(timeoutTimer); timeoutTimer=null; }
+    if (halftimeTimer){ clearInterval(halftimeTimer); halftimeTimer=null; }
+    return;
+  }
+
+  if (state.game.running){
+    if (!clockTimer){
+      if (isOnlineWriter()) createWriterClockInterval();
+      else createLocalClockInterval();
+    }
+  } else if (clockTimer){
+    clearInterval(clockTimer); clockTimer=null;
+  }
+
+  if (state.game.timeoutSecondsRemaining>0){
+    if (!timeoutTimer){
+      if (isOnlineWriter()) createWriterTimeoutInterval();
+      else createLocalTimeoutInterval();
+    }
+  } else if (timeoutTimer){
+    clearInterval(timeoutTimer); timeoutTimer=null;
+  }
+
+  if (state.game.halftimeSecondsRemaining>0){
+    if (!halftimeTimer){
+      if (isOnlineWriter()) createWriterHalftimeInterval();
+      else createLocalHalftimeInterval();
+    }
+  } else if (halftimeTimer){
+    clearInterval(halftimeTimer); halftimeTimer=null;
+  }
+}
+
 function startClock(){
   if (viewMode !== 'ref') return;
 
@@ -1903,21 +2039,7 @@ function startClock(){
       s.game.running = true;
     });
 
-    if (clockTimer) return;
-    // tick seconds down in Firebase once per second
-    clockTimer = setInterval(()=>{
-      txnField('game/seconds', v => {
-        const next = Math.max(0, (v|0) - 1);
-        return next;
-      }).then(res => {
-        // if hit 0, stop the clock
-        var after;
-if (res && res.snapshot && typeof res.snapshot.val === 'function') {
-  after = res.snapshot.val();
-}
-        if ((after ?? state.game.seconds) <= 0) pauseClock();
-      }).catch(()=>{ /* ignore transient failures */ });
-    }, 1000);
+    if (!clockTimer) createWriterClockInterval();
     return;
   }
 
@@ -1927,14 +2049,7 @@ if (res && res.snapshot && typeof res.snapshot.val === 'function') {
   if (clockTimer) return;
   state.game.running = true;
   renderAndPersist();
-  clockTimer = setInterval(()=>{
-    if (state.game.seconds>0){
-      state.game.seconds--;
-      renderAndPersist();
-    } else {
-      pauseClock();
-    }
-  }, 1000);
+  createLocalClockInterval();
 }
 
 function pauseClock(){
@@ -1973,23 +2088,7 @@ function startTimeout(teamIdx){
       s.game.timeoutSecondsRemaining = 30;
       return s;
     });
-    if (timeoutTimer) clearInterval(timeoutTimer);
-    timeoutTimer = setInterval(()=>{
-      txnField('game/timeoutSecondsRemaining', v => Math.max(0, (v|0) - 1))
-        .then(res => {
-          // stop when zero
-          var after;
-if (res && res.snapshot && typeof res.snapshot.val === 'function') {
-  after = res.snapshot.val();
-}
-          if ((after ?? state.game.timeoutSecondsRemaining) <= 0){
-            clearInterval(timeoutTimer);
-            timeoutTimer = null;
-            // clear timeout fields in DB
-            txnState(s => { s.game.timeoutSecondsRemaining=0; s.game.timeoutTeam=null; return s; });
-          }
-        }).catch(()=>{});
-    }, 1000);
+    createWriterTimeoutInterval();
     return;
   }
 
@@ -1998,15 +2097,7 @@ if (res && res.snapshot && typeof res.snapshot.val === 'function') {
   const t = state.teams[teamIdx]; if (t.timeouts<=0) return;
   t.timeouts--; pauseClock(); clearHalftimeMode();
   state.game.timeoutSecondsRemaining = 30; state.game.timeoutTeam = teamIdx;
-  timeoutTimer = setInterval(()=>{
-    if (state.game.timeoutSecondsRemaining>0){
-      state.game.timeoutSecondsRemaining--;
-      renderAndPersist();
-    } else {
-      clearTimeoutMode();
-      renderAndPersist();
-    }
-  },1000);
+  createLocalTimeoutInterval();
   renderAndPersist();
 }
 
@@ -2023,21 +2114,7 @@ function startHalftime(){
       s.teams.forEach(t=>{ t.downs=1; t.girlPlay=2; t.rushes=2; t.timeouts=3; });
       return s;
     });
-    if (halftimeTimer) clearInterval(halftimeTimer);
-    halftimeTimer = setInterval(()=>{
-      txnField('game/halftimeSecondsRemaining', v => Math.max(0, (v|0) - 1))
-        .then(res => {
-          var after;
-if (res && res.snapshot && typeof res.snapshot.val === 'function') {
-  after = res.snapshot.val();
-}
-          if ((after ?? state.game.halftimeSecondsRemaining) <= 0){
-            clearInterval(halftimeTimer);
-            halftimeTimer = null;
-            txnField('game/halftimeSecondsRemaining', () => 0);
-          }
-        }).catch(()=>{});
-    }, 1000);
+    createWriterHalftimeInterval();
     return;
   }
 
@@ -2047,15 +2124,7 @@ if (res && res.snapshot && typeof res.snapshot.val === 'function') {
   state.game.seconds = 25*60;
   state.game.halftimeSecondsRemaining = 300;
   if (halftimeTimer) clearInterval(halftimeTimer);
-  halftimeTimer = setInterval(()=>{
-    if (state.game.halftimeSecondsRemaining>0){
-      state.game.halftimeSecondsRemaining--;
-      renderAndPersist();
-    } else {
-      clearHalftimeMode();
-      renderAndPersist();
-    }
-  }, 1000);
+  createLocalHalftimeInterval();
   renderAndPersist();
 }
 
