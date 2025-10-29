@@ -244,7 +244,34 @@
       .score-actions { grid-column: 1 / span 3; grid-row: 3; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
       .score-actions .score-row { grid-column: 1 / span 3; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
       .score-actions .action-row { grid-column: 1 / span 3; display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
-      .manual-adjust { grid-column: 1 / span 3; grid-row: 4; justify-content:space-between; }
+      .game-board .manual-adjust {
+        grid-column: 1 / span 3;
+        grid-row: 4;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        align-items: stretch;
+      }
+      .game-board .manual-adjust .adjust-card {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: center;
+        height: 100%;
+      }
+      .game-board .manual-adjust .adjust-title {
+        width: 100%;
+      }
+      .game-board .manual-adjust .adjust-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        width: 100%;
+      }
+      .game-board .manual-adjust .adjust-btn {
+        width: 100%;
+      }
     }
 
     /* Inline numeric editor (kept from codex/refactor-inline-editor...) */
