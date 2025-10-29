@@ -6,4 +6,5 @@
     <string name="login_subtitle">Use your account to unlock the playbook.</string>
     <string name="login_button">Sign in with Firebase</string>
     <string name="login_failure">Sign-in was cancelled or failed. Please try again.</string>
+    <string name="login_unavailable">Online sync is unavailable. Showing offline content.</string>
 </resources>
