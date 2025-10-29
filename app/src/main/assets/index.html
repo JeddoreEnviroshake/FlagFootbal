@@ -63,7 +63,6 @@
 
   <div class="app">
     <section class="page active" data-page="game">
-      <h1>Flag Football Game Tracker</h1>
 
       <div class="game-board">
         <div class="scoreboard">
@@ -101,9 +100,6 @@
           </div>
         </div>
 
-        <div class="possession-note">Active Team: <span id="activeTeamLabel">Home</span></div>
-        <div class="possession-hint">Tap a team card to switch</div>
-
         <div class="score-actions" data-role="ref-only">
           <div class="score-row">
             <button class="btn primary" id="g_score6" data-role="ref-only">+6</button>
@@ -118,31 +114,24 @@
 
         <div class="manual-adjust" data-role="ref-only">
           <div class="adjust-card" data-kind="timeouts">
-            <div class="adjust-label sr-only">Timeout</div>
+            <div class="adjust-title">Timeout</div>
             <div class="adjust-buttons">
               <button class="adjust-btn" data-role="ref-only" data-kind="timeouts" data-adjust="1">+</button>
               <button class="adjust-btn" data-role="ref-only" data-kind="timeouts" data-adjust="-1">-</button>
             </div>
           </div>
           <div class="adjust-card" data-kind="rushes">
-            <div class="adjust-label sr-only">Blitz</div>
+            <div class="adjust-title">Blitz</div>
             <div class="adjust-buttons">
               <button class="adjust-btn" data-role="ref-only" data-kind="rushes" data-adjust="1">+</button>
               <button class="adjust-btn" data-role="ref-only" data-kind="rushes" data-adjust="-1">-</button>
             </div>
           </div>
           <div class="adjust-card" data-kind="girlPlay">
-            <div class="adjust-label sr-only">Girl Play</div>
+            <div class="adjust-title">Girl Play</div>
             <div class="adjust-buttons">
               <button class="adjust-btn" data-role="ref-only" data-kind="girlPlay" data-adjust="1">+</button>
               <button class="adjust-btn" data-role="ref-only" data-kind="girlPlay" data-adjust="-1">-</button>
-            </div>
-          </div>
-          <div class="adjust-card" data-kind="downs">
-            <div class="adjust-label sr-only">Down</div>
-            <div class="adjust-buttons">
-              <button class="adjust-btn" data-role="ref-only" data-kind="downs" data-adjust="1">+</button>
-              <button class="adjust-btn" data-role="ref-only" data-kind="downs" data-adjust="-1">-</button>
             </div>
           </div>
         </div>
