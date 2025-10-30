@@ -7,7 +7,12 @@
       --danger: #ef4444;
       --muted: #64748b;
     }
-    html, body { height: 100%; }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+        height: 100%;
+        }
     body {
       margin: 0;
       overflow-x: hidden;
@@ -17,12 +22,16 @@
       transition: background 0.2s ease;
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      min-height: 100svh;
       overflow-y: auto;
+      overflow-x: hidden;
     }
 
     body[data-page="game"] {
-      overflow-y: hidden;
+      overflow: hidden;             /* no scrolling at all on game page */
+      touch-action: none;           /* stop finger-drag panning */
+      overscroll-behavior: none;    /* no bounce/overscroll */
+      background: #020617;          /* keep your player view background if needed */
     }
 
     body[data-view="player"] {
@@ -127,6 +136,7 @@
       padding: 20px 18px 28px;
       gap: 18px;
       overflow-y: auto;
+      touch-action: pan-y;
     }
 
     body.menu-open .drawer { transform: translateX(0); }
@@ -208,17 +218,19 @@
       flex: 1 1 auto;
       width: 100%;
       min-height: 0;
-      overflow-y: auto;
+      overflow: auto;
     }
 
     body[data-page="game"] .app {
+      height: 100svh;
       overflow: hidden;
     }
 
     .page { display: none; }
-    .page.active { display: flex; flex-direction: column; gap: 16px; flex: 1 1 auto; min-height: 0; }
+    .page.active { display: flex; flex-direction: column; gap: 16px; flex: 1 1 auto; min-height: 0; overflow: auto; }
 
     body[data-view="player"][data-page="game"] .page.active {
+      overflow: hidden;
       justify-content: center;
     }
     h1 { font-size: 20px; margin: 0 0 6px; font-weight: 800; text-align:center; }
