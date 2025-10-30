@@ -8,7 +8,22 @@
       --muted: #64748b;
     }
     html, body { height: 100%; }
-    body { margin: 0; overflow-x: hidden; background: var(--bg); color: #e5e7eb; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; transition: background 0.2s ease; }
+    body {
+      margin: 0;
+      overflow-x: hidden;
+      background: var(--bg);
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      transition: background 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-y: auto;
+    }
+
+    body[data-page="game"] {
+      overflow-y: hidden;
+    }
 
     body[data-view="player"] {
       background: #020617;
@@ -16,8 +31,12 @@
 
     body[data-view="player"] .app {
       max-width: none;
-      min-height: 100vh;
       padding: 24px 20px 32px;
+      width: 100%;
+    }
+
+    body[data-view="player"][data-page="game"] .app {
+      justify-content: center;
     }
 
     body[data-view="player"] .page.active {
@@ -30,7 +49,7 @@
     }
 
     body[data-view="player"] .scoreboard {
-      height: 100%;
+      height: auto;
     }
 
     body[data-view="player"] [data-role="ref-only"] {
@@ -179,12 +198,36 @@
 
     body.menu-open { overflow: hidden; }
 
-    .app { max-width: 1040px; margin: 0 auto; padding: 16px 12px 32px; display:flex; flex-direction:column; gap:16px; min-height:100vh; }
+    .app {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 16px 12px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    body[data-page="game"] .app {
+      overflow: hidden;
+    }
+
     .page { display: none; }
-    .page.active { display: flex; flex-direction: column; gap: 16px; }
+    .page.active { display: flex; flex-direction: column; gap: 16px; flex: 1 1 auto; min-height: 0; }
+
+    body[data-view="player"][data-page="game"] .page.active {
+      justify-content: center;
+    }
     h1 { font-size: 20px; margin: 0 0 6px; font-weight: 800; text-align:center; }
 
-    .game-board { display:flex; flex-direction:column; gap:18px; }
+    .game-board { display:flex; flex-direction:column; gap:18px; flex: 1 1 auto; }
+
+    body[data-view="player"][data-page="game"] .game-board {
+      flex: 0 0 auto;
+    }
 
     .scoreboard { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; align-items:stretch; }
     .game-stats { display:none; gap:12px; }
