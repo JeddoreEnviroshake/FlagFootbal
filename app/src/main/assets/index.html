@@ -22,22 +22,16 @@
   <header class="topbar">
     <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="topbar-title">Flag Football Game Tracker</div>
-    <div class="view-indicator" id="viewIndicator">Ref View</div>
+    <div class="view-indicator" id="viewIndicator">Game dashboard</div>
   </header>
 
   <nav class="drawer" id="menuDrawer" aria-hidden="true">
     <div class="drawer-section">
-      <h2>View</h2>
-      <button class="drawer-item" data-view="ref" type="button">Ref view</button>
-      <button class="drawer-item" data-view="player" type="button">Player view</button>
-      <button class="drawer-item" data-view="stats" type="button">Stats view</button>
-      <p class="drawer-note">Refs can update the score, clock, and stats. Players and spectators see a read-only dashboard.</p>
-    </div>
-
-    <div class="drawer-section">
       <h2>Pages</h2>
-      <button class="drawer-item active" data-page="game" type="button">Game dashboard</button>
+      <button class="drawer-item active" data-page="game" data-view="ref" type="button">Game dashboard</button>
+      <button class="drawer-item drawer-subitem" data-page="game" data-view="player" type="button">Scoreboard</button>
       <button class="drawer-item" data-page="teams" type="button">Teams</button>
+      <p class="drawer-note">Game dashboard lets refs manage the game. Scoreboard is a read-only view for players and spectators.</p>
     </div>
 
     <div class="drawer-section">
@@ -144,26 +138,6 @@
           </div>
         </div>
       </div>
-
-        <!-- Stats view panel (hidden unless View=Stats) -->
-        <section class="teams-panel" id="gameStatsPanel" style="display:none;">
-          <header>
-            <h3>Team stats (click a cell to +1)</h3>
-            <span class="muted">Live totals stored in Firebase</span>
-          </header>
-
-          <div class="stats-duo" id="gameStatsDuo">
-            <div class="team-slot">
-              <h4 class="muted" id="gameStatsHomeTitle">Home</h4>
-              <div class="stats-grid-container" id="gameStatsHome"></div>
-            </div>
-            <div class="team-slot">
-              <h4 class="muted" id="gameStatsAwayTitle">Away</h4>
-              <div class="stats-grid-container" id="gameStatsAway"></div>
-            </div>
-          </div>
-        </section>
-
     </div>
     </section>
 
