@@ -155,13 +155,15 @@ function loadMigrated(){
 function loadViewMode(){
   try {
     const raw = localStorage.getItem(VIEW_MODE_KEY);
-    if (raw === 'ref' || raw === 'player' || raw === 'stats') return raw;
+    if (raw === 'ref') return 'ref';
+    if (raw === 'player' || raw === 'scoreboard') return 'player';
   } catch {}
   return 'ref';
 }
 
 function saveViewMode(mode){
-  try { localStorage.setItem(VIEW_MODE_KEY, mode); } catch {}
+  const persist = mode === 'player' ? 'scoreboard' : 'ref';
+  try { localStorage.setItem(VIEW_MODE_KEY, persist); } catch {}
 }
 
 let state = loadMigrated() || defaultState();
@@ -335,12 +337,9 @@ function updateGirlTrack(trackEl, value){
 function render(){
   document.body.dataset.view = viewMode;
   const indicator = $('#viewIndicator');
-if (indicator) {
-  indicator.textContent =
-    viewMode === 'ref' ? 'Ref View' :
-    viewMode === 'stats' ? 'Stats View' :
-    'Player View';
-}
+  if (indicator) {
+    indicator.textContent = viewMode === 'ref' ? 'Game dashboard' : 'Scoreboard';
+  }
 
   $$('#menuDrawer .drawer-item[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewMode));
   const isRef = viewMode === 'ref';
@@ -606,133 +605,6 @@ function valueFromField(player, field){
   return 0;
 }
 
-// === Stats View: helpers for Game dashboard ===
-
-// Find the first teamId in /teams whose name matches (case-insensitive)
-function findTeamIdByName(name){
-  if (!name || !teamsDirectory.data) return null;
-  const needle = String(name).trim().toLowerCase();
-  const ids = Object.keys(teamsDirectory.data);
-  for (const id of ids){
-    const t = teamsDirectory.data[id];
-    const n = (t && t.name ? String(t.name) : '').trim().toLowerCase();
-    if (n && n === needle) return id;
-  }
-  return null;
-}
-
-// Build a stats grid for a specific teamId into a given host element
-function renderStatsGridForTeam(teamId, hostEl){
-  if (!hostEl) return;
-
-  if (!db) {
-    hostEl.innerHTML = '<div class="stats-grid-empty">Connect to Firebase to record stats.</div>';
-    return;
-  }
-  if (!teamId) {
-    hostEl.innerHTML = '<div class="stats-grid-empty">No matching team found.</div>';
-    return;
-  }
-
-  const team = teamsDirectory.data?.[teamId] || {};
-  const players = team.players || {};
-  const playerIds = sortKeysByName(players);
-
-  if (!playerIds.length){
-    hostEl.innerHTML = '<div class="stats-grid-empty">No players yet.</div>';
-    return;
-  }
-
-  const table = document.createElement('table');
-  table.className = 'stats-grid';
-
-  const thead = document.createElement('thead');
-  const trh = document.createElement('tr');
-  const thName = document.createElement('th'); thName.textContent = 'Player';
-  trh.appendChild(thName);
-  TEAM_STAT_FIELDS.forEach(field => {
-    const th = document.createElement('th'); th.textContent = field.label;
-    trh.appendChild(th);
-  });
-  thead.appendChild(trh);
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  playerIds.forEach(pid => {
-    const p = players[pid] || {};
-    const tr = document.createElement('tr');
-
-    const nameTd = document.createElement('td');
-    nameTd.textContent = entityName(p, 'Unnamed player');
-    tr.appendChild(nameTd);
-
-    TEAM_STAT_FIELDS.forEach(field => {
-      const key = getPrimaryKeyForField(field);
-      const td = document.createElement('td');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'stat-cell';
-      btn.dataset.teamId = teamId;
-      btn.dataset.playerId = pid;
-      btn.dataset.statKey = key;
-      const val = valueFromField(p, field);
-      btn.textContent = Number.isFinite(val) ? String(val) : String(Number(val || 0));
-      btn.setAttribute('aria-label', `Add 1 to ${field.label} for ${entityName(p, 'player')}`);
-      td.appendChild(btn);
-      tr.appendChild(td);
-    });
-
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-
-  hostEl.innerHTML = '';
-  hostEl.appendChild(table);
-
-  // Delegate clicks once per host
-  if (!hostEl.__wired) {
-    hostEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('button.stat-cell');
-      if (!btn) return;
-      e.stopPropagation();
-      const { teamId, playerId, statKey } = btn.dataset;
-      incPlayerStat(teamId, playerId, statKey);
-    });
-    hostEl.__wired = true;
-  }
-}
-
-// Render the two-team stats panel on the Game dashboard
-function renderGameStatsView(){
-  const panel = document.getElementById('gameStatsPanel');
-  if (!panel) return;
-
-  // Show only when on Game page AND View=Stats
-  const shouldShow = (currentPage === 'game' && viewMode === 'stats');
-  panel.style.display = shouldShow ? '' : 'none';
-  if (!shouldShow) return;
-
-  // Ensure we have live /teams data
-  ensureTeamsListener();
-
-  // Figure out the two names from current game state
-  const homeName = state.teams?.[0]?.name || 'Home';
-  const awayName = state.teams?.[1]?.name || 'Away';
-  const homeId = findTeamIdByName(homeName);
-  const awayId = findTeamIdByName(awayName);
-
-  // Titles
-  const hTitle = document.getElementById('gameStatsHomeTitle');
-  const aTitle = document.getElementById('gameStatsAwayTitle');
-  if (hTitle) hTitle.textContent = homeName;
-  if (aTitle) aTitle.textContent = awayName;
-
-  // Grids
-  renderStatsGridForTeam(homeId, document.getElementById('gameStatsHome'));
-  renderStatsGridForTeam(awayId, document.getElementById('gameStatsAway'));
-}
-
-
 function renderPage(){
   document.body.dataset.page = currentPage;
   $$('.page').forEach(sec => {
@@ -741,15 +613,14 @@ function renderPage(){
     sec.hidden = !isActive;
   });
   $$('#menuDrawer .drawer-item[data-page]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.page === currentPage);
+    const matchesPage = btn.dataset.page === currentPage;
+    const requiredView = btn.dataset.view;
+    const matchesView = !requiredView || requiredView === viewMode;
+    btn.classList.toggle('active', matchesPage && matchesView);
   });
   if (currentPage === 'teams') {
     ensureTeamsListener();
     renderTeamsDirectory();
-  }
-  // NEW: show two-team stats on Game dashboard when View=Stats
-  if (currentPage === 'game' && viewMode === 'stats') {
-    renderGameStatsView();
   }
 }
 
@@ -2224,7 +2095,7 @@ function toggleMenu(){
 }
 
 function setViewMode(mode){
-  const next = mode === 'player' ? 'player' : (mode === 'stats' ? 'stats' : 'ref');
+  const next = (mode === 'player' || mode === 'scoreboard') ? 'player' : 'ref';
   if (viewMode === next) return;
   const previous = viewMode;
   viewMode = next;
@@ -2240,6 +2111,7 @@ function setViewMode(mode){
   }
   closeMenu();
   render();
+  renderPage();
 }
 
 if (menuToggleBtn) menuToggleBtn.addEventListener('click', toggleMenu);
