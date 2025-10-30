@@ -334,6 +334,96 @@ function updateGirlTrack(trackEl, value){
   });
 }
 
+function renderGameStatsView(){
+  const host = document.getElementById('gameStatsView');
+  if (!host) return;
+
+  if (viewMode !== 'player') {
+    host.innerHTML = '';
+    host.hidden = true;
+    host.setAttribute('aria-hidden', 'true');
+    return;
+  }
+
+  host.hidden = false;
+  host.removeAttribute('aria-hidden');
+
+  const teams = Array.isArray(state.teams) ? state.teams : [];
+  if (!teams.length) {
+    const slot = document.createElement('div');
+    slot.className = 'team-slot';
+    const empty = document.createElement('p');
+    empty.className = 'stat-empty';
+    empty.textContent = 'No teams yet.';
+    slot.appendChild(empty);
+    host.replaceChildren(slot);
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  teams.forEach((team, idx) => {
+    const slot = document.createElement('div');
+    slot.className = 'team-slot';
+
+    const title = document.createElement('h4');
+    const fallbackName = idx === 0 ? 'Home' : (idx === 1 ? 'Away' : `Team ${idx + 1}`);
+    title.textContent = entityName(team, fallbackName);
+    slot.appendChild(title);
+
+    const createRow = (label) => {
+      const row = document.createElement('div');
+      row.className = 'stat-line';
+      const labelEl = document.createElement('span');
+      labelEl.textContent = label;
+      row.appendChild(labelEl);
+      const valueEl = document.createElement('span');
+      valueEl.className = 'stat-value';
+      row.appendChild(valueEl);
+      return { row, valueEl };
+    };
+
+    const timeouts = clampTimeouts(team?.timeouts ?? 0);
+    const { row: timeoutRow, valueEl: timeoutValue } = createRow('Timeouts');
+    const timeoutPips = document.createElement('span');
+    timeoutPips.innerHTML = buildTimeoutPips(timeouts);
+    timeoutValue.appendChild(timeoutPips);
+    const timeoutCount = document.createElement('span');
+    timeoutCount.textContent = String(timeouts);
+    timeoutValue.appendChild(timeoutCount);
+    const timeoutSr = document.createElement('span');
+    timeoutSr.className = 'sr-only';
+    timeoutSr.textContent = describeTimeouts(timeouts);
+    timeoutValue.appendChild(timeoutSr);
+    slot.appendChild(timeoutRow);
+
+    const rushes = clampRushes(team?.rushes ?? 0);
+    const { row: blitzRow, valueEl: blitzValue } = createRow('Blitzes');
+    const blitzPips = document.createElement('span');
+    blitzPips.innerHTML = buildBlitzPips(rushes);
+    blitzValue.appendChild(blitzPips);
+    const blitzCount = document.createElement('span');
+    blitzCount.textContent = String(rushes);
+    blitzValue.appendChild(blitzCount);
+    const blitzSr = document.createElement('span');
+    blitzSr.className = 'sr-only';
+    blitzSr.textContent = describeBlitzes(rushes);
+    blitzValue.appendChild(blitzSr);
+    slot.appendChild(blitzRow);
+
+    const { row: girlRow, valueEl: girlValue } = createRow('Girl play');
+    girlValue.textContent = fmtGirl(clampGirl(team?.girlPlay ?? 2));
+    const girlSr = document.createElement('span');
+    girlSr.className = 'sr-only';
+    girlSr.textContent = describeGirlPlay(team?.girlPlay);
+    girlValue.appendChild(girlSr);
+    slot.appendChild(girlRow);
+
+    frag.appendChild(slot);
+  });
+
+  host.replaceChildren(frag);
+}
+
 function render(){
   document.body.dataset.view = viewMode;
   const indicator = $('#viewIndicator');

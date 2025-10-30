@@ -191,6 +191,14 @@
     .game-board { display:flex; flex-direction:column; gap:18px; }
 
     .scoreboard { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; align-items:stretch; }
+    .game-stats { display:none; gap:12px; }
+    .game-stats .team-slot { background:rgba(15,23,42,0.7); border:1px solid rgba(148,163,184,0.3); border-radius:18px; padding:16px; }
+    .game-stats .team-slot > h4 { margin:0; font-size:14px; font-weight:800; color:#94a3b8; letter-spacing:0.04em; text-transform:uppercase; }
+    .game-stats .stat-line { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid rgba(148,163,184,0.15); font-weight:700; }
+    .game-stats .stat-line:last-child { border-bottom:none; }
+    .game-stats .stat-value { display:flex; align-items:center; justify-content:flex-end; gap:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:18px; }
+    .game-stats .stat-empty { margin:6px 0 0; font-size:14px; color:#94a3b8; font-style:italic; }
+    body[data-view="player"] .game-stats { display:grid; }
     .clock-card { background:rgba(2,6,23,0.7); border:1px solid rgba(148,163,184,0.35); border-radius:22px; padding:20px 18px; display:flex; flex-direction:column; gap:16px; align-items:center; text-align:center; justify-content:center; }
     .time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(28px, 7vw, 44px); font-weight:900; cursor:pointer; line-height:1.05; }
     .banner { font-size:12px; color:#cbd5e1; font-weight:800; letter-spacing:.02em; }
