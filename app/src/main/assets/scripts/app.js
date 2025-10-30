@@ -1913,7 +1913,6 @@ function clearHalftimeMode(){
 }
 
 function canControlClock(){
-  if (viewMode !== 'ref') return false;
   if (!remoteConfigured()) return true;
   return isOnlineWriter();
 }
