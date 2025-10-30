@@ -1103,6 +1103,16 @@ if (window.__firebaseReady && window.firebase) {
 
 function remoteConfigured(){ return !!(remoteSync.config && remoteSync.config.game); }
 
+function requireConfiguredGame(){
+  const game = remoteSync.config && remoteSync.config.game ? remoteSync.config.game : null;
+  if (!game) {
+    remoteSync.status = 'error';
+    remoteSync.lastError = 'Game configuration missing';
+    updateRemoteStatus();
+  }
+  return game;
+}
+
 // Persist only the game code locally
 function saveRemoteConfig(cfg){ try { localStorage.setItem(REMOTE_CONFIG_KEY, JSON.stringify({ game: cfg.game, lastKnown: cfg.lastKnown || null })); } catch {} }
 function loadRemoteConfig(){
@@ -1164,9 +1174,11 @@ function scheduleRemotePush(){
 function pushRemoteNow(){
   if (!db || !auth) return;
   if (!remoteConfigured() || !remoteSync.canWrite) return;
+  const gameId = requireConfiguredGame();
+  if (!gameId) return;
   remoteSync.pushing = true;
 
-  const gameRef = db.ref(`games/${remoteSync.config.game}`);
+  const gameRef = db.ref(`games/${gameId}`);
   const payload = { state: serializeState(state), updatedAt: firebase.database.ServerValue.TIMESTAMP };
 
   gameRef.update(payload)
@@ -1236,12 +1248,16 @@ function isOnlineWriter(){
 }
 
 function txnField(path, mutateFn) {
-  const ref = db.ref(`games/${remoteSync.config.game}/state/${path}`);
+  const gameId = requireConfiguredGame();
+  if (!gameId) return Promise.reject(new Error('No game configured'));
+  const ref = db.ref(`games/${gameId}/state/${path}`);
   return ref.transaction(curr => mutateFn(curr));
 }
 
 function txnState(mutateFn){
-  const ref = db.ref(`games/${remoteSync.config.game}/state`);
+  const gameId = requireConfiguredGame();
+  if (!gameId) return Promise.reject(new Error('No game configured'));
+  const ref = db.ref(`games/${gameId}/state`);
   return ref.transaction(s => {
     // Start from a valid shape if missing
     if (!s) s = serializeState(defaultState());
@@ -1295,7 +1311,8 @@ async function connectRemote(){
   }
 
   // 2) writer intent (multi-writer)
-  const game = remoteSync.config.game;
+  const game = requireConfiguredGame();
+  if (!game) return;
   var _el = document.getElementById('joinAsWriter');
 const wantsWriter = (_el && typeof _el.checked !== 'undefined') ? _el.checked : true;
 
