@@ -29,7 +29,7 @@
     <div class="drawer-section">
       <h2>Pages</h2>
       <button class="drawer-item active" data-page="game" data-view="ref" type="button">Game dashboard</button>
-      <button class="drawer-item drawer-subitem" data-page="game" data-view="player" type="button">Scoreboard</button>
+      <button class="drawer-item" data-page="game" data-view="player" type="button">Scoreboard</button>
       <button class="drawer-item" data-page="teams" type="button">Teams</button>
       <p class="drawer-note">Game dashboard lets refs manage the game. Scoreboard is a read-only view for players and spectators.</p>
     </div>
@@ -80,8 +80,6 @@
 
           <section class="team-card" id="teamCard1"></section>
         </div>
-
-        <div class="game-stats stats-duo" id="gameStatsView" aria-live="polite" hidden></div>
 
         <div class="clock-actions">
           <div class="action-stack">
@@ -140,7 +138,6 @@
           </div>
         </div>
       </div>
-    </div>
     </section>
 
     <section class="page" data-page="teams" id="teamsPage">
