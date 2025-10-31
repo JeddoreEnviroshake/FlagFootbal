@@ -21,9 +21,9 @@
     <string name="login_google_network_error">Google Sign-In failed because of a network problem. Check your connection and try again.</string>
     <string name="login_google_internal_error">Google Sign-In is temporarily unavailable. Please try again in a moment.</string>
     <string name="login_google_in_progress">A Google Sign-In operation is already in progress. Please wait and try again.</string>
-    <string name="login_google_failed">Google couldn't sign you in right now. Please try again.</string>
+    <string name="login_google_failed" formatted="false">Google couldn&#39;t sign you in right now. Please try again.</string>
     <string name="login_google_sign_in_required">You need to sign in with Google to continue.</string>
-    <string name="login_google_invalid_account">This Google account isn't allowed for this app. Try a different account.</string>
+    <string name="login_google_invalid_account" formatted="false">This Google account isn&#39;t allowed for this app. Try a different account.</string>
     <string name="login_google_service_unavailable">Google Play services is unavailable. Try again after updating Google Play services.</string>
     <string name="login_google_timeout">Google Sign-In timed out. Please check your connection and try again.</string>
     <string name="login_sign_out_error">Unable to sign out right now. Please try again.</string>
