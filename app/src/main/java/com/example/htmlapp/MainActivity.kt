@@ -33,6 +33,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
+import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.android.material.textfield.TextInputEditText
@@ -278,24 +279,21 @@ class MainActivity : AppCompatActivity() {
                 if (result.resultCode != RESULT_OK) {
                     setLoginInProgress(false)
 
-                    val errorMessage = if (data != null) {
-                        try {
-                            GoogleSignIn.getSignedInAccountFromIntent(data)
-                            getString(R.string.login_failure)
-                        } catch (error: ApiException) {
-                            Log.w(TAG, "Google sign-in cancelled", error)
-                            when (error.statusCode) {
-                                GoogleSignInStatusCodes.SIGN_IN_CANCELLED ->
-                                    getString(R.string.login_cancelled)
+                    if (data == null) {
+                        Log.w(
+                            TAG,
+                            "Google sign-in failed with resultCode=${result.resultCode} and no intent data"
+                        )
+                        showLoginError(getString(R.string.login_failure))
+                        return@registerForActivityResult
+                    }
 
-                                GoogleSignInStatusCodes.DEVELOPER_ERROR ->
-                                    getString(R.string.login_google_config_error)
-
-                                else -> getString(R.string.login_failure)
-                            }
-                        }
-                    } else {
+                    val errorMessage = try {
+                        val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+                        task.getResult(ApiException::class.java)
                         getString(R.string.login_failure)
+                    } catch (error: ApiException) {
+                        resolveGoogleSignInError(error, "activity result")
                     }
 
                     showLoginError(errorMessage)
@@ -307,6 +305,7 @@ class MainActivity : AppCompatActivity() {
                     val account = task.getResult(ApiException::class.java)
                     val idToken = account?.idToken
                     if (idToken.isNullOrEmpty()) {
+                        Log.w(TAG, "Received Google account without ID token during sign-in")
                         setLoginInProgress(false)
                         showLoginError(getString(R.string.login_failure))
                         return@registerForActivityResult
@@ -325,14 +324,19 @@ class MainActivity : AppCompatActivity() {
                             if (signInTask.isSuccessful) {
                                 loginStatus.isVisible = false
                             } else {
-                                val message = signInTask.exception?.localizedMessage
+                                val exception = signInTask.exception
+                                Log.w(
+                                    TAG,
+                                    "Firebase authentication with Google credentials failed",
+                                    exception
+                                )
+                                val message = exception?.localizedMessage
                                 showLoginError(message ?: getString(R.string.login_failure))
                             }
                         }
                 } catch (error: ApiException) {
-                    Log.e(TAG, "Google sign-in failed", error)
                     setLoginInProgress(false)
-                    val message = error.localizedMessage ?: getString(R.string.login_failure)
+                    val message = resolveGoogleSignInError(error, "credential exchange")
                     showLoginError(message)
                 }
             }
@@ -580,6 +584,79 @@ class MainActivity : AppCompatActivity() {
                     showToast(R.string.login_sign_out_error)
                 }
             }
+        }
+    }
+
+    private fun resolveGoogleSignInError(error: ApiException, stage: String): String {
+        val statusCode = error.statusCode
+        logGoogleSignInFailure(statusCode, stage, error)
+        return googleSignInErrorMessage(statusCode)
+    }
+
+    private fun logGoogleSignInFailure(statusCode: Int, stage: String, cause: Throwable? = null) {
+        val statusName = GoogleSignInStatusCodes.getStatusCodeString(statusCode)
+            ?: "UNKNOWN_STATUS_CODE"
+        val detailMessage = cause?.localizedMessage
+        val logMessage = buildString {
+            append("Google sign-in ")
+            append(stage)
+            append(" failed with status ")
+            append(statusName)
+            append('(')
+            append(statusCode)
+            append(')')
+            if (!detailMessage.isNullOrBlank()) {
+                append(": ")
+                append(detailMessage)
+            }
+        }
+
+        if (cause != null) {
+            Log.w(TAG, logMessage, cause)
+        } else {
+            Log.w(TAG, logMessage)
+        }
+    }
+
+    private fun googleSignInErrorMessage(statusCode: Int): String {
+        return when (statusCode) {
+            GoogleSignInStatusCodes.SIGN_IN_CANCELLED,
+            CommonStatusCodes.CANCELED -> getString(R.string.login_cancelled)
+
+            GoogleSignInStatusCodes.DEVELOPER_ERROR,
+            CommonStatusCodes.DEVELOPER_ERROR ->
+                getString(R.string.login_google_config_error)
+
+            GoogleSignInStatusCodes.NETWORK_ERROR ->
+                getString(R.string.login_google_network_error)
+
+            GoogleSignInStatusCodes.INTERNAL_ERROR ->
+                getString(R.string.login_google_internal_error)
+
+            GoogleSignInStatusCodes.SIGN_IN_CURRENTLY_IN_PROGRESS ->
+                getString(R.string.login_google_in_progress)
+
+            GoogleSignInStatusCodes.SIGN_IN_FAILED ->
+                getString(R.string.login_google_failed)
+
+            GoogleSignInStatusCodes.SIGN_IN_REQUIRED,
+            CommonStatusCodes.RESOLUTION_REQUIRED ->
+                getString(R.string.login_google_sign_in_required)
+
+            GoogleSignInStatusCodes.INVALID_ACCOUNT,
+            CommonStatusCodes.INVALID_ACCOUNT ->
+                getString(R.string.login_google_invalid_account)
+
+            CommonStatusCodes.API_NOT_CONNECTED,
+            CommonStatusCodes.SERVICE_VERSION_UPDATE_REQUIRED,
+            CommonStatusCodes.SERVICE_DISABLED,
+            CommonStatusCodes.SERVICE_INVALID ->
+                getString(R.string.login_google_service_unavailable)
+
+            CommonStatusCodes.TIMEOUT ->
+                getString(R.string.login_google_timeout)
+
+            else -> getString(R.string.login_failure)
         }
     }
 
