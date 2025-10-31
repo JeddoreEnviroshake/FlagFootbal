@@ -10,7 +10,10 @@
       "client_info": {
         "mobilesdk_app_id": "1:207525608357:android:dfb501ff203d5671d4064c",
         "android_client_info": {
-          "package_name": "com.example.htmlapp"
+          "package_name": "com.example.htmlapp",
+          "certificate_hashes": [
+            "B50C7D2E1F6055DDA77135D94CC2D49A97454E41"
+          ]
         }
       },
       "oauth_client": [
