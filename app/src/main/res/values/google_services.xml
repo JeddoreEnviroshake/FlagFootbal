@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="google_app_id" translatable="false">1:207525608357:android:dfb501ff203d5671d4064c</string>
-    <string name="google_api_key" translatable="false">AIzaSyA2mWpURGW_58mGGW3H7RHduBjUd-dUGEQ</string>
-    <string name="gcm_defaultSenderId" translatable="false">207525608357</string>
-    <string name="project_id" translatable="false">flagfootball-4efca</string>
-    <string name="firebase_database_url" translatable="false">https://flagfootball-4efca-default-rtdb.firebaseio.com</string>
-    <string name="google_storage_bucket" translatable="false">flagfootball-4efca.firebasestorage.app</string>
-</resources>

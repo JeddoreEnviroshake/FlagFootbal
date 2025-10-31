@@ -14,10 +14,11 @@
     <string name="login_disclaimer">By clicking continue, you agree to our Terms of Service and Privacy Policy</string>
     <string name="login_logo_content_description">Synqro logo</string>
     <string name="login_failure">Sign-in was cancelled or failed. Please try again.</string>
+    <string name="login_cancelled">Sign-in was cancelled.</string>
     <string name="login_unavailable">Online sync is unavailable. Showing offline content.</string>
     <string name="login_missing_google_id">Google Sign-In is not configured for this build.</string>
+    <string name="login_google_config_error">Google Sign-In is misconfigured for this build. Verify the OAuth client ID and SHA&#8209;1 fingerprints in Firebase.</string>
     <string name="login_sign_out_error">Unable to sign out right now. Please try again.</string>
-    <string name="default_web_client_id">207525608357-fnl1lh47g0kufd8s6pqfh64fbfkve9d7.apps.googleusercontent.com</string>
     <string name="widget_title">Open Synqro</string>
     <string name="widget_content_description">Launch Synqro</string>
 </resources>
