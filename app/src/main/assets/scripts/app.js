@@ -2361,6 +2361,30 @@ if (menuToggleBtn) menuToggleBtn.addEventListener('click', toggleMenu);
 if (menuBackdrop) menuBackdrop.addEventListener('click', closeMenu);
 document.addEventListener('keydown', (ev)=>{ if (ev.key === 'Escape') closeMenu(); });
 
+const signOutBtn = $('#menuSignOut');
+if (signOutBtn) {
+  signOutBtn.addEventListener('click', () => {
+    closeMenu();
+    let handled = false;
+    try {
+      if (window.AndroidApp && typeof window.AndroidApp.signOut === 'function') {
+        window.AndroidApp.signOut();
+        handled = true;
+      }
+    } catch (err) {
+      console.warn('[signOut] native bridge error', err);
+    }
+
+    if (!handled && window.firebase && firebase.auth) {
+      try {
+        firebase.auth().signOut();
+      } catch (err) {
+        console.warn('[signOut] firebase auth signOut failed', err);
+      }
+    }
+  });
+}
+
 $$('#menuDrawer .drawer-item').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.dataset.view) setViewMode(btn.dataset.view);
