@@ -9,9 +9,24 @@ const REMOTE_CONFIG_KEY = 'flag_football_touch_remote_v1';
 // NOTE: As of v9, girlPlay now represents "plays until required girl play" on a 0-2 scale
 // 2 -> "2", 1 -> "1", 0 -> "Now". Previously (v8 and earlier) girlPlay was 1..3 rolling counter.
 
+function coerceMs(val){
+  const num = Number(val);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  return Math.floor(num);
+}
+
+function coerceSeconds(val){
+  const num = Number(val);
+  if (!Number.isFinite(num) || num < 0) return 0;
+  return Math.floor(num);
+}
+
 function serializeState(s){
-  const teamSource = Array.isArray(s.teams) && s.teams.length ? s.teams : defaultState().teams;
+  const defaults = defaultState();
+  const teamSource = Array.isArray(s.teams) && s.teams.length ? s.teams : defaults.teams;
   const game = s.game || {};
+  const timeout = s.timeout || {};
+  const halftime = s.halftime || {};
   const safe = {
     activeTeam: Math.max(0, Math.min(1, s.activeTeam != null ? s.activeTeam : 0)),
     teams: teamSource.map(t => ({
@@ -23,18 +38,31 @@ function serializeState(s){
       timeouts: Math.max(0, t.timeouts|0)
     })),
     game: {
-      seconds: Math.max(0, game.seconds|0) || 25*60,
+      seconds: coerceSeconds(game.seconds != null ? game.seconds : defaults.game.seconds),
       running: !!game.running,
-      timeoutSecondsRemaining: Math.max(0, game.timeoutSecondsRemaining|0),
-      timeoutTeam: game.timeoutTeam == null ? null : game.timeoutTeam,
-      halftimeSecondsRemaining: Math.max(0, game.halftimeSecondsRemaining|0)
+      startedAtMs: coerceMs(game.startedAtMs),
+      secondsAtStart: game.secondsAtStart != null ? coerceSeconds(game.secondsAtStart) : null
+    },
+    timeout: {
+      running: !!timeout.running,
+      secondsRemaining: coerceSeconds(timeout.secondsRemaining),
+      team: timeout.team == null ? null : Math.max(0, Math.min(1, timeout.team|0)),
+      startedAtMs: coerceMs(timeout.startedAtMs),
+      secondsAtStart: timeout.secondsAtStart != null ? coerceSeconds(timeout.secondsAtStart) : null
+    },
+    halftime: {
+      running: !!halftime.running,
+      secondsRemaining: coerceSeconds(halftime.secondsRemaining),
+      startedAtMs: coerceMs(halftime.startedAtMs),
+      secondsAtStart: halftime.secondsAtStart != null ? coerceSeconds(halftime.secondsAtStart) : null
     }
   };
-  if (safe.game.timeoutTeam != null) {
-    safe.game.timeoutTeam = Math.max(0, Math.min(1, safe.game.timeoutTeam|0));
-  } else {
-    safe.game.timeoutTeam = null;
-  }
+  if (!safe.game.startedAtMs) safe.game.startedAtMs = null;
+  if (!safe.game.secondsAtStart) safe.game.secondsAtStart = null;
+  if (!safe.timeout.startedAtMs) safe.timeout.startedAtMs = null;
+  if (!safe.timeout.secondsAtStart) safe.timeout.secondsAtStart = null;
+  if (!safe.halftime.startedAtMs) safe.halftime.startedAtMs = null;
+  if (!safe.halftime.secondsAtStart) safe.halftime.secondsAtStart = null;
   return safe;
 }
 
@@ -46,7 +74,25 @@ function safeSave(){
       const tiny = JSON.stringify({
         a: state.activeTeam,
         t: state.teams.map(t=>({n:t.name, s:t.score|0, d:t.downs|0, g:Math.min(2,Math.max(0,t.girlPlay|0)), r:t.rushes|0, o:t.timeouts|0})),
-        g: {s: state.game.seconds|0}
+        g: {
+          s: state.game.seconds|0,
+          r: !!state.game.running,
+          sa: state.game.secondsAtStart != null ? coerceSeconds(state.game.secondsAtStart) : null,
+          ms: state.game.startedAtMs != null ? coerceMs(state.game.startedAtMs) : null
+        },
+        to: {
+          r: !!state.timeout.running,
+          sr: state.timeout.secondsRemaining|0,
+          sa: state.timeout.secondsAtStart != null ? coerceSeconds(state.timeout.secondsAtStart) : null,
+          ms: state.timeout.startedAtMs != null ? coerceMs(state.timeout.startedAtMs) : null,
+          tm: state.timeout.team == null ? null : Math.max(0, Math.min(1, state.timeout.team|0))
+        },
+        h: {
+          r: !!state.halftime.running,
+          sr: state.halftime.secondsRemaining|0,
+          sa: state.halftime.secondsAtStart != null ? coerceSeconds(state.halftime.secondsAtStart) : null,
+          ms: state.halftime.startedAtMs != null ? coerceMs(state.halftime.startedAtMs) : null
+        }
       });
       localStorage.setItem(STORAGE_KEY, tiny);
     } catch(e2){ try{ localStorage.removeItem(STORAGE_KEY);}catch{} }
@@ -64,6 +110,77 @@ function renderAndPersist(){
   requestPersist();
 }
 
+function secondsKeyForCountdown(countdown){
+  if (!countdown) return 'seconds';
+  return Object.prototype.hasOwnProperty.call(countdown, 'secondsRemaining') ? 'secondsRemaining' : 'seconds';
+}
+
+function reconcileCountdown(nowMs, countdown){
+  if (!countdown || !countdown.running) return false;
+  let changed = false;
+  const startedAt = coerceMs(countdown.startedAtMs);
+  if (!startedAt) {
+    if (countdown.startedAtMs != null) { countdown.startedAtMs = null; changed = true; }
+    if (countdown.secondsAtStart != null) { countdown.secondsAtStart = null; changed = true; }
+    if (countdown.running) { countdown.running = false; changed = true; }
+    return changed;
+  }
+
+  if (countdown.startedAtMs !== startedAt) { countdown.startedAtMs = startedAt; changed = true; }
+
+  const secondsKey = secondsKeyForCountdown(countdown);
+  const currentSeconds = coerceSeconds(countdown[secondsKey]);
+  if (countdown[secondsKey] !== currentSeconds) { countdown[secondsKey] = currentSeconds; changed = true; }
+
+  let startSeconds = countdown.secondsAtStart != null ? coerceSeconds(countdown.secondsAtStart) : null;
+  if (startSeconds == null) {
+    startSeconds = currentSeconds;
+    if (countdown.secondsAtStart !== startSeconds) { countdown.secondsAtStart = startSeconds; changed = true; }
+  } else if (countdown.secondsAtStart !== startSeconds) {
+    countdown.secondsAtStart = startSeconds;
+    changed = true;
+  }
+
+  const elapsed = Math.max(0, Math.floor((nowMs - startedAt) / 1000));
+  const remaining = Math.max(0, startSeconds - elapsed);
+  if (countdown[secondsKey] !== remaining) { countdown[secondsKey] = remaining; changed = true; }
+
+  if (remaining === 0) {
+    if (countdown.running) { countdown.running = false; changed = true; }
+    if (countdown.startedAtMs != null) { countdown.startedAtMs = null; changed = true; }
+    if (countdown.secondsAtStart != null) { countdown.secondsAtStart = null; changed = true; }
+  }
+
+  return changed;
+}
+
+function reconcileAll(nowMs){
+  let changed = false;
+  if (reconcileCountdown(nowMs, state.game)) changed = true;
+  if (reconcileCountdown(nowMs, state.timeout)) changed = true;
+  if (reconcileCountdown(nowMs, state.halftime)) changed = true;
+
+  if (state) {
+    const timeoutKey = secondsKeyForCountdown(state.timeout);
+    if (!state.timeout.running && coerceSeconds(state.timeout[timeoutKey]) === 0) {
+      if (state.timeout[timeoutKey] !== 0) { state.timeout[timeoutKey] = 0; changed = true; }
+      if (state.timeout.team != null) { state.timeout.team = null; changed = true; }
+      if (state.timeout.startedAtMs != null) { state.timeout.startedAtMs = null; changed = true; }
+      if (state.timeout.secondsAtStart != null) { state.timeout.secondsAtStart = null; changed = true; }
+    }
+
+    const halftimeKey = secondsKeyForCountdown(state.halftime);
+    const halftimeSeconds = coerceSeconds(state.halftime[halftimeKey]);
+    if (state.halftime[halftimeKey] !== halftimeSeconds) { state.halftime[halftimeKey] = halftimeSeconds; changed = true; }
+    if (!state.halftime.running && halftimeSeconds === 0) {
+      if (state.halftime.startedAtMs != null) { state.halftime.startedAtMs = null; changed = true; }
+      if (state.halftime.secondsAtStart != null) { state.halftime.secondsAtStart = null; changed = true; }
+    }
+  }
+
+  return changed;
+}
+
 /**********************
  * App State
  **********************/
@@ -76,7 +193,9 @@ const defaultState = () => ({
     { name: 'Home', score: 0, downs: 1, girlPlay: 2, rushes: 2, timeouts: 3 }, // start at 2 plays until girl
     { name: 'Away', score: 0, downs: 1, girlPlay: 2, rushes: 2, timeouts: 3 }
   ],
-  game: { seconds: 25*60, running: false, timeoutSecondsRemaining: 0, timeoutTeam: null, halftimeSecondsRemaining: 0 }
+  game: { seconds: 25*60, running: false, startedAtMs: null, secondsAtStart: null },
+  timeout: { running: false, secondsRemaining: 0, team: null, startedAtMs: null, secondsAtStart: null },
+  halftime: { running: false, secondsRemaining: 0, startedAtMs: null, secondsAtStart: null }
 });
 
 const VALUE_RULES = {
@@ -125,15 +244,81 @@ function inflate(obj){
       : 0;
     base.activeTeam = normalizedActiveTeam;
     const g = obj.game != null ? obj.game : (obj.g != null ? obj.g : {});
-    const secondsSource = g.seconds != null ? g.seconds : (g.s != null ? g.s : 25*60);
-    base.game.seconds = Math.max(0, secondsSource);
+    const secondsSource = g.seconds != null ? g.seconds : (g.s != null ? g.s : defaultState().game.seconds);
+    base.game.seconds = coerceSeconds(secondsSource);
     base.game.running = !!g.running;
-    const timeoutSeconds = g.timeoutSecondsRemaining != null ? g.timeoutSecondsRemaining : (g.tr != null ? g.tr : 0);
-    base.game.timeoutSecondsRemaining = Math.max(0, timeoutSeconds);
-    if (g.timeoutTeam == null) base.game.timeoutTeam = null;
-    else base.game.timeoutTeam = Math.max(0, Math.min(1, g.timeoutTeam|0));
-    const halftimeSeconds = g.halftimeSecondsRemaining != null ? g.halftimeSecondsRemaining : (g.hr != null ? g.hr : 0);
-    base.game.halftimeSecondsRemaining = Math.max(0, halftimeSeconds);
+    base.game.startedAtMs = coerceMs(g.startedAtMs != null ? g.startedAtMs : g.startedAt);
+    if (g.secondsAtStart != null) {
+      base.game.secondsAtStart = coerceSeconds(g.secondsAtStart);
+    } else if (base.game.startedAtMs != null && base.game.running) {
+      base.game.secondsAtStart = base.game.seconds;
+    } else {
+      base.game.secondsAtStart = null;
+    }
+    if (!base.game.startedAtMs || !base.game.running) {
+      if (!base.game.running) {
+        base.game.startedAtMs = null;
+        base.game.secondsAtStart = null;
+      }
+      if (base.game.running && base.game.startedAtMs == null) {
+        base.game.running = false;
+      }
+    }
+
+    const legacyTimeoutSeconds = g.timeoutSecondsRemaining != null ? g.timeoutSecondsRemaining : (g.tr != null ? g.tr : 0);
+    const timeoutObjRaw = obj.timeout != null ? obj.timeout : (obj.to != null ? obj.to : {});
+    const timeoutSecondsRaw = timeoutObjRaw.secondsRemaining != null ? timeoutObjRaw.secondsRemaining : (timeoutObjRaw.sr != null ? timeoutObjRaw.sr : legacyTimeoutSeconds);
+    base.timeout.secondsRemaining = coerceSeconds(timeoutSecondsRaw);
+    const timeoutRunningRaw = timeoutObjRaw.running != null ? timeoutObjRaw.running : timeoutObjRaw.r;
+    base.timeout.running = !!timeoutRunningRaw;
+    const timeoutStartedRaw = timeoutObjRaw.startedAtMs != null ? timeoutObjRaw.startedAtMs : timeoutObjRaw.ms;
+    base.timeout.startedAtMs = coerceMs(timeoutStartedRaw);
+    const timeoutSecondsAtStartRaw = timeoutObjRaw.secondsAtStart != null ? timeoutObjRaw.secondsAtStart : timeoutObjRaw.sa;
+    if (timeoutSecondsAtStartRaw != null) {
+      base.timeout.secondsAtStart = coerceSeconds(timeoutSecondsAtStartRaw);
+    } else if (base.timeout.startedAtMs != null && base.timeout.running) {
+      base.timeout.secondsAtStart = Math.max(base.timeout.secondsRemaining, 0);
+    } else {
+      base.timeout.secondsAtStart = null;
+    }
+    const timeoutTeamVal = timeoutObjRaw.team != null ? timeoutObjRaw.team : (timeoutObjRaw.tm != null ? timeoutObjRaw.tm : (g.timeoutTeam != null ? g.timeoutTeam : null));
+    if (timeoutTeamVal == null) base.timeout.team = null;
+    else base.timeout.team = Math.max(0, Math.min(1, timeoutTeamVal|0));
+    if (!base.timeout.startedAtMs || !base.timeout.running) {
+      if (!base.timeout.running) {
+        base.timeout.startedAtMs = null;
+        base.timeout.secondsAtStart = null;
+      }
+      if (base.timeout.running && base.timeout.startedAtMs == null) {
+        base.timeout.running = false;
+      }
+    }
+
+    const legacyHalftimeSeconds = g.halftimeSecondsRemaining != null ? g.halftimeSecondsRemaining : (g.hr != null ? g.hr : 0);
+    const halftimeObjRaw = obj.halftime != null ? obj.halftime : (obj.h != null ? obj.h : {});
+    const halftimeSecondsRaw = halftimeObjRaw.secondsRemaining != null ? halftimeObjRaw.secondsRemaining : (halftimeObjRaw.sr != null ? halftimeObjRaw.sr : legacyHalftimeSeconds);
+    base.halftime.secondsRemaining = coerceSeconds(halftimeSecondsRaw);
+    const halftimeRunningRaw = halftimeObjRaw.running != null ? halftimeObjRaw.running : halftimeObjRaw.r;
+    base.halftime.running = !!halftimeRunningRaw;
+    const halftimeStartedRaw = halftimeObjRaw.startedAtMs != null ? halftimeObjRaw.startedAtMs : halftimeObjRaw.ms;
+    base.halftime.startedAtMs = coerceMs(halftimeStartedRaw);
+    const halftimeSecondsAtStartRaw = halftimeObjRaw.secondsAtStart != null ? halftimeObjRaw.secondsAtStart : halftimeObjRaw.sa;
+    if (halftimeSecondsAtStartRaw != null) {
+      base.halftime.secondsAtStart = coerceSeconds(halftimeSecondsAtStartRaw);
+    } else if (base.halftime.startedAtMs != null && base.halftime.running) {
+      base.halftime.secondsAtStart = Math.max(base.halftime.secondsRemaining, 0);
+    } else {
+      base.halftime.secondsAtStart = null;
+    }
+    if (!base.halftime.startedAtMs || !base.halftime.running) {
+      if (!base.halftime.running) {
+        base.halftime.startedAtMs = null;
+        base.halftime.secondsAtStart = null;
+      }
+      if (base.halftime.running && base.halftime.startedAtMs == null) {
+        base.halftime.running = false;
+      }
+    }
   } catch {}
   return base;
 }
@@ -167,9 +352,8 @@ function saveViewMode(mode){
 }
 
 let state = loadMigrated() || defaultState();
-let timeoutTimer = null; // 1:00 timeout
-let halftimeTimer = null; // 5:00 halftime
-let clockTimer = null;    // game clock
+reconcileAll(Date.now());
+let uiTickTimer = null; // lightweight UI ticker
 let activeValueEditor = null;
 let viewMode = loadViewMode();
 let currentPage = 'game';
@@ -425,6 +609,8 @@ function renderGameStatsView(){
 }
 
 function render(){
+  const nowMs = Date.now();
+  reconcileAll(nowMs);
   document.body.dataset.view = viewMode;
   const indicator = $('#viewIndicator');
   if (indicator) {
@@ -459,15 +645,16 @@ function render(){
 
   // Clock & banners
   $('#gameTime').textContent = fmt(state.game.seconds);
-  if (state.game.timeoutSecondsRemaining>0){
+  const timeoutSeconds = state.timeout?.secondsRemaining || 0;
+  if (timeoutSeconds > 0){
     $('#timeoutBanner').style.display='';
-    const timeoutTeamIndex = state.game.timeoutTeam;
+    const timeoutTeamIndex = state.timeout?.team;
     let timeoutName = '';
     if (timeoutTeamIndex != null && state.teams[timeoutTeamIndex]) {
       timeoutName = state.teams[timeoutTeamIndex].name;
     }
     $('#timeoutTeam').textContent = timeoutName;
-    $('#timeoutTime').textContent = fmt(state.game.timeoutSecondsRemaining);
+    $('#timeoutTime').textContent = fmt(timeoutSeconds);
   } else { $('#timeoutBanner').style.display='none'; }
 
   $('#clockStartPause').textContent = state.game.running ? 'Pause' : 'Start';
@@ -1157,7 +1344,7 @@ function scheduleRemotePush(){
   if (!db || !auth) return;
   if (!remoteConfigured() || viewMode !== 'ref' || remoteSync.applying || !remoteSync.canWrite) return;
   const now = Date.now();
-  const ticking = state.game.running || state.game.timeoutSecondsRemaining>0 || state.game.halftimeSecondsRemaining>0;
+  const ticking = state.game.running || state.timeout.running || state.halftime.running;
   const minGap = ticking ? 2500 : 250;
 
   if (now - lastPushMs < minGap) {
@@ -1259,12 +1446,10 @@ function txnState(mutateFn){
   if (!gameId) return Promise.reject(new Error('No game configured'));
   const ref = db.ref(`games/${gameId}/state`);
   return ref.transaction(s => {
-    // Start from a valid shape if missing
-    if (!s) s = serializeState(defaultState());
-    // Let caller mutate the object in place
-    mutateFn(s);
-    // IMPORTANT: return the mutated object, not undefined
-    return s;
+    const working = inflate(s);
+    const result = mutateFn(working);
+    const nextState = (result && typeof result === 'object') ? result : working;
+    return serializeState(nextState);
   })
   .then(res => { console.log('[txnState] committed:', res.committed); return res; })
   .catch(e => { console.warn('[txnState:err]', e); throw e; });
@@ -1903,247 +2088,195 @@ document.querySelectorAll('.adjust-btn').forEach(btn => {
  * Clock, Timeout & Halftime
  **********************/
 function clearTimeoutMode(){
-  if (timeoutTimer){ clearInterval(timeoutTimer); timeoutTimer=null; }
-  state.game.timeoutSecondsRemaining=0;
-  state.game.timeoutTeam=null;
+  state.timeout.running = false;
+  state.timeout.secondsRemaining = 0;
+  state.timeout.secondsAtStart = null;
+  state.timeout.startedAtMs = null;
+  state.timeout.team = null;
 }
 function clearHalftimeMode(){
-  if (halftimeTimer){ clearInterval(halftimeTimer); halftimeTimer=null; }
-  state.game.halftimeSecondsRemaining=0;
-}
-
-function canControlClock(){
-  if (!remoteConfigured()) return true;
-  return isOnlineWriter();
-}
-
-function createWriterClockInterval(){
-  if (clockTimer) return;
-  clockTimer = setInterval(()=>{
-    txnField('game/seconds', v => {
-      const next = Math.max(0, (v|0) - 1);
-      return next;
-    }).then(res => {
-      var after;
-      if (res && res.snapshot && typeof res.snapshot.val === 'function') {
-        after = res.snapshot.val();
-      }
-      if ((after ?? state.game.seconds) <= 0) pauseClock();
-    }).catch(()=>{ /* ignore transient failures */ });
-  }, 1000);
-}
-
-function createLocalClockInterval(){
-  if (clockTimer) return;
-  clockTimer = setInterval(()=>{
-    if (state.game.seconds>0){
-      state.game.seconds--;
-      renderAndPersist();
-    } else {
-      pauseClock();
-    }
-  }, 1000);
-}
-
-function createWriterTimeoutInterval(){
-  if (timeoutTimer) clearInterval(timeoutTimer);
-  timeoutTimer = setInterval(()=>{
-    txnField('game/timeoutSecondsRemaining', v => Math.max(0, (v|0) - 1))
-      .then(res => {
-        var after;
-        if (res && res.snapshot && typeof res.snapshot.val === 'function') {
-          after = res.snapshot.val();
-        }
-        if ((after ?? state.game.timeoutSecondsRemaining) <= 0){
-          clearInterval(timeoutTimer);
-          timeoutTimer = null;
-          txnState(s => { s.game.timeoutSecondsRemaining=0; s.game.timeoutTeam=null; return s; });
-        }
-      }).catch(()=>{});
-  }, 1000);
-}
-
-function createLocalTimeoutInterval(){
-  if (timeoutTimer) return;
-  timeoutTimer = setInterval(()=>{
-    if (state.game.timeoutSecondsRemaining>0){
-      state.game.timeoutSecondsRemaining--;
-      renderAndPersist();
-    } else {
-      clearTimeoutMode();
-      renderAndPersist();
-    }
-  },1000);
-}
-
-function createWriterHalftimeInterval(){
-  if (halftimeTimer) clearInterval(halftimeTimer);
-  halftimeTimer = setInterval(()=>{
-    txnField('game/halftimeSecondsRemaining', v => Math.max(0, (v|0) - 1))
-      .then(res => {
-        var after;
-        if (res && res.snapshot && typeof res.snapshot.val === 'function') {
-          after = res.snapshot.val();
-        }
-        if ((after ?? state.game.halftimeSecondsRemaining) <= 0){
-          clearInterval(halftimeTimer);
-          halftimeTimer = null;
-          txnField('game/halftimeSecondsRemaining', () => 0);
-        }
-      }).catch(()=>{});
-  }, 1000);
-}
-
-function createLocalHalftimeInterval(){
-  if (halftimeTimer) return;
-  halftimeTimer = setInterval(()=>{
-    if (state.game.halftimeSecondsRemaining>0){
-      state.game.halftimeSecondsRemaining--;
-      renderAndPersist();
-    } else {
-      clearHalftimeMode();
-      renderAndPersist();
-    }
-  }, 1000);
+  state.halftime.running = false;
+  state.halftime.secondsRemaining = 0;
+  state.halftime.secondsAtStart = null;
+  state.halftime.startedAtMs = null;
 }
 
 function syncTimersWithState(){
-  const controlling = canControlClock();
-  if (!controlling){
-    if (clockTimer){ clearInterval(clockTimer); clockTimer=null; }
-    if (timeoutTimer){ clearInterval(timeoutTimer); timeoutTimer=null; }
-    if (halftimeTimer){ clearInterval(halftimeTimer); halftimeTimer=null; }
-    return;
-  }
-
-  if (state.game.running){
-    if (!clockTimer){
-      if (isOnlineWriter()) createWriterClockInterval();
-      else createLocalClockInterval();
+  const needsTick = state.game.running || state.timeout.running || state.halftime.running;
+  if (needsTick){
+    if (!uiTickTimer){
+      uiTickTimer = setInterval(()=>{ render(); }, 1000);
     }
-  } else if (clockTimer){
-    clearInterval(clockTimer); clockTimer=null;
-  }
-
-  if (state.game.timeoutSecondsRemaining>0){
-    if (!timeoutTimer){
-      if (isOnlineWriter()) createWriterTimeoutInterval();
-      else createLocalTimeoutInterval();
-    }
-  } else if (timeoutTimer){
-    clearInterval(timeoutTimer); timeoutTimer=null;
-  }
-
-  if (state.game.halftimeSecondsRemaining>0){
-    if (!halftimeTimer){
-      if (isOnlineWriter()) createWriterHalftimeInterval();
-      else createLocalHalftimeInterval();
-    }
-  } else if (halftimeTimer){
-    clearInterval(halftimeTimer); halftimeTimer=null;
+  } else if (uiTickTimer){
+    clearInterval(uiTickTimer);
+    uiTickTimer = null;
   }
 }
 
 function startClock(){
   if (viewMode !== 'ref') return;
+  const now = Date.now();
+  reconcileAll(now);
 
-  // Writer path: drive seconds in Firebase
+  clearTimeoutMode();
+  clearHalftimeMode();
+
+  state.game.seconds = coerceSeconds(state.game.seconds != null ? state.game.seconds : defaultState().game.seconds);
+  state.game.secondsAtStart = state.game.seconds;
+  state.game.startedAtMs = now;
+  state.game.running = true;
+
+  renderAndPersist();
+
   if (isOnlineWriter()){
-    // clear timeout/halftime state first, in DB
     txnState(s => {
-      s.game.timeoutSecondsRemaining = 0;
-      s.game.timeoutTeam = null;
-      s.game.halftimeSecondsRemaining = 0;
+      reconcileCountdown(now, s.game);
+      reconcileCountdown(now, s.timeout);
+      reconcileCountdown(now, s.halftime);
+      s.timeout.running = false;
+      s.timeout.team = null;
+      s.timeout.secondsRemaining = 0;
+      s.timeout.secondsAtStart = null;
+      s.timeout.startedAtMs = null;
+      s.halftime.running = false;
+      s.halftime.secondsRemaining = 0;
+      s.halftime.secondsAtStart = null;
+      s.halftime.startedAtMs = null;
+      const currentSeconds = coerceSeconds(s.game.seconds != null ? s.game.seconds : defaultState().game.seconds);
+      s.game.seconds = currentSeconds;
+      s.game.secondsAtStart = currentSeconds;
+      s.game.startedAtMs = now;
       s.game.running = true;
     });
-
-    if (!clockTimer) createWriterClockInterval();
-    return;
   }
-
-  // Viewer/local path
-  if (state.game.timeoutSecondsRemaining>0) clearTimeoutMode();
-  if (state.game.halftimeSecondsRemaining>0) clearHalftimeMode();
-  if (clockTimer) return;
-  state.game.running = true;
-  renderAndPersist();
-  createLocalClockInterval();
 }
 
 function pauseClock(){
-  if (clockTimer){ clearInterval(clockTimer); clockTimer=null; }
-  if (isOnlineWriter()){
-    txnField('game/running', () => false);
-    return;
-  }
+  const now = Date.now();
+  reconcileCountdown(now, state.game);
   state.game.running=false;
+  state.game.startedAtMs = null;
+  state.game.secondsAtStart = null;
   renderAndPersist();
+
+  if (isOnlineWriter()){
+    txnState(s => {
+      reconcileCountdown(now, s.game);
+      s.game.running = false;
+      s.game.startedAtMs = null;
+      s.game.secondsAtStart = null;
+    });
+  }
 }
 
 function toggleStartPause(){
   if (viewMode !== 'ref') return;
-  if (isOnlineWriter()){
-    // Flip running in DB; local timer start/stop follows
-    const currentlyRunning = state.game.running;
-    if (currentlyRunning) pauseClock(); else startClock();
-    return;
-  }
   state.game.running ? pauseClock() : startClock();
 }
 
 
 function startTimeout(teamIdx){
   if (viewMode !== 'ref') return;
-  if (isOnlineWriter()){
-    // seed 60s timeout and decrement team timeouts
-    txnState(s => {
-      const t = s.teams[teamIdx];
-      if ((t.timeouts|0) <= 0) return s; // no-op if none left
-      t.timeouts = Math.max(0, (t.timeouts|0) - 1);
-      s.game.running = false;
-      s.game.halftimeSecondsRemaining = 0;
-      s.game.timeoutTeam = teamIdx;
-      s.game.timeoutSecondsRemaining = 30;
-      return s;
-    });
-    createWriterTimeoutInterval();
-    return;
-  }
+  const team = state.teams[teamIdx];
+  if (!team || (team.timeouts|0) <= 0) return;
 
-  // local fallback
-  if (timeoutTimer || state.game.timeoutSecondsRemaining>0) return;
-  const t = state.teams[teamIdx]; if (t.timeouts<=0) return;
-  t.timeouts--; pauseClock(); clearHalftimeMode();
-  state.game.timeoutSecondsRemaining = 30; state.game.timeoutTeam = teamIdx;
-  createLocalTimeoutInterval();
+  const now = Date.now();
+  reconcileAll(now);
+
+  if (state.timeout.running) return;
+
+  team.timeouts = Math.max(0, (team.timeouts|0) - 1);
+
+  reconcileCountdown(now, state.game);
+  state.game.running = false;
+  state.game.startedAtMs = null;
+  state.game.secondsAtStart = null;
+
+  clearHalftimeMode();
+
+  const duration = 30;
+  state.timeout.team = teamIdx;
+  state.timeout.secondsRemaining = duration;
+  state.timeout.secondsAtStart = duration;
+  state.timeout.startedAtMs = now;
+  state.timeout.running = true;
+
   renderAndPersist();
+
+  if (isOnlineWriter()){
+    txnState(s => {
+      const remoteTeam = s.teams && s.teams[teamIdx];
+      if (!remoteTeam || (remoteTeam.timeouts|0) <= 0) return s;
+      reconcileCountdown(now, s.game);
+      reconcileCountdown(now, s.timeout);
+      reconcileCountdown(now, s.halftime);
+      remoteTeam.timeouts = Math.max(0, (remoteTeam.timeouts|0) - 1);
+      s.game.running = false;
+      s.game.startedAtMs = null;
+      s.game.secondsAtStart = null;
+      s.halftime.running = false;
+      s.halftime.secondsRemaining = 0;
+      s.halftime.secondsAtStart = null;
+      s.halftime.startedAtMs = null;
+      s.timeout.team = teamIdx;
+      s.timeout.secondsRemaining = duration;
+      s.timeout.secondsAtStart = duration;
+      s.timeout.startedAtMs = now;
+      s.timeout.running = true;
+    });
+  }
 }
 
 function startHalftime(){
   if (viewMode !== 'ref') return;
-  if (isOnlineWriter()){
-    // reset team counters, set halftime 300s
-    txnState(s => {
-      s.game.running = false;
-      s.game.timeoutSecondsRemaining = 0;
-      s.game.timeoutTeam = null;
-      s.game.seconds = 25*60;
-      s.game.halftimeSecondsRemaining = 300;
-      s.teams.forEach(t=>{ t.downs=1; t.girlPlay=2; t.rushes=2; t.timeouts=3; });
-      return s;
-    });
-    createWriterHalftimeInterval();
-    return;
-  }
+  const now = Date.now();
+  reconcileAll(now);
 
-  // local fallback
-  pauseClock(); clearTimeoutMode();
+  clearTimeoutMode();
+  reconcileCountdown(now, state.game);
+  state.game.running = false;
+  state.game.startedAtMs = null;
+  state.game.secondsAtStart = null;
+
   state.teams.forEach(t=>{ t.downs=1; t.girlPlay=2; t.rushes=2; t.timeouts=3; });
   state.game.seconds = 25*60;
-  state.game.halftimeSecondsRemaining = 300;
-  if (halftimeTimer) clearInterval(halftimeTimer);
-  createLocalHalftimeInterval();
+
+  const duration = 300;
+  state.halftime.secondsRemaining = duration;
+  state.halftime.secondsAtStart = duration;
+  state.halftime.startedAtMs = now;
+  state.halftime.running = true;
+
   renderAndPersist();
+
+  if (isOnlineWriter()){
+    txnState(s => {
+      reconcileCountdown(now, s.game);
+      reconcileCountdown(now, s.timeout);
+      reconcileCountdown(now, s.halftime);
+      s.timeout.running = false;
+      s.timeout.team = null;
+      s.timeout.secondsRemaining = 0;
+      s.timeout.secondsAtStart = null;
+      s.timeout.startedAtMs = null;
+      s.game.running = false;
+      s.game.startedAtMs = null;
+      s.game.secondsAtStart = null;
+      s.game.seconds = 25*60;
+      const teams = Array.isArray(s.teams) ? s.teams : [];
+      teams.forEach(t=>{
+        if (!t) return;
+        t.downs = 1;
+        t.girlPlay = 2;
+        t.rushes = 2;
+        t.timeouts = 3;
+      });
+      s.halftime.secondsRemaining = duration;
+      s.halftime.secondsAtStart = duration;
+      s.halftime.startedAtMs = now;
+      s.halftime.running = true;
+    });
+  }
 }
 
 $('#clockStartPause').addEventListener('click', toggleStartPause);
@@ -2155,7 +2288,9 @@ if (halftimeBtn) halftimeBtn.addEventListener('click', startHalftime);
 // Edit time when paused
 $('#gameTime').addEventListener('click', ()=>{
   if (viewMode !== 'ref') return;
-  if (state.game.running || state.game.timeoutSecondsRemaining>0 || state.game.halftimeSecondsRemaining>0) return;
+  const timeoutActive = state.timeout.running || (state.timeout.secondsRemaining|0) > 0;
+  const halftimeActive = state.halftime.running || (state.halftime.secondsRemaining|0) > 0;
+  if (state.game.running || timeoutActive || halftimeActive) return;
   const current = fmt(state.game.seconds);
   const input = prompt('Set game clock (MM:SS):', current);
   if (!input) return;
@@ -2169,6 +2304,8 @@ $('#gameTime').addEventListener('click', ()=>{
     txnField('game/seconds', () => next);
   } else {
     state.game.seconds = next;
+    state.game.secondsAtStart = null;
+    state.game.startedAtMs = null;
     renderAndPersist();
   }
 });
@@ -2322,9 +2459,9 @@ if (remoteConfigured()) connectRemote();
     // Timeout -> Start behavior
     startTimeout(0);
     setTimeout(()=>{
-      console.assert(state.game.timeoutSecondsRemaining>0, 'timeout should be running');
+      console.assert(state.timeout.secondsRemaining>0, 'timeout should be running');
       toggleStartPause();
-      console.assert(state.game.timeoutSecondsRemaining===0, 'timeout cleared on Start');
+      console.assert(state.timeout.secondsRemaining===0, 'timeout cleared on Start');
       console.assert(state.game.running===true, 'game clock should be running after Start');
       pauseClock();
 
@@ -2346,7 +2483,7 @@ if (remoteConfigured()) connectRemote();
       // Halftime resets girl counter to 2
       startHalftime();
       console.assert(state.teams.every(t=> t.girlPlay===2), 'Halftime sets Girl Play In to 2');
-      toggleStartPause(); console.assert(state.game.halftimeSecondsRemaining===0, 'halftime cleared on Start'); pauseClock();
+      toggleStartPause(); console.assert(state.halftime.secondsRemaining===0, 'halftime cleared on Start'); pauseClock();
 
       // Editable girl counter (note: direct call relies on implementation; this stays inside try/catch)
       const savedPrompt = window.prompt; window.prompt = ()=> '0';
