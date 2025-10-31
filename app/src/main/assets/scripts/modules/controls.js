@@ -595,6 +595,28 @@
     document.querySelectorAll('#menuDrawer .drawer-item[data-view]').forEach(btn => {
       btn.addEventListener('click', ()=> setViewMode(btn.dataset.view));
     });
+
+    const signOutBtn = exports.$ ? exports.$('#menuSignOut') : null;
+    if (signOutBtn) {
+      signOutBtn.addEventListener('click', () => {
+        try { closeMenu(); } catch {}
+
+        let handled = false;
+        try {
+          const androidApp = window.AndroidApp;
+          if (androidApp && typeof androidApp.signOut === 'function') {
+            androidApp.signOut();
+            handled = true;
+          }
+        } catch (err) {
+          console.warn('[menu] Android sign-out failed', err);
+        }
+
+        if (!handled && window.firebase?.auth) {
+          try { window.firebase.auth().signOut(); } catch {}
+        }
+      });
+    }
   }
 
   function bindTeamButtons(){
