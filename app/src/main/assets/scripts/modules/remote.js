@@ -216,15 +216,8 @@
 
     const game = requireConfiguredGame();
     if (!game) return;
-    const writerToggle = document.getElementById('joinAsWriter');
-    const wantsWriter = (writerToggle && typeof writerToggle.checked !== 'undefined') ? writerToggle.checked : true;
-
     try {
-      if (wantsWriter) {
-        await joinWriters(game);
-      } else {
-        await leaveWriters(game);
-      }
+      await joinWriters(game);
     } catch (err) {
       console.warn('[sync] writer join/leave failed, continuing as viewer', err);
     }

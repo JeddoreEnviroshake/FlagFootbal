@@ -39,15 +39,11 @@
       <form id="syncForm">
         <label for="syncGame">Game code</label>
         <input id="syncGame" name="game" type="text" placeholder="e.g. week1-field1" />
-        <label style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-          <input id="joinAsWriter" type="checkbox" checked />
-          <span>Join as ref (writer)</span>
-        </label>
         <button class="save" type="submit">Save &amp; connect</button>
       </form>
       <button class="secondary" type="button" id="syncDisconnect">Disconnect</button>
       <p class="drawer-note">
-        Enter a game code to join or host a game. First device to connect becomes the writer (ref).
+        Enter a game code to join or host a game. Everyone connected can manage the game.
       </p>
       <div class="sync-status" id="syncStatus" role="status">Offline</div>
 
