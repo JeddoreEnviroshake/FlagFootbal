@@ -63,6 +63,9 @@ function serializeState(s){
       // NEW: persist absolute target end time when running
       targetEndAt: Number.isFinite(game.targetEndAt) ? game.targetEndAt : 0
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -206,9 +209,13 @@ const defaultState = () => ({
   ],
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   game: { seconds: 25*60, running: false, startedAtMs: null, secondsAtStart: null },
   timeout: { running: false, secondsRemaining: 0, team: null, startedAtMs: null, secondsAtStart: null },
   halftime: { running: false, secondsRemaining: 0, startedAtMs: null, secondsAtStart: null }
+=======
+  game: { seconds: 25*60, running: false, timeoutSecondsRemaining: 0, timeoutTeam: null, halftimeSecondsRemaining: 0, targetEndAt: 0 }
+>>>>>>> Stashed changes
 =======
   game: { seconds: 25*60, running: false, timeoutSecondsRemaining: 0, timeoutTeam: null, halftimeSecondsRemaining: 0, targetEndAt: 0 }
 >>>>>>> Stashed changes
@@ -350,6 +357,9 @@ function inflate(obj){
       ? g.targetEndAt
       : (Number.isFinite(g.te) ? g.te : 0);
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -680,10 +690,13 @@ function render(){
   // Clock & banners
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   $('#gameTime').textContent = fmt(state.game.seconds);
   const timeoutSeconds = state.timeout?.secondsRemaining || 0;
   if (timeoutSeconds > 0){
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
   $('#gameTime').textContent = fmt(getRemainingSeconds(state.game));
@@ -2228,6 +2241,7 @@ function startClock(){
   reconcileAll(now);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   clearTimeoutMode();
   clearHalftimeMode();
 
@@ -2268,6 +2282,12 @@ function startClock(){
 
   if (isOnlineWriter()){
 >>>>>>> Stashed changes
+=======
+  // How much time is left right now (works whether paused or running)
+  const current = getRemainingSeconds(state.game); // uses targetEndAt/seconds as defined earlier
+
+  if (isOnlineWriter()){
+>>>>>>> Stashed changes
     // Clear any special modes and set running + targetEndAt in Firebase
     txnState(s => {
       s.game.timeoutSecondsRemaining = 0;
@@ -2275,6 +2295,9 @@ function startClock(){
       s.game.halftimeSecondsRemaining = 0;
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -2282,6 +2305,7 @@ function startClock(){
       s.game.targetEndAt = nowMs() + current * 1000;  // <-- absolute countdown target
       s.game.seconds = current;                       // keep for compatibility with readers
     });
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
   }
@@ -2348,6 +2372,29 @@ function pauseClock(){
 
 function pauseClock(){
 >>>>>>> Stashed changes
+=======
+
+    // Ensure no legacy local tickers are running
+    if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+    ensureViewTicker(); // just re-renders UI; does NOT mutate time
+    return;
+  }
+
+  // Offline / viewer-local path (no Firebase write)
+  if (state.game.timeoutSecondsRemaining > 0) clearTimeoutMode();
+  if (state.game.halftimeSecondsRemaining > 0) clearHalftimeMode();
+
+  state.game.running = true;
+  state.game.targetEndAt = nowMs() + current * 1000;   // <-- local absolute target
+  renderAndPersist();                                   // persists to local + remote if applicable
+
+  // Make sure no old decrement loop is still running
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+  ensureViewTicker(); // visual updates only
+}
+
+function pauseClock(){
+>>>>>>> Stashed changes
   // Snap current remaining into seconds and clear target
   const rem = getRemainingSeconds(state.game);
   state.game.running = false;
@@ -2361,6 +2408,9 @@ function toggleStartPause(){
   if (state.game.running) pauseClock();
   else startClock();
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
