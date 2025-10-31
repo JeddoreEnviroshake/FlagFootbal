@@ -27,6 +27,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.webkit.WebViewAssetLoader
+import com.google.android.gms.common.ConnectionResult as GmsConnectionResult
 import com.example.htmlapp.BuildConfig
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -621,7 +622,8 @@ class MainActivity : AppCompatActivity() {
     private fun googleSignInErrorMessage(statusCode: Int): String {
         return when (statusCode) {
             GoogleSignInStatusCodes.SIGN_IN_CANCELLED,
-            CommonStatusCodes.CANCELED -> getString(R.string.login_cancelled)
+            CommonStatusCodes.CANCELED ->
+                getString(R.string.login_cancelled)
 
             GoogleSignInStatusCodes.DEVELOPER_ERROR,
             CommonStatusCodes.DEVELOPER_ERROR ->
@@ -643,14 +645,16 @@ class MainActivity : AppCompatActivity() {
             CommonStatusCodes.RESOLUTION_REQUIRED ->
                 getString(R.string.login_google_sign_in_required)
 
+            // If you want to cover "invalid account" from both sets, use either of these:
             GoogleSignInStatusCodes.INVALID_ACCOUNT,
-            CommonStatusCodes.INVALID_ACCOUNT ->
+            GmsConnectionResult.INVALID_ACCOUNT ->
                 getString(R.string.login_google_invalid_account)
 
+            // SERVICE_* live on ConnectionResult, not CommonStatusCodes
             CommonStatusCodes.API_NOT_CONNECTED,
-            CommonStatusCodes.SERVICE_VERSION_UPDATE_REQUIRED,
-            CommonStatusCodes.SERVICE_DISABLED,
-            CommonStatusCodes.SERVICE_INVALID ->
+            GmsConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED,
+            GmsConnectionResult.SERVICE_DISABLED,
+            GmsConnectionResult.SERVICE_INVALID ->
                 getString(R.string.login_google_service_unavailable)
 
             CommonStatusCodes.TIMEOUT ->
