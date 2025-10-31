@@ -27,4 +27,16 @@
 
     <color name="seed">#6750A4</color>
     <color name="ic_launcher_background">#6750A4</color>
+
+    <color name="login_background">#071429</color>
+    <color name="login_text_primary">#FFFFFF</color>
+    <color name="login_text_secondary">#CBD5F5</color>
+    <color name="login_text_muted">#94A3B8</color>
+    <color name="login_field_background">#101D36</color>
+    <color name="login_field_stroke">#1F2E4A</color>
+    <color name="login_hint_color">#7B8AA8</color>
+    <color name="login_primary_button">#16A34A</color>
+    <color name="login_divider">#1F2E4A</color>
+    <color name="login_google_ripple">#1F29330F</color>
+    <color name="login_error">#F87171</color>
 </resources>

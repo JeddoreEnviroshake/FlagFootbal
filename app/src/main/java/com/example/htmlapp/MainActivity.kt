@@ -9,6 +9,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -16,7 +17,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -25,12 +25,20 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.core.widget.doAfterTextChanged
 import androidx.webkit.WebViewAssetLoader
 import com.example.htmlapp.BuildConfig
-import com.firebase.ui.auth.AuthUI
-import com.firebase.ui.auth.IdpResponse
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 
@@ -43,7 +51,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var loginContainer: View
-    private lateinit var signInButton: Button
+    private lateinit var signInButton: MaterialButton
+    private lateinit var continueButton: MaterialButton
+    private lateinit var loginEmailLayout: TextInputLayout
+    private lateinit var loginEmailInput: TextInputEditText
+    private lateinit var loginProgress: CircularProgressIndicator
     private lateinit var loginStatus: TextView
     private lateinit var backCallback: OnBackPressedCallback
 
@@ -57,12 +69,13 @@ class MainActivity : AppCompatActivity() {
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var fileChooserLauncher: ActivityResultLauncher<Intent>
-    private lateinit var signInLauncher: ActivityResultLauncher<Intent>
+    private lateinit var googleSignInLauncher: ActivityResultLauncher<Intent>
 
     private var auth: FirebaseAuth? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
     private var hasLoadedInitialUrl = false
     private var pendingWebViewState: Bundle? = null
+    private var googleSignInClient: GoogleSignInClient? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,7 +88,34 @@ class MainActivity : AppCompatActivity() {
         webView = findViewById(R.id.webView)
         loginContainer = findViewById(R.id.loginContainer)
         signInButton = findViewById(R.id.signInButton)
+        continueButton = findViewById(R.id.continueButton)
+        loginEmailLayout = findViewById(R.id.loginEmailLayout)
+        loginEmailInput = findViewById(R.id.loginEmailInput)
+        loginProgress = findViewById(R.id.loginProgress)
         loginStatus = findViewById(R.id.loginStatus)
+
+        loginEmailInput.doAfterTextChanged {
+            if (loginEmailLayout.isErrorEnabled) {
+                loginEmailLayout.error = null
+                loginEmailLayout.isErrorEnabled = false
+            }
+        }
+
+        continueButton.setOnClickListener {
+            val email = loginEmailInput.text?.toString()?.trim().orEmpty()
+            if (email.isEmpty()) {
+                loginEmailLayout.error = getString(R.string.login_email_error)
+                loginEmailLayout.isErrorEnabled = true
+            } else {
+                loginEmailLayout.error = null
+                loginEmailLayout.isErrorEnabled = false
+                launchSignIn()
+            }
+        }
+
+        signInButton.setOnClickListener {
+            launchSignIn()
+        }
 
         // FIX: create an OnBackPressedCallback object and register it
         backCallback = object : OnBackPressedCallback(false) {
@@ -94,7 +134,7 @@ class MainActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, backCallback)
 
         setupFileChooser()
-        setupSignInLauncher()
+        setupGoogleSignInLauncher()
         configureWebView()
 
         if (savedInstanceState != null) {
@@ -105,19 +145,16 @@ class MainActivity : AppCompatActivity() {
         if (firebaseApp == null) {
             Log.w(TAG, "FirebaseApp.initializeApp returned null; running in offline mode")
             signInButton.isEnabled = false
+            continueButton.isEnabled = false
             loginContainer.isVisible = false
             showToast(R.string.login_unavailable)
             showWebContent()
         } else {
             auth = Firebase.auth(firebaseApp)
+            configureGoogleSignIn()
             authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
                 updateUiForUser(firebaseAuth.currentUser)
             }
-
-            signInButton.setOnClickListener {
-                launchSignIn()
-            }
-
             updateUiForUser(auth?.currentUser)
         }
 
@@ -233,25 +270,72 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
-    private fun setupSignInLauncher() {
-        signInLauncher =
+    private fun setupGoogleSignInLauncher() {
+        googleSignInLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-                if (result.resultCode == RESULT_OK) {
-                    loginStatus.isVisible = false
-                    signInButton.isEnabled = true
+                val data = result.data
+                if (result.resultCode != RESULT_OK) {
+                    setLoginInProgress(false)
+                    showLoginError(getString(R.string.login_failure))
                     return@registerForActivityResult
                 }
 
-                val response = IdpResponse.fromResultIntent(result.data)
-                val message = response?.error?.localizedMessage
-                loginStatus.text = message ?: getString(R.string.login_failure)
-                loginStatus.isVisible = true
-                signInButton.isEnabled = true
+                val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+                try {
+                    val account = task.getResult(ApiException::class.java)
+                    val idToken = account?.idToken
+                    if (idToken.isNullOrEmpty()) {
+                        setLoginInProgress(false)
+                        showLoginError(getString(R.string.login_failure))
+                        return@registerForActivityResult
+                    }
+                    val credential = GoogleAuthProvider.getCredential(idToken, null)
+                    val firebaseAuth = auth
+                    if (firebaseAuth == null) {
+                        setLoginInProgress(false)
+                        showLoginError(getString(R.string.login_unavailable))
+                        return@registerForActivityResult
+                    }
+
+                    firebaseAuth.signInWithCredential(credential)
+                        .addOnCompleteListener { signInTask ->
+                            setLoginInProgress(false)
+                            if (signInTask.isSuccessful) {
+                                loginStatus.isVisible = false
+                            } else {
+                                val message = signInTask.exception?.localizedMessage
+                                showLoginError(message ?: getString(R.string.login_failure))
+                            }
+                        }
+                } catch (error: ApiException) {
+                    Log.e(TAG, "Google sign-in failed", error)
+                    setLoginInProgress(false)
+                    val message = error.localizedMessage ?: getString(R.string.login_failure)
+                    showLoginError(message)
+                }
             }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    private fun configureGoogleSignIn() {
+        val webClientId = getString(R.string.default_web_client_id)
+        if (webClientId.isBlank() || webClientId == "YOUR_WEB_CLIENT_ID") {
+            Log.w(TAG, "default_web_client_id is missing or placeholder; Google Sign-In disabled")
+            googleSignInClient = null
+            return
+        }
+
+        googleSignInClient = GoogleSignIn.getClient(
+            this,
+            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(webClientId)
+                .requestEmail()
+                .build()
+        )
+    }
+
+    @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
     private fun configureWebView() {
+        webView.addJavascriptInterface(AppBridge(), "AndroidApp")
         with(webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -394,12 +478,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun showLoginUi() {
         loginContainer.isVisible = true
-        signInButton.isEnabled = true
         progressBar.isVisible = false
         progressBar.progress = 0
         webView.isVisible = false
         backCallback.isEnabled = false
         pendingWebViewState = null
+        loginStatus.isVisible = false
+        loginEmailLayout.error = null
+        loginEmailLayout.isErrorEnabled = false
+        setLoginInProgress(false)
         if (hasLoadedInitialUrl) {
             webView.apply {
                 stopLoading()
@@ -426,24 +513,74 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setLoginInProgress(inProgress: Boolean) {
+        signInButton.isEnabled = !inProgress
+        continueButton.isEnabled = !inProgress
+        loginEmailInput.isEnabled = !inProgress
+        loginProgress.isVisible = inProgress
+    }
+
+    private fun showLoginError(message: String) {
+        loginStatus.text = message
+        loginStatus.isVisible = true
+    }
+
+    private fun signOutUser(): Boolean {
+        val firebaseAuth = auth ?: return false
+
+        firebaseAuth.signOut()
+        googleSignInClient?.signOut()
+
+        try {
+            webView.evaluateJavascript(
+                "if (window.firebase && firebase.auth) { firebase.auth().signOut().catch(function(){}); }",
+                null
+            )
+        } catch (error: Exception) {
+            Log.w(TAG, "Unable to sign out web session", error)
+        }
+
+        loginStatus.isVisible = false
+        loginEmailLayout.error = null
+        loginEmailLayout.isErrorEnabled = false
+        loginEmailInput.setText("")
+        setLoginInProgress(false)
+        showLoginUi()
+        return true
+    }
+
+    private inner class AppBridge {
+        @JavascriptInterface
+        fun signOut() {
+            runOnUiThread {
+                val success = signOutUser()
+                if (!success) {
+                    showToast(R.string.login_sign_out_error)
+                }
+            }
+        }
+    }
+
     private fun launchSignIn() {
-        if (auth == null) {
+        val firebaseAuth = auth
+        val client = googleSignInClient
+        if (firebaseAuth == null) {
             Log.w(TAG, "Ignoring sign-in launch request because Firebase is unavailable")
+            showToast(R.string.login_unavailable)
             return
         }
-        signInButton.isEnabled = false
+        if (client == null) {
+            showLoginError(getString(R.string.login_missing_google_id))
+            return
+        }
+
         loginStatus.isVisible = false
+        loginEmailLayout.error = null
+        loginEmailLayout.isErrorEnabled = false
+        setLoginInProgress(true)
 
-        val providers = listOf(
-            AuthUI.IdpConfig.EmailBuilder().build()
-        )
-
-        val intent = AuthUI.getInstance()
-            .createSignInIntentBuilder()
-            .setAvailableProviders(providers)
-            .setIsSmartLockEnabled(false)
-            .build()
-
-        signInLauncher.launch(intent)
+        client.signOut().addOnCompleteListener {
+            googleSignInLauncher.launch(client.signInIntent)
+        }
     }
 }

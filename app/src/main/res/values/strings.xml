@@ -2,9 +2,20 @@
     <string name="app_name">Synqro</string>
     <string name="webview_unable_to_open_link">No application can open this link.</string>
     <string name="webview_no_file_picker">No app available to select files.</string>
-    <string name="login_title">Sign in to continue</string>
-    <string name="login_subtitle">Use your account to unlock the playbook.</string>
-    <string name="login_button">Sign in with Firebase</string>
+    <string name="login_brand">Synqro</string>
+    <string name="login_headline">Create an account</string>
+    <string name="login_subtitle">Enter your email to sign up for this app</string>
+    <string name="login_email_hint">email@domain.com</string>
+    <string name="login_email_error">Enter your email address.</string>
+    <string name="login_continue">Continue</string>
+    <string name="login_or">or</string>
+    <string name="login_google">Continue with Google</string>
+    <string name="login_apple">Continue with Apple</string>
+    <string name="login_disclaimer">By clicking continue, you agree to our Terms of Service and Privacy Policy</string>
+    <string name="login_logo_content_description">Synqro logo</string>
     <string name="login_failure">Sign-in was cancelled or failed. Please try again.</string>
     <string name="login_unavailable">Online sync is unavailable. Showing offline content.</string>
+    <string name="login_missing_google_id">Google Sign-In is not configured for this build.</string>
+    <string name="login_sign_out_error">Unable to sign out right now. Please try again.</string>
+    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID</string>
 </resources>
