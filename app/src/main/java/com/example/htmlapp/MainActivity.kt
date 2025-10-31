@@ -32,6 +32,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.android.material.textfield.TextInputEditText
@@ -276,7 +277,28 @@ class MainActivity : AppCompatActivity() {
                 val data = result.data
                 if (result.resultCode != RESULT_OK) {
                     setLoginInProgress(false)
-                    showLoginError(getString(R.string.login_failure))
+
+                    val errorMessage = if (data != null) {
+                        try {
+                            GoogleSignIn.getSignedInAccountFromIntent(data)
+                            getString(R.string.login_failure)
+                        } catch (error: ApiException) {
+                            Log.w(TAG, "Google sign-in cancelled", error)
+                            when (error.statusCode) {
+                                GoogleSignInStatusCodes.SIGN_IN_CANCELLED ->
+                                    getString(R.string.login_cancelled)
+
+                                GoogleSignInStatusCodes.DEVELOPER_ERROR ->
+                                    getString(R.string.login_google_config_error)
+
+                                else -> getString(R.string.login_failure)
+                            }
+                        }
+                    } else {
+                        getString(R.string.login_failure)
+                    }
+
+                    showLoginError(errorMessage)
                     return@registerForActivityResult
                 }
 
