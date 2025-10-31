@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.htmlapp"
+    namespace = "com.synqro.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.htmlapp"
+        applicationId = "com.synqro.app"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
