@@ -497,10 +497,11 @@
             const nextTeam = s.teams && s.teams[next];
             if (curTeam) {
               curTeam.downs = 1;
-              curTeam.girlPlay = Math.max(0, (curTeam.girlPlay|0) - 1);
+              curTeam.girlPlay = 2;
             }
             if (nextTeam) {
               nextTeam.downs = 1;
+              nextTeam.girlPlay = 2;
             }
             s.timeout.running = false;
             s.timeout.team = null;
@@ -517,9 +518,12 @@
           const nextTeam = exports.state.teams[next];
           if (curTeam) {
             curTeam.downs = 1;
-            curTeam.girlPlay = Math.max(0, (curTeam.girlPlay|0) - 1);
+            curTeam.girlPlay = 2;
           }
-          if (nextTeam) nextTeam.downs = 1;
+          if (nextTeam) {
+            nextTeam.downs = 1;
+            nextTeam.girlPlay = 2;
+          }
           exports.state.timeout.running = false;
           exports.state.timeout.team = null;
           exports.state.timeout.secondsRemaining = 0;
@@ -553,6 +557,10 @@
     if (timeoutHome) timeoutHome.addEventListener('click', ()=> startTimeout(0));
     const timeoutAway = exports.$ ? exports.$('#timeoutAway') : null;
     if (timeoutAway) timeoutAway.addEventListener('click', ()=> startTimeout(1));
+    const blitzHome = exports.$ ? exports.$('#blitzHome') : null;
+    if (blitzHome) blitzHome.addEventListener('click', ()=> adjustBlitz(0, -1));
+    const blitzAway = exports.$ ? exports.$('#blitzAway') : null;
+    if (blitzAway) blitzAway.addEventListener('click', ()=> adjustBlitz(1, -1));
     const halftimeBtn = exports.$ ? exports.$('#halftimeBtn') : null;
     if (halftimeBtn) halftimeBtn.addEventListener('click', startHalftime);
     const gameTime = exports.$ ? exports.$('#gameTime') : null;

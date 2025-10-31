@@ -264,26 +264,6 @@
       blitzMetric.appendChild(blitzVal);
       metrics.appendChild(blitzMetric);
 
-      const girlMetric = document.createElement('div');
-      girlMetric.className = 'metric';
-      const girlVal = document.createElement('div');
-      girlVal.className = 'val';
-      girlVal.dataset.kind = 'girlPlay';
-      girlVal.dataset.team = idx;
-      girlVal.textContent = fmtGirl(team.girlPlay);
-      girlMetric.appendChild(girlVal);
-      metrics.appendChild(girlMetric);
-
-      const downsMetric = document.createElement('div');
-      downsMetric.className = 'metric';
-      const downVal = document.createElement('div');
-      downVal.className = 'val';
-      downVal.dataset.kind = 'downs';
-      downVal.dataset.team = idx;
-      downVal.textContent = clampDown(team.downs != null ? team.downs : 1);
-      downsMetric.appendChild(downVal);
-      metrics.appendChild(downsMetric);
-
       slot.appendChild(metrics);
 
       if (editingEnabled){
