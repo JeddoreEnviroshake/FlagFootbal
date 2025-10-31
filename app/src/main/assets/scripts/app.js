@@ -40,6 +40,7 @@ function serializeState(s){
     game: {
       seconds: coerceSeconds(game.seconds != null ? game.seconds : defaults.game.seconds),
       running: !!game.running,
+<<<<<<< Updated upstream
       startedAtMs: coerceMs(game.startedAtMs),
       secondsAtStart: game.secondsAtStart != null ? coerceSeconds(game.secondsAtStart) : null
     },
@@ -55,6 +56,13 @@ function serializeState(s){
       secondsRemaining: coerceSeconds(halftime.secondsRemaining),
       startedAtMs: coerceMs(halftime.startedAtMs),
       secondsAtStart: halftime.secondsAtStart != null ? coerceSeconds(halftime.secondsAtStart) : null
+=======
+      timeoutSecondsRemaining: Math.max(0, game.timeoutSecondsRemaining|0),
+      timeoutTeam: game.timeoutTeam == null ? null : game.timeoutTeam,
+      halftimeSecondsRemaining: Math.max(0, game.halftimeSecondsRemaining|0),
+      // NEW: persist absolute target end time when running
+      targetEndAt: Number.isFinite(game.targetEndAt) ? game.targetEndAt : 0
+>>>>>>> Stashed changes
     }
   };
   if (!safe.game.startedAtMs) safe.game.startedAtMs = null;
@@ -193,9 +201,13 @@ const defaultState = () => ({
     { name: 'Home', score: 0, downs: 1, girlPlay: 2, rushes: 2, timeouts: 3 }, // start at 2 plays until girl
     { name: 'Away', score: 0, downs: 1, girlPlay: 2, rushes: 2, timeouts: 3 }
   ],
+<<<<<<< Updated upstream
   game: { seconds: 25*60, running: false, startedAtMs: null, secondsAtStart: null },
   timeout: { running: false, secondsRemaining: 0, team: null, startedAtMs: null, secondsAtStart: null },
   halftime: { running: false, secondsRemaining: 0, startedAtMs: null, secondsAtStart: null }
+=======
+  game: { seconds: 25*60, running: false, timeoutSecondsRemaining: 0, timeoutTeam: null, halftimeSecondsRemaining: 0, targetEndAt: 0 }
+>>>>>>> Stashed changes
 });
 
 const VALUE_RULES = {
@@ -247,6 +259,7 @@ function inflate(obj){
     const secondsSource = g.seconds != null ? g.seconds : (g.s != null ? g.s : defaultState().game.seconds);
     base.game.seconds = coerceSeconds(secondsSource);
     base.game.running = !!g.running;
+<<<<<<< Updated upstream
     base.game.startedAtMs = coerceMs(g.startedAtMs != null ? g.startedAtMs : g.startedAt);
     if (g.secondsAtStart != null) {
       base.game.secondsAtStart = coerceSeconds(g.secondsAtStart);
@@ -319,6 +332,17 @@ function inflate(obj){
         base.halftime.running = false;
       }
     }
+=======
+    const timeoutSeconds = g.timeoutSecondsRemaining != null ? g.timeoutSecondsRemaining : (g.tr != null ? g.tr : 0);
+    base.game.timeoutSecondsRemaining = Math.max(0, timeoutSeconds);
+    if (g.timeoutTeam == null) base.game.timeoutTeam = null;
+    else base.game.timeoutTeam = Math.max(0, Math.min(1, g.timeoutTeam|0));
+    const halftimeSeconds = g.halftimeSecondsRemaining != null ? g.halftimeSecondsRemaining : (g.hr != null ? g.hr : 0);
+    base.game.halftimeSecondsRemaining = Math.max(0, halftimeSeconds);
+    base.game.targetEndAt = Number.isFinite(g.targetEndAt)
+      ? g.targetEndAt
+      : (Number.isFinite(g.te) ? g.te : 0);
+>>>>>>> Stashed changes
   } catch {}
   return base;
 }
@@ -644,9 +668,14 @@ function render(){
   }
 
   // Clock & banners
+<<<<<<< Updated upstream
   $('#gameTime').textContent = fmt(state.game.seconds);
   const timeoutSeconds = state.timeout?.secondsRemaining || 0;
   if (timeoutSeconds > 0){
+=======
+  $('#gameTime').textContent = fmt(getRemainingSeconds(state.game));
+  if (state.game.timeoutSecondsRemaining>0){
+>>>>>>> Stashed changes
     $('#timeoutBanner').style.display='';
     const timeoutTeamIndex = state.timeout?.team;
     let timeoutName = '';
@@ -676,6 +705,46 @@ function render(){
   renderGameStatsView();
   syncTimersWithState();
 }
+
+// === Persistent Timer Setup (Synqro) ===
+const gameTimeEl = document.getElementById('gameTime');
+const startPauseBtn = document.getElementById('clockStartPause');
+let timerInterval = null;
+
+function formatTime(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const mm = String(Math.floor(total / 60)).padStart(2, '0');
+  const ss = String(total % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+function renderTimer() {
+  const { remainingMs } = TimerStore.getRemaining();
+  gameTimeEl.textContent = formatTime(remainingMs);
+  if (remainingMs <= 0) {
+    TimerStore.stop();
+    startPauseBtn.textContent = 'Start';
+  }
+}
+
+function startRenderLoop() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(renderTimer, 250);
+}
+
+document.addEventListener('DOMContentLoaded', startRenderLoop);
+
+startPauseBtn.addEventListener('click', () => {
+  const { running } = TimerStore.getRemaining();
+  if (running) {
+    TimerStore.pause();
+    startPauseBtn.textContent = 'Start';
+  } else {
+    TimerStore.start(25 * 60 * 1000);
+    startPauseBtn.textContent = 'Pause';
+  }
+  renderTimer();
+});
 
 function renderTeams(){
   const editingVal = document.querySelector('.team-card .val.editing');
@@ -2113,6 +2182,33 @@ function syncTimersWithState(){
   }
 }
 
+function nowMs(){ return Date.now(); }
+
+function getRemainingSeconds(game){
+  if (game.running && Number.isFinite(game.targetEndAt) && game.targetEndAt > 0){
+    return Math.max(0, Math.ceil((game.targetEndAt - nowMs())/1000));
+  }
+  return Math.max(0, game.seconds|0);
+}
+
+// Visual refresh loop for the clock; does NOT mutate state
+let viewTick = null;
+
+function ensureViewTicker(){
+  if (viewTick) return;
+  viewTick = setInterval(() => {
+    if (state.game.running) {
+      // re-render so #gameTime updates from getRemainingSeconds()
+      render();
+    } else {
+      // not running; stop ticking to save work
+      clearInterval(viewTick);
+      viewTick = null;
+    }
+  }, 250); // smooth enough; change to 500 if you prefer
+}
+
+
 function startClock(){
   if (viewMode !== 'ref') return;
   const now = Date.now();
@@ -2128,6 +2224,7 @@ function startClock(){
 
   renderAndPersist();
 
+<<<<<<< Updated upstream
   if (isOnlineWriter()){
     txnState(s => {
       reconcileCountdown(now, s.game);
@@ -2146,8 +2243,23 @@ function startClock(){
       s.game.seconds = currentSeconds;
       s.game.secondsAtStart = currentSeconds;
       s.game.startedAtMs = now;
+=======
+  // How much time is left right now (works whether paused or running)
+  const current = getRemainingSeconds(state.game); // uses targetEndAt/seconds as defined earlier
+
+  if (isOnlineWriter()){
+    // Clear any special modes and set running + targetEndAt in Firebase
+    txnState(s => {
+      s.game.timeoutSecondsRemaining = 0;
+      s.game.timeoutTeam = null;
+      s.game.halftimeSecondsRemaining = 0;
+
+>>>>>>> Stashed changes
       s.game.running = true;
+      s.game.targetEndAt = nowMs() + current * 1000;  // <-- absolute countdown target
+      s.game.seconds = current;                       // keep for compatibility with readers
     });
+<<<<<<< Updated upstream
   }
 }
 
@@ -2167,6 +2279,41 @@ function pauseClock(){
       s.game.secondsAtStart = null;
     });
   }
+=======
+
+    // Ensure no legacy local tickers are running
+    if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+    ensureViewTicker(); // just re-renders UI; does NOT mutate time
+    return;
+  }
+
+  // Offline / viewer-local path (no Firebase write)
+  if (state.game.timeoutSecondsRemaining > 0) clearTimeoutMode();
+  if (state.game.halftimeSecondsRemaining > 0) clearHalftimeMode();
+
+  state.game.running = true;
+  state.game.targetEndAt = nowMs() + current * 1000;   // <-- local absolute target
+  renderAndPersist();                                   // persists to local + remote if applicable
+
+  // Make sure no old decrement loop is still running
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+  ensureViewTicker(); // visual updates only
+}
+
+function pauseClock(){
+  // Snap current remaining into seconds and clear target
+  const rem = getRemainingSeconds(state.game);
+  state.game.running = false;
+  state.game.targetEndAt = 0;
+  state.game.seconds = rem;
+
+  renderAndPersist(); // your existing function that saves + renders
+}
+
+function toggleStartPause(){
+  if (state.game.running) pauseClock();
+  else startClock();
+>>>>>>> Stashed changes
 }
 
 function toggleStartPause(){

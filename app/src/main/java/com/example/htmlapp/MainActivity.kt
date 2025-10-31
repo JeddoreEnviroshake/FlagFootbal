@@ -1,4 +1,4 @@
-package com.example.htmlapp
+package com.synqro.app
 
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
@@ -26,7 +26,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.webkit.WebViewAssetLoader
-import com.example.htmlapp.BuildConfig
+import com.synqro.app.BuildConfig
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.FirebaseApp
@@ -421,6 +421,9 @@ class MainActivity : AppCompatActivity() {
             pendingWebViewState = null
             hasLoadedInitialUrl = true
         } else if (!hasLoadedInitialUrl) {
+            webView.clearCache(true)
+            webView.clearHistory()
+            webView.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
             webView.loadUrl(ASSET_URL)
             hasLoadedInitialUrl = true
         }
