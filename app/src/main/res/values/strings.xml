@@ -17,5 +17,7 @@
     <string name="login_unavailable">Online sync is unavailable. Showing offline content.</string>
     <string name="login_missing_google_id">Google Sign-In is not configured for this build.</string>
     <string name="login_sign_out_error">Unable to sign out right now. Please try again.</string>
-    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID</string>
+    <string name="default_web_client_id">207525608357-fnl1lh47g0kufd8s6pqfh64fbfkve9d7.apps.googleusercontent.com</string>
+    <string name="widget_title">Open Synqro</string>
+    <string name="widget_content_description">Launch Synqro</string>
 </resources>
