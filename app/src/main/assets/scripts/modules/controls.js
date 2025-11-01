@@ -1,18 +1,6 @@
 (function(exports){
   'use strict';
 
-  function maybeAutoFlag(state, beforeVal, afterVal){
-    if (!state) return;
-    const nextNum = Number(afterVal);
-    if (!Number.isFinite(nextNum)) return;
-    const normalizedNext = Math.floor(nextNum);
-    const prevNum = Number(beforeVal);
-    const normalizedPrev = Number.isFinite(prevNum) ? Math.floor(prevNum) : null;
-    if (normalizedNext === 0 && normalizedPrev !== 0) {
-      state.flagged = true;
-    }
-  }
-
   function mutateTeam(teamIdx, mutator){
     if (exports.viewMode !== 'ref') return false;
     if (teamIdx == null || teamIdx < 0) return false;
@@ -20,9 +8,7 @@
       exports.txnState(s => {
         if (!s || !Array.isArray(s.teams) || !s.teams[teamIdx]) return s;
         const team = s.teams[teamIdx];
-        const beforeGirl = team.girlPlay;
         mutator(team);
-        maybeAutoFlag(s, beforeGirl, team.girlPlay);
         return s;
       });
       return true;
@@ -30,9 +16,7 @@
 
     const team = exports.state.teams[teamIdx];
     if (!team) return false;
-    const beforeGirl = team.girlPlay;
     mutator(team);
-    maybeAutoFlag(exports.state, beforeGirl, team.girlPlay);
     exports.renderAndPersist();
     return true;
   }
@@ -180,7 +164,6 @@
       exports.activeValueEditor = null;
       showError('');
       team[kind] = nextVal;
-      if (kind === 'girlPlay') maybeAutoFlag(exports.state, originalData, nextVal);
       valEl.classList.remove('editing');
       valEl.textContent = kind==='girlPlay' ? exports.fmtGirl(nextVal) : String(nextVal);
       exports.renderAndPersist();
@@ -234,10 +217,14 @@
   }
 
   function performGuyPlay(){
-    mutateTeam(exports.state.activeTeam, team => {
+    const activeIdx = exports.state.activeTeam;
+    const currentTeam = exports.state.teams ? exports.state.teams[activeIdx] : null;
+    const shouldFlag = !!currentTeam && (currentTeam.girlPlay|0) === 0;
+    const changed = mutateTeam(activeIdx, team => {
       team.downs = exports.wrapDown((team.downs|0) + 1);
       team.girlPlay = Math.max(0, (team.girlPlay|0) - 1);
     });
+    if (shouldFlag && changed) setFlaggedState(true);
   }
 
   function performGirlPlay(){
@@ -590,6 +577,41 @@
     }
 
     const currentDisplay = exports.fmt(exports.state.game.seconds);
+    const formatDigits = (digits) => {
+      if (!digits) return '';
+      const secDigits = digits.slice(-2);
+      const minDigits = digits.slice(0, -2);
+      const minutes = minDigits ? parseInt(minDigits, 10) : 0;
+      const minutesDisplay = (Number.isFinite(minutes) ? Math.max(0, minutes) : 0).toString().padStart(2, '0');
+      const secondsDisplay = secDigits.padStart(2, '0').slice(-2);
+      return `${minutesDisplay}:${secondsDisplay}`;
+    };
+    const parseDigits = (digits) => {
+      if (!digits) return null;
+      const secDigits = digits.slice(-2);
+      const minDigits = digits.slice(0, -2);
+      const minutes = minDigits ? parseInt(minDigits, 10) : 0;
+      const seconds = secDigits ? parseInt(secDigits, 10) : 0;
+      if (!Number.isFinite(minutes) || minutes < 0) return null;
+      if (!Number.isFinite(seconds) || seconds < 0) return null;
+      return { minutes, seconds };
+    };
+    const applyDigitsToInput = (digits) => {
+      const normalized = digits || '';
+      if (normalized) {
+        const parsed = parseDigits(normalized);
+        const canonical = parsed
+          ? `${Math.max(0, parsed.minutes).toString()}${Math.max(0, parsed.seconds).toString().padStart(2, '0')}`
+          : normalized.replace(/^0+/, '0');
+        const formatted = formatDigits(canonical);
+        input.dataset.clockDigits = canonical;
+        input.value = formatted || canonical;
+        return canonical;
+      }
+      delete input.dataset.clockDigits;
+      input.value = '';
+      return '';
+    };
     gameTime.classList.add('editing');
     gameTime.textContent = '';
 
@@ -600,7 +622,9 @@
     input.pattern = '[0-9:]*';
     input.autocomplete = 'off';
     input.spellcheck = false;
-    input.value = currentDisplay;
+    const initialDigits = String(currentDisplay || '').replace(/\D/g, '');
+    applyDigitsToInput(initialDigits);
+    if (!input.value) applyDigitsToInput('0000');
     input.setAttribute('aria-label', 'Set game clock (MM:SS)');
 
     const errorId = 'clock-edit-error';
@@ -611,6 +635,11 @@
     error.setAttribute('role', 'alert');
     error.setAttribute('aria-live', 'polite');
 
+    const focusInput = () => {
+      input.focus();
+      try { input.setSelectionRange(0, input.value.length); }
+      catch {}
+    };
     const showError = (msg) => {
       error.textContent = msg || '';
       error.classList.toggle('visible', !!msg);
@@ -636,14 +665,12 @@
         return;
       }
 
-      const raw = input.value.trim();
-      if (!raw) { showError('Enter time as MM:SS'); input.focus(); return; }
-      const match = raw.match(/^(\d{1,2}):(\d{2})$/);
-      if (!match) { showError('Use MM:SS format'); input.focus(); return; }
-      const minutes = parseInt(match[1], 10);
-      const seconds = parseInt(match[2], 10);
-      if (!Number.isFinite(minutes) || minutes < 0) { showError('Minutes must be 0 or more'); input.focus(); return; }
-      if (!Number.isFinite(seconds) || seconds < 0 || seconds > 59) { showError('Seconds must be 00-59'); input.focus(); return; }
+      const rawDigits = input.dataset.clockDigits || input.value.replace(/\D/g, '');
+      if (!rawDigits) { showError('Enter time as MM:SS'); focusInput(); return; }
+      const parsed = parseDigits(rawDigits);
+      if (!parsed) { showError('Use MM:SS format'); focusInput(); return; }
+      const { minutes, seconds } = parsed;
+      if (seconds > 59) { showError('Seconds must be 00-59'); focusInput(); return; }
 
       const totalSeconds = Math.max(0, minutes * 60 + seconds);
       showError('');
@@ -663,7 +690,11 @@
       if (e.key === 'Enter') { e.preventDefault(); finish(true); }
       else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
     });
-    input.addEventListener('input', ()=>{ if (error.textContent) showError(''); });
+    input.addEventListener('input', () => {
+      const digits = input.value.replace(/\D/g, '');
+      applyDigitsToInput(digits);
+      if (error.textContent) showError('');
+    });
     input.addEventListener('blur', () => {
       setTimeout(() => {
         if (!gameTime.isConnected) return;
@@ -672,11 +703,7 @@
       }, 20);
     });
 
-    setTimeout(() => {
-      input.focus();
-      try { input.setSelectionRange(0, input.value.length); }
-      catch {}
-    }, 0);
+    setTimeout(() => { focusInput(); }, 0);
   }
 
   function bindClockControls(){
