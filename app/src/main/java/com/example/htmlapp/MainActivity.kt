@@ -222,7 +222,16 @@ class MainActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 // Volume Up → Guy Play
                 webView.evaluateJavascript(
-                    "window.triggerGuyPlay && window.triggerGuyPlay();",
+                    """
+                        (function(){
+                            if (window.triggerGuyPlay) {
+                                window.triggerGuyPlay();
+                            }
+                            if (window.App && window.App.state && window.App.state.flagged && typeof window.App.setFlaggedState === 'function') {
+                                window.App.setFlaggedState(false);
+                            }
+                        })();
+                    """.trimIndent(),
                     null
                 )
                 true // consume the event so system volume doesn’t change
@@ -230,7 +239,16 @@ class MainActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 // Volume Down → Girl Play
                 webView.evaluateJavascript(
-                    "window.triggerGirlPlay && window.triggerGirlPlay();",
+                    """
+                        (function(){
+                            if (window.triggerGirlPlay) {
+                                window.triggerGirlPlay();
+                            }
+                            if (window.App && window.App.state && window.App.state.flagged && typeof window.App.setFlaggedState === 'function') {
+                                window.App.setFlaggedState(false);
+                            }
+                        })();
+                    """.trimIndent(),
                     null
                 )
                 true // consume the event
