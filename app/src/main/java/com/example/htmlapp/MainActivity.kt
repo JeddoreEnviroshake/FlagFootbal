@@ -227,9 +227,6 @@ class MainActivity : AppCompatActivity() {
                             if (window.triggerGuyPlay) {
                                 window.triggerGuyPlay();
                             }
-                            if (window.App && window.App.state && window.App.state.flagged && typeof window.App.setFlaggedState === 'function') {
-                                window.App.setFlaggedState(false);
-                            }
                         })();
                     """.trimIndent(),
                     null
@@ -243,9 +240,6 @@ class MainActivity : AppCompatActivity() {
                         (function(){
                             if (window.triggerGirlPlay) {
                                 window.triggerGirlPlay();
-                            }
-                            if (window.App && window.App.state && window.App.state.flagged && typeof window.App.setFlaggedState === 'function') {
-                                window.App.setFlaggedState(false);
                             }
                         })();
                     """.trimIndent(),
