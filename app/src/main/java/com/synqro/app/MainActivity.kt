@@ -1,4 +1,4 @@
-package com.example.htmlapp
+package com.synqro.app
 
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
@@ -28,7 +28,7 @@ import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.webkit.WebViewAssetLoader
 import com.google.android.gms.common.ConnectionResult as GmsConnectionResult
-import com.example.htmlapp.BuildConfig
+import com.synqro.app.BuildConfig
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
