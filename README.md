@@ -25,7 +25,7 @@ gradle assembleDebug
 
 If you prefer to host the experience remotely:
 
-1. Open `app/src/main/java/com/example/htmlapp/MainActivity.kt`.
+1. Open `app/src/main/java/com/synqro/app/MainActivity.kt`.
 2. Change the `ASSET_URL` constant to the desired URL (for example, `"https://example.com"`).
 3. Ensure the remote content is served over HTTPS or enable cleartext traffic for development via `app/src/debug/AndroidManifest.xml`.
 

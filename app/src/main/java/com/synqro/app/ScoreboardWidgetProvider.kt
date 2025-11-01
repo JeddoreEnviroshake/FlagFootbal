@@ -1,4 +1,4 @@
-package com.example.htmlapp
+package com.synqro.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
