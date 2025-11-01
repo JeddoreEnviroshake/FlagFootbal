@@ -33,7 +33,8 @@
       ],
       game: { seconds: 25*60, running: false, startedAtMs: null, secondsAtStart: null },
       timeout: { running: false, secondsRemaining: 0, team: null, startedAtMs: null, secondsAtStart: null },
-      halftime: { running: false, secondsRemaining: 0, startedAtMs: null, secondsAtStart: null }
+      halftime: { running: false, secondsRemaining: 0, startedAtMs: null, secondsAtStart: null },
+      flagged: false
     };
   }
 
@@ -86,7 +87,8 @@
         secondsRemaining: coerceSeconds(halftime.secondsRemaining),
         startedAtMs: coerceMs(halftime.startedAtMs),
         secondsAtStart: halftime.secondsAtStart != null ? coerceSeconds(halftime.secondsAtStart) : null
-      }
+      },
+      flagged: !!s.flagged
     };
     if (!safe.game.startedAtMs) safe.game.startedAtMs = null;
     if (!safe.game.secondsAtStart) safe.game.secondsAtStart = null;
@@ -200,6 +202,9 @@
           base.halftime.running = false;
         }
       }
+
+      const flaggedRaw = obj.flagged != null ? obj.flagged : (obj.f != null ? obj.f : null);
+      base.flagged = flaggedRaw === true || flaggedRaw === 1;
     } catch {}
     return base;
   }
@@ -271,7 +276,8 @@
             sr: state.halftime.secondsRemaining|0,
             sa: state.halftime.secondsAtStart != null ? coerceSeconds(state.halftime.secondsAtStart) : null,
             ms: state.halftime.startedAtMs != null ? coerceMs(state.halftime.startedAtMs) : null
-          }
+          },
+          f: state.flagged === true
         });
         localStorage.setItem(STORAGE_KEY, tiny);
       } catch(e2){ try{ localStorage.removeItem(STORAGE_KEY);}catch{} }

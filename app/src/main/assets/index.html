@@ -30,7 +30,6 @@
       <h2>Pages</h2>
       <button class="drawer-item active" data-page="game" data-view="ref" type="button">Game dashboard</button>
       <button class="drawer-item" data-page="game" data-view="player" type="button">Scoreboard</button>
-      <button class="drawer-item" data-page="teams" type="button">Teams</button>
       <p class="drawer-note">Game dashboard lets refs manage the game. Scoreboard is a read-only view for players and spectators.</p>
     </div>
 
@@ -100,7 +99,8 @@
             <button class="btn" id="g_score1" data-role="ref-only">+1</button>
             <button class="btn warn" id="g_scorem1" data-role="ref-only">-1</button>
           </div>
-          <div class="action-row action-row--single">
+          <div class="action-row">
+            <button class="btn tall flag-toggle" id="g_flagToggle" data-role="ref-only" aria-pressed="false">Flag</button>
             <button class="btn tall" id="g_downReset" data-role="ref-only">First Down</button>
           </div>
           <div class="action-row action-row--single">
@@ -141,54 +141,9 @@
       </div>
     </section>
 
-    <section class="page" data-page="teams" id="teamsPage">
-      <h1>Teams</h1>
-      <div class="teams-page">
-        <div class="teams-status" id="teamsPageStatus" role="status">Loading teams…</div>
-        <div class="columns">
-          <section class="teams-panel" aria-labelledby="teamsListHeading">
-            <header>
-              <h3 id="teamsListHeading">Teams</h3>
-              <div class="teams-actions">
-                <button class="btn-inline primary" type="button" id="teamsAddTeam">Add Team</button>
-              </div>
-            </header>
-            <div class="list" id="teamsDirectoryList" role="listbox" aria-label="Teams"></div>
-            <footer>Select a team to see its players.</footer>
-          </section>
-          <section class="teams-panel" aria-labelledby="playersListHeading">
-            <header>
-              <h3 id="playersListHeading">Players</h3>
-              <div class="teams-actions">
-                <button class="btn-inline" type="button" id="teamsAddPlayer">Add Player</button>
-              </div>
-            </header>
-            <div class="list" id="teamsPlayerList" role="listbox" aria-label="Players"></div>
-            <footer>Choose a player to view stats.</footer>
-          </section>
-          <section class="teams-panel" aria-labelledby="playerStatsHeading">
-            <header>
-              <h3 id="playerStatsHeading">Player stats</h3>
-              <span id="teamsSelectedPlayer"></span>
-            </header>
-            <div class="teams-stats" id="teamsStatsList"></div>
-          </section>
-          <!-- Team Stats Grid -->
-          <section class="teams-panel" aria-labelledby="teamStatsGridHeading">
-            <header>
-              <h3 id="teamStatsGridHeading">Team stats (click a cell to +1)</h3>
-              <span class="muted">Live totals stored in Firebase</span>
-            </header>
-            <div id="teamStatsGrid" class="stats-grid-container" role="region" aria-live="polite"></div>
-          </section>
-
-        </div>
-      </div>
-    </section>
   </div>
 
 <script src="scripts/modules/state.js"></script>
-<script src="scripts/modules/teams.js"></script>
 <script src="scripts/modules/remote.js"></script>
 <script src="scripts/modules/ui.js"></script>
 <script src="scripts/modules/controls.js"></script>
