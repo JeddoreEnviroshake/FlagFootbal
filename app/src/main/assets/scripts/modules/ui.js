@@ -4,6 +4,14 @@
   function fmt(sec){ const m=Math.floor(sec/60); const s=sec%60; const padded = ('0' + s).slice(-2); return `${m}:${padded}`; }
   function fmtGirl(val){ return val===0 ? 'Now' : String(val); }
 
+  function entityName(entity, fallback = ''){
+    if (!entity || typeof entity !== 'object') return fallback;
+    const raw = entity.name;
+    if (raw == null) return fallback;
+    const str = String(raw).trim();
+    return str || fallback;
+  }
+
   const clampGirl = (val) => Math.max(0, Math.min(2, val|0));
   const clampTimeouts = (val) => Math.max(0, Math.min(3, val|0));
   const clampRushes = (val) => Math.max(0, Math.min(2, val|0));
@@ -101,7 +109,7 @@
 
       const title = document.createElement('h4');
       const fallbackName = idx === 0 ? 'Home' : (idx === 1 ? 'Away' : `Team ${idx + 1}`);
-      title.textContent = exports.entityName(team, fallbackName);
+      title.textContent = entityName(team, fallbackName);
       slot.appendChild(title);
 
       const createRow = (label) => {
@@ -301,22 +309,18 @@
   }
 
   function renderPage(){
-    document.body.dataset.page = exports.currentPage;
+    const activePage = 'game';
+    document.body.dataset.page = activePage;
     document.querySelectorAll('.page').forEach(sec => {
-      const isActive = sec.dataset.page === exports.currentPage;
+      const isActive = sec.dataset.page === activePage || !sec.dataset.page;
       sec.classList.toggle('active', isActive);
       sec.hidden = !isActive;
     });
     document.querySelectorAll('#menuDrawer .drawer-item[data-page]').forEach(btn => {
-      const matchesPage = btn.dataset.page === exports.currentPage;
       const requiredView = btn.dataset.view;
       const matchesView = !requiredView || requiredView === exports.viewMode;
-      btn.classList.toggle('active', matchesPage && matchesView);
+      btn.classList.toggle('active', matchesView);
     });
-    if (exports.currentPage === 'teams') {
-      if (typeof exports.ensureTeamsListener === 'function') exports.ensureTeamsListener();
-      if (typeof exports.renderTeamsDirectory === 'function') exports.renderTeamsDirectory();
-    }
   }
 
   function syncTimersWithState(){
@@ -335,6 +339,8 @@
     const nowMs = Date.now();
     exports.reconcileAll(nowMs);
     document.body.dataset.view = exports.viewMode;
+    const isFlagged = !!exports.state.flagged;
+    document.body.classList.toggle('flagged', isFlagged);
     const indicator = exports.$ ? exports.$('#viewIndicator') : null;
     if (indicator) {
       indicator.textContent = exports.viewMode === 'ref' ? 'Game dashboard' : 'Scoreboard';
@@ -350,6 +356,7 @@
     const btnAwayTO = exports.$ ? exports.$('#timeoutAway') : null;
     const btnHomeBlitz = exports.$ ? exports.$('#blitzHome') : null;
     const btnAwayBlitz = exports.$ ? exports.$('#blitzAway') : null;
+    const flagBtn = exports.$ ? exports.$('#g_flagToggle') : null;
     if (btnHomeTO) {
       btnHomeTO.textContent = 'Timeout';
       btnHomeTO.setAttribute('aria-label', `Timeout for ${homeName}`);
@@ -364,10 +371,14 @@
     if (btnAwayBlitz) {
       btnAwayBlitz.setAttribute('aria-label', `Log blitz for ${awayName}`);
     }
+    if (flagBtn) {
+      flagBtn.classList.toggle('active', isFlagged);
+      flagBtn.setAttribute('aria-pressed', isFlagged ? 'true' : 'false');
+    }
 
     if (exports.$) {
       const gameTimeEl = exports.$('#gameTime');
-      if (gameTimeEl) gameTimeEl.textContent = fmt(exports.state.game.seconds);
+      if (gameTimeEl && !gameTimeEl.classList.contains('editing')) gameTimeEl.textContent = fmt(exports.state.game.seconds);
       const timeoutSeconds = exports.state.timeout?.secondsRemaining || 0;
       const timeoutBanner = exports.$('#timeoutBanner');
       if (timeoutBanner) {
@@ -425,5 +436,6 @@
   exports.renderPage = renderPage;
   exports.syncTimersWithState = syncTimersWithState;
   exports.render = render;
+  exports.entityName = entityName;
 
 })(window.App = window.App || {});

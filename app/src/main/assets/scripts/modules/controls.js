@@ -1,13 +1,28 @@
 (function(exports){
   'use strict';
 
+  function maybeAutoFlag(state, beforeVal, afterVal){
+    if (!state) return;
+    const nextNum = Number(afterVal);
+    if (!Number.isFinite(nextNum)) return;
+    const normalizedNext = Math.floor(nextNum);
+    const prevNum = Number(beforeVal);
+    const normalizedPrev = Number.isFinite(prevNum) ? Math.floor(prevNum) : null;
+    if (normalizedNext === 0 && normalizedPrev !== 0) {
+      state.flagged = true;
+    }
+  }
+
   function mutateTeam(teamIdx, mutator){
     if (exports.viewMode !== 'ref') return false;
     if (teamIdx == null || teamIdx < 0) return false;
     if (typeof exports.isOnlineWriter === 'function' && exports.isOnlineWriter()){
       exports.txnState(s => {
         if (!s || !Array.isArray(s.teams) || !s.teams[teamIdx]) return s;
-        mutator(s.teams[teamIdx]);
+        const team = s.teams[teamIdx];
+        const beforeGirl = team.girlPlay;
+        mutator(team);
+        maybeAutoFlag(s, beforeGirl, team.girlPlay);
         return s;
       });
       return true;
@@ -15,7 +30,9 @@
 
     const team = exports.state.teams[teamIdx];
     if (!team) return false;
+    const beforeGirl = team.girlPlay;
     mutator(team);
+    maybeAutoFlag(exports.state, beforeGirl, team.girlPlay);
     exports.renderAndPersist();
     return true;
   }
@@ -65,6 +82,22 @@
 
     input.addEventListener('blur', () => finish(true));
     input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') finish(true); if(e.key==='Escape') finish(false); });
+  }
+
+  function setFlaggedState(next){
+    const desired = !!next;
+    if (exports.state.flagged === desired) return;
+    exports.state.flagged = desired;
+    exports.renderAndPersist();
+    if (typeof exports.isOnlineWriter === 'function' && exports.isOnlineWriter()) {
+      try { exports.txnField('flagged', () => desired); }
+      catch (err) { console.warn('[flag] remote update failed', err); }
+    }
+  }
+
+  function toggleFlaggedState(){
+    if (exports.viewMode !== 'ref') return;
+    setFlaggedState(!exports.state.flagged);
   }
 
   function beginEditValue(valEl, kind, teamIdx, opts = {}){
@@ -147,6 +180,7 @@
       exports.activeValueEditor = null;
       showError('');
       team[kind] = nextVal;
+      if (kind === 'girlPlay') maybeAutoFlag(exports.state, originalData, nextVal);
       valEl.classList.remove('editing');
       valEl.textContent = kind==='girlPlay' ? exports.fmtGirl(nextVal) : String(nextVal);
       exports.renderAndPersist();
@@ -395,15 +429,6 @@
     }
   }
 
-  function setPage(page){
-    const next = page === 'teams' ? 'teams' : 'game';
-    if (exports.currentPage !== next) {
-      exports.currentPage = next;
-    }
-    exports.renderPage();
-    closeMenu();
-  }
-
   function openMenu(){
     const menuDrawer = exports.$ ? exports.$('#menuDrawer') : null;
     const menuBackdrop = exports.$ ? exports.$('#menuBackdrop') : null;
@@ -550,6 +575,110 @@
     });
   }
 
+  function beginEditClock(){
+    if (exports.viewMode !== 'ref') return;
+    const gameTime = exports.$ ? exports.$('#gameTime') : null;
+    if (!gameTime || gameTime.classList.contains('editing')) return;
+
+    const timeoutActive = exports.state.timeout.running || (exports.state.timeout.secondsRemaining|0) > 0;
+    const halftimeActive = exports.state.halftime.running || (exports.state.halftime.secondsRemaining|0) > 0;
+    if (exports.state.game.running || timeoutActive || halftimeActive) return;
+
+    if (exports.activeValueEditor) {
+      try { exports.activeValueEditor(false); } catch {}
+      exports.activeValueEditor = null;
+    }
+
+    const currentDisplay = exports.fmt(exports.state.game.seconds);
+    gameTime.classList.add('editing');
+    gameTime.textContent = '';
+
+    const input = document.createElement('input');
+    input.className = 'val-input';
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.pattern = '[0-9:]*';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.value = currentDisplay;
+    input.setAttribute('aria-label', 'Set game clock (MM:SS)');
+
+    const errorId = 'clock-edit-error';
+    input.setAttribute('aria-describedby', errorId);
+    const error = document.createElement('div');
+    error.className = 'val-error';
+    error.id = errorId;
+    error.setAttribute('role', 'alert');
+    error.setAttribute('aria-live', 'polite');
+
+    const showError = (msg) => {
+      error.textContent = msg || '';
+      error.classList.toggle('visible', !!msg);
+      input.classList.toggle('invalid', !!msg);
+    };
+
+    const commitValue = (seconds) => {
+      exports.state.game.seconds = seconds;
+      exports.state.game.secondsAtStart = null;
+      exports.state.game.startedAtMs = null;
+      exports.renderAndPersist();
+      if (typeof exports.isOnlineWriter === 'function' && exports.isOnlineWriter()) {
+        try { exports.txnField('game/seconds', () => seconds); }
+        catch (err) { console.warn('[clock] remote update failed', err); }
+      }
+    };
+
+    const finish = (commit) => {
+      if (!commit) {
+        gameTime.classList.remove('editing');
+        gameTime.textContent = exports.fmt(exports.state.game.seconds);
+        exports.activeValueEditor = null;
+        return;
+      }
+
+      const raw = input.value.trim();
+      if (!raw) { showError('Enter time as MM:SS'); input.focus(); return; }
+      const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+      if (!match) { showError('Use MM:SS format'); input.focus(); return; }
+      const minutes = parseInt(match[1], 10);
+      const seconds = parseInt(match[2], 10);
+      if (!Number.isFinite(minutes) || minutes < 0) { showError('Minutes must be 0 or more'); input.focus(); return; }
+      if (!Number.isFinite(seconds) || seconds < 0 || seconds > 59) { showError('Seconds must be 00-59'); input.focus(); return; }
+
+      const totalSeconds = Math.max(0, minutes * 60 + seconds);
+      showError('');
+      exports.activeValueEditor = null;
+      gameTime.classList.remove('editing');
+      gameTime.textContent = exports.fmt(totalSeconds);
+      commitValue(totalSeconds);
+    };
+
+    exports.activeValueEditor = finish;
+
+    gameTime.appendChild(input);
+    gameTime.appendChild(error);
+
+    input.addEventListener('click', (e)=> e.stopPropagation());
+    input.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('input', ()=>{ if (error.textContent) showError(''); });
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (!gameTime.isConnected) return;
+        const active = document.activeElement;
+        if (!gameTime.contains(active)) finish(true);
+      }, 20);
+    });
+
+    setTimeout(() => {
+      input.focus();
+      try { input.setSelectionRange(0, input.value.length); }
+      catch {}
+    }, 0);
+  }
+
   function bindClockControls(){
     const startPause = exports.$ ? exports.$('#clockStartPause') : null;
     if (startPause) startPause.addEventListener('click', toggleStartPause);
@@ -564,31 +693,9 @@
     const halftimeBtn = exports.$ ? exports.$('#halftimeBtn') : null;
     if (halftimeBtn) halftimeBtn.addEventListener('click', startHalftime);
     const gameTime = exports.$ ? exports.$('#gameTime') : null;
-    if (gameTime) {
-      gameTime.addEventListener('click', ()=>{
-        if (exports.viewMode !== 'ref') return;
-        const timeoutActive = exports.state.timeout.running || (exports.state.timeout.secondsRemaining|0) > 0;
-        const halftimeActive = exports.state.halftime.running || (exports.state.halftime.secondsRemaining|0) > 0;
-        if (exports.state.game.running || timeoutActive || halftimeActive) return;
-        const current = exports.fmt(exports.state.game.seconds);
-        const input = prompt('Set game clock (MM:SS):', current);
-        if (!input) return;
-        const m = input.match(/^(\d{1,2}):(\d{2})$/);
-        if (!m) return alert('Please enter time as MM:SS');
-        const mm = parseInt(m[1],10), ss = parseInt(m[2],10);
-        if (ss>59) return alert('Seconds must be 00-59');
-        const next = Math.max(0, mm*60 + ss);
-
-        if (exports.isOnlineWriter()){
-          exports.txnField('game/seconds', () => next);
-        } else {
-          exports.state.game.seconds = next;
-          exports.state.game.secondsAtStart = null;
-          exports.state.game.startedAtMs = null;
-          exports.renderAndPersist();
-        }
-      });
-    }
+    if (gameTime) gameTime.addEventListener('click', beginEditClock);
+    const flagBtn = exports.$ ? exports.$('#g_flagToggle') : null;
+    if (flagBtn) flagBtn.addEventListener('click', toggleFlaggedState);
   }
 
   function bindMenuControls(){
@@ -597,9 +704,6 @@
     if (menuToggleBtn) menuToggleBtn.addEventListener('click', toggleMenu);
     if (menuBackdrop) menuBackdrop.addEventListener('click', closeMenu);
     document.addEventListener('keydown', (ev)=>{ if (ev.key === 'Escape') closeMenu(); });
-    document.querySelectorAll('#menuDrawer .drawer-item[data-page]').forEach(btn => {
-      btn.addEventListener('click', ()=> setPage(btn.dataset.page));
-    });
     document.querySelectorAll('#menuDrawer .drawer-item[data-view]').forEach(btn => {
       btn.addEventListener('click', ()=> setViewMode(btn.dataset.view));
     });
@@ -625,13 +729,6 @@
         }
       });
     }
-  }
-
-  function bindTeamButtons(){
-    const addTeamBtn = exports.$ ? exports.$('#teamsAddTeam') : null;
-    if (addTeamBtn && exports.handleAddTeam) addTeamBtn.addEventListener('click', exports.handleAddTeam);
-    const addPlayerBtn = exports.$ ? exports.$('#teamsAddPlayer') : null;
-    if (addPlayerBtn && exports.handleAddPlayer) addPlayerBtn.addEventListener('click', exports.handleAddPlayer);
   }
 
   function bindRemoteForm(){
@@ -719,7 +816,6 @@
     bindAdjustButtons();
     bindClockControls();
     bindMenuControls();
-    bindTeamButtons();
     bindRemoteForm();
     runSelfTests();
   }
@@ -740,11 +836,12 @@
   exports.toggleStartPause = toggleStartPause;
   exports.startTimeout = startTimeout;
   exports.startHalftime = startHalftime;
-  exports.setPage = setPage;
   exports.openMenu = openMenu;
   exports.closeMenu = closeMenu;
   exports.toggleMenu = toggleMenu;
   exports.setViewMode = setViewMode;
+  exports.setFlaggedState = setFlaggedState;
+  exports.toggleFlaggedState = toggleFlaggedState;
   exports.initializeControls = initializeControls;
 
 })(window.App = window.App || {});
