@@ -409,6 +409,8 @@
     .btn.flag-toggle[aria-pressed="true"] { background:#ffd300; border-color:#ffd300; color:#0b1120; box-shadow:0 8px 22px rgba(253, 211, 0, 0.45); }
     #g_downReset { background:#facc15; border-color:#fbbf24; color:#422006; }
     #g_turnover { background:#f97316; border-color:#fdba74; color:#431407; }
+    #g_score1 { background-color: #10B982; color: black; }
+    #g_scorem1 { color: black; }
 
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
 
