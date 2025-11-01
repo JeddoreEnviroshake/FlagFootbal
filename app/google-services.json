@@ -10,12 +10,49 @@
       "client_info": {
         "mobilesdk_app_id": "1:207525608357:android:dfb501ff203d5671d4064c",
         "android_client_info": {
-          "package_name": "com.synqro.app"
+          "package_name": "com.example.htmlapp"
         }
       },
       "oauth_client": [
         {
           "client_id": "207525608357-db13q6458vtjqcmpkdct2700kdsjtm2e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.htmlapp",
+            "certificate_hash": "71c2536bdd0e2588c6e94080edfdd8574e46356c"
+          }
+        },
+        {
+          "client_id": "207525608357-fnl1lh47g0kufd8s6pqfh64fbfkve9d7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2mWpURGW_58mGGW3H7RHduBjUd-dUGEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "207525608357-fnl1lh47g0kufd8s6pqfh64fbfkve9d7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:207525608357:android:ce292e19c727c881d4064c",
+        "android_client_info": {
+          "package_name": "com.synqro.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "207525608357-fkji3dq10372234mmkkf9a7bke3gspmp.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.synqro.app",
