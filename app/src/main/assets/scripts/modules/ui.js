@@ -238,7 +238,10 @@
       scoreVal.className = 'val score-value';
       scoreVal.dataset.kind = 'score';
       scoreVal.dataset.team = idx;
-      scoreVal.textContent = team.score != null ? team.score : 0;
+      const scoreTile = document.createElement('div');
+      scoreTile.className = 'score-tile';
+      scoreTile.textContent = team.score != null ? team.score : 0;
+      scoreVal.appendChild(scoreTile);
       slot.appendChild(scoreVal);
 
       const metrics = document.createElement('div');

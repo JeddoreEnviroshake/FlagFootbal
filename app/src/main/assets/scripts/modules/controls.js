@@ -149,6 +149,9 @@
         exports.activeValueEditor = null;
         valEl.classList.remove('editing');
         valEl.textContent = originalDisplay;
+        if (typeof exports.render === 'function') {
+          exports.render();
+        }
         return;
       }
 
