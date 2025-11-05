@@ -317,9 +317,23 @@
     .clock-actions .action-stack { display:flex; flex-direction:column; gap:10px; width:100%; }
     .start-btn { min-height:68px; font-size:18px; letter-spacing:0.05em; }
 
-    .team-card { background:#F2F2F2; border:1px solid var(--line); border-radius:24px; padding:22px 18px; display:flex; flex-direction:column; gap:18px; align-items:center; text-align:center; cursor:pointer; transition:border-color .2s ease, box-shadow .2s ease; box-shadow:0 10px 20px rgba(15,23,42,0.08); }
+    .team-card { position:relative; background:#F2F2F2; border:1px solid var(--line); border-radius:24px; padding:22px 18px; display:flex; flex-direction:column; gap:18px; align-items:center; text-align:center; cursor:pointer; transition:border-color .2s ease, box-shadow .2s ease; box-shadow:0 10px 20px rgba(15,23,42,0.08); }
     body[data-view="player"] .team-card { cursor:default; }
-    .team-card.active { border-color:var(--accent); box-shadow:0 8px 24px rgba(37,99,235,0.25); }
+    .team-card.active { border-color:var(--line); box-shadow:none; }
+
+    .team-card.active::after {
+      content:"";
+      position:absolute;
+      bottom:-14px;
+      left:50%;
+      transform:translateX(-50%);
+      width:0;
+      height:0;
+      border-left:12px solid transparent;
+      border-right:12px solid transparent;
+      border-top:14px solid var(--accent);
+      pointer-events:none;
+    }
     .team-card header { width:100%; display:flex; justify-content:center; }
     .name { font-weight:900; font-size:18px; letter-spacing:0.08em; text-transform:uppercase; padding:6px 14px; border-radius:14px; background:rgba(37,99,235,0.12); color:var(--accent); }
     .name.editing { background:#ffffff; color:var(--ink); }
