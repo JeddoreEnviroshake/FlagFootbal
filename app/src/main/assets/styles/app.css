@@ -303,6 +303,16 @@
     .girl-track span { flex:1; height:8px; border-radius:999px; background:#ffffff; }
     .girl-track span.used { background:var(--accent); }
 
+    .control-carousel { position: relative; overflow: hidden; display:flex; flex-direction:column; gap:12px; --active-index: 0; touch-action: pan-y; }
+    .control-carousel .control-track { display:flex; width:100%; transform: translateX(calc(-100% * var(--active-index))); transition: transform 0.35s ease; }
+    .control-carousel .control-panel { flex: 0 0 100%; display:flex; flex-direction:column; align-items:stretch; gap:12px; padding:0; }
+    .control-carousel .control-panel.is-active { pointer-events:auto; }
+    .control-carousel .control-panel:not(.is-active) { pointer-events:none; }
+    .control-pagination { display:flex; justify-content:center; gap:8px; margin-top:4px; }
+    .control-pagination.is-hidden { display:none; }
+    .control-dot { width:10px; height:10px; border-radius:999px; border:none; background: var(--line); padding:0; cursor:pointer; transition: background 0.2s ease, transform 0.2s ease; }
+    .control-dot.is-active { background: var(--accent); transform: scale(1.2); }
+    .control-dot:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
     .clock-actions { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; align-items:stretch; }
     .clock-actions .action-stack { display:flex; flex-direction:column; gap:10px; width:100%; }
     .start-btn { min-height:68px; font-size:18px; letter-spacing:0.05em; }
@@ -365,7 +375,8 @@
       #teamCard0 { grid-column: 1; grid-row: 1; }
       .clock-card { grid-column: 2; grid-row: 1; }
       #teamCard1 { grid-column: 3; grid-row: 1; }
-      .clock-actions { grid-column: 1 / span 3; grid-row: 2; grid-template-columns: repeat(3, minmax(0,1fr)); align-items: stretch; }
+      .control-carousel { grid-column: 1 / span 3; grid-row: 2; }
+      .clock-actions { grid-template-columns: repeat(3, minmax(0,1fr)); align-items: stretch; }
       .clock-actions .start-btn { grid-column: 2; grid-row: 1; }
       .clock-actions .action-stack { flex-direction: column; }
       .clock-actions .action-stack .btn { min-width: 0; }
@@ -400,6 +411,10 @@
       .game-board .manual-adjust .adjust-btn {
         width: 100%;
       }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .control-carousel .control-track { transition-duration: 0s; }
     }
 
     /* Inline numeric editor (kept from codex/refactor-inline-editor...) */

@@ -83,15 +83,57 @@
           <section class="team-card" id="teamCard1"></section>
         </div>
 
-        <div class="clock-actions">
-          <div class="action-stack">
-            <button class="btn" id="timeoutHome" data-role="ref-only">Timeout</button>
-            <button class="btn" id="blitzHome" data-role="ref-only">Blitz</button>
+        <div class="control-carousel" id="controlCarousel" data-active-index="0">
+          <div class="control-track">
+            <div class="control-panel is-active" data-panel-index="0" aria-label="Clock controls" aria-hidden="false">
+              <div class="clock-actions">
+                <div class="action-stack">
+                  <button class="btn" id="timeoutHome" data-role="ref-only">Timeout</button>
+                  <button class="btn" id="blitzHome" data-role="ref-only">Blitz</button>
+                </div>
+                <button class="btn primary start-btn" id="clockStartPause" data-role="ref-only">Start</button>
+                <div class="action-stack">
+                  <button class="btn" id="timeoutAway" data-role="ref-only">Timeout</button>
+                  <button class="btn" id="blitzAway" data-role="ref-only">Blitz</button>
+                </div>
+              </div>
+            </div>
+            <div class="control-panel" data-panel-index="1" aria-label="Manual adjustments" aria-hidden="true">
+              <div class="manual-adjust" data-role="ref-only">
+                <div class="adjust-card" data-kind="timeouts">
+                  <div class="adjust-title">Timeout</div>
+                  <div class="adjust-buttons">
+                    <button class="adjust-btn" data-role="ref-only" data-kind="timeouts" data-adjust="-1" aria-label="Decrease timeouts">-</button>
+                    <button class="adjust-btn" data-role="ref-only" data-kind="timeouts" data-adjust="1" aria-label="Increase timeouts">+</button>
+                  </div>
+                </div>
+                <div class="adjust-card" data-kind="rushes">
+                  <div class="adjust-title">Blitz</div>
+                  <div class="adjust-buttons">
+                    <button class="adjust-btn" data-role="ref-only" data-kind="rushes" data-adjust="-1" aria-label="Decrease blitzes">-</button>
+                    <button class="adjust-btn" data-role="ref-only" data-kind="rushes" data-adjust="1" aria-label="Increase blitzes">+</button>
+                  </div>
+                </div>
+                <div class="adjust-card" data-kind="girlPlay">
+                  <div class="adjust-title">Girl Play</div>
+                  <div class="adjust-buttons">
+                    <button class="adjust-btn" data-role="ref-only" data-kind="girlPlay" data-adjust="-1" aria-label="Decrease girl plays">-</button>
+                    <button class="adjust-btn" data-role="ref-only" data-kind="girlPlay" data-adjust="1" aria-label="Increase girl plays">+</button>
+                  </div>
+                </div>
+                <div class="adjust-card" data-kind="downs">
+                  <div class="adjust-title">Down</div>
+                  <div class="adjust-buttons">
+                    <button class="adjust-btn" data-role="ref-only" data-kind="downs" data-adjust="-1" aria-label="Previous down">-</button>
+                    <button class="adjust-btn" data-role="ref-only" data-kind="downs" data-adjust="1" aria-label="Next down">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <button class="btn primary start-btn" id="clockStartPause" data-role="ref-only">Start</button>
-          <div class="action-stack">
-            <button class="btn" id="timeoutAway" data-role="ref-only">Timeout</button>
-            <button class="btn" id="blitzAway" data-role="ref-only">Blitz</button>
+          <div class="control-pagination" id="controlCarouselPagination">
+            <button class="control-dot is-active" type="button" data-index="0" aria-label="Clock controls" aria-pressed="true"></button>
+            <button class="control-dot" type="button" data-index="1" aria-label="Manual adjustments" aria-pressed="false"></button>
           </div>
         </div>
 
@@ -110,36 +152,6 @@
           </div>
         </div>
 
-        <div class="manual-adjust" data-role="ref-only">
-          <div class="adjust-card" data-kind="timeouts">
-            <div class="adjust-title">Timeout</div>
-            <div class="adjust-buttons">
-              <button class="adjust-btn" data-role="ref-only" data-kind="timeouts" data-adjust="-1" aria-label="Decrease timeouts">-</button>
-              <button class="adjust-btn" data-role="ref-only" data-kind="timeouts" data-adjust="1" aria-label="Increase timeouts">+</button>
-            </div>
-          </div>
-          <div class="adjust-card" data-kind="rushes">
-            <div class="adjust-title">Blitz</div>
-            <div class="adjust-buttons">
-              <button class="adjust-btn" data-role="ref-only" data-kind="rushes" data-adjust="-1" aria-label="Decrease blitzes">-</button>
-              <button class="adjust-btn" data-role="ref-only" data-kind="rushes" data-adjust="1" aria-label="Increase blitzes">+</button>
-            </div>
-          </div>
-          <div class="adjust-card" data-kind="girlPlay">
-            <div class="adjust-title">Girl Play</div>
-            <div class="adjust-buttons">
-              <button class="adjust-btn" data-role="ref-only" data-kind="girlPlay" data-adjust="-1" aria-label="Decrease girl plays">-</button>
-              <button class="adjust-btn" data-role="ref-only" data-kind="girlPlay" data-adjust="1" aria-label="Increase girl plays">+</button>
-            </div>
-          </div>
-          <div class="adjust-card" data-kind="downs">
-            <div class="adjust-title">Down</div>
-            <div class="adjust-buttons">
-              <button class="adjust-btn" data-role="ref-only" data-kind="downs" data-adjust="-1" aria-label="Previous down">-</button>
-              <button class="adjust-btn" data-role="ref-only" data-kind="downs" data-adjust="1" aria-label="Next down">+</button>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
