@@ -463,6 +463,7 @@
     closeMenu();
     exports.render();
     exports.renderPage();
+    if (typeof exports.updateControlCarousel === 'function') exports.updateControlCarousel();
   }
 
   function bindScoreButtons(){
@@ -728,6 +729,133 @@
     if (flagBtn) flagBtn.addEventListener('click', toggleFlaggedState);
   }
 
+  function bindControlCarousel(){
+    const carousel = document.getElementById('controlCarousel');
+    if (!carousel) return;
+    const track = carousel.querySelector('.control-track');
+    if (!track) return;
+    const panels = Array.from(track.querySelectorAll('.control-panel'));
+    if (panels.length <= 1) return;
+
+    const dots = Array.from(carousel.querySelectorAll('.control-dot'));
+    const pagination = carousel.querySelector('.control-pagination');
+    let activeIndex = 0;
+
+    const isPanelAvailable = (panel) => {
+      const firstChild = panel ? panel.firstElementChild : null;
+      if (!firstChild) return true;
+      const role = firstChild.getAttribute('data-role');
+      if (role === 'ref-only') return exports.viewMode === 'ref';
+      return true;
+    };
+
+    const findNearestAvailable = (startIndex, direction) => {
+      let next = startIndex + direction;
+      while (next >= 0 && next < panels.length) {
+        if (isPanelAvailable(panels[next])) return next;
+        next += direction;
+      }
+      return startIndex;
+    };
+
+    const setActiveIndex = (nextIndex) => {
+      let clamped = Math.max(0, Math.min(nextIndex, panels.length - 1));
+      if (!isPanelAvailable(panels[clamped])) {
+        const fallback = panels.findIndex(panel => isPanelAvailable(panel));
+        if (fallback !== -1) clamped = fallback;
+      }
+      activeIndex = clamped;
+      carousel.dataset.activeIndex = String(activeIndex);
+      carousel.style.setProperty('--active-index', activeIndex);
+      panels.forEach((panel, idx) => {
+        const isActive = idx === activeIndex;
+        panel.classList.toggle('is-active', isActive);
+        panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+      });
+      let visibleDotCount = 0;
+      dots.forEach((dot, idx) => {
+        const isActive = idx === activeIndex;
+        const available = isPanelAvailable(panels[idx]);
+        dot.classList.toggle('is-active', isActive);
+        dot.hidden = !available;
+        dot.setAttribute('aria-pressed', String(isActive && available));
+        if (available) visibleDotCount++;
+      });
+      if (pagination) {
+        const hidePagination = visibleDotCount <= 1;
+        pagination.classList.toggle('is-hidden', hidePagination);
+        pagination.setAttribute('aria-hidden', hidePagination ? 'true' : 'false');
+      }
+    };
+
+    setActiveIndex(0);
+
+    dots.forEach((dot, idx) => {
+      const targetIndex = Number(dot.dataset.index);
+      dot.addEventListener('click', () => {
+        const indexToActivate = Number.isNaN(targetIndex) ? idx : targetIndex;
+        setActiveIndex(indexToActivate);
+      });
+    });
+
+    let pointerId = null;
+    let startX = 0;
+    let pointerActive = false;
+    let swipeHandled = false;
+    const swipeThreshold = 40;
+
+    const handleSwipeDelta = (deltaX) => {
+      if (Math.abs(deltaX) < swipeThreshold) return false;
+      const direction = deltaX < 0 ? 1 : -1;
+      const nextIndex = findNearestAvailable(activeIndex, direction);
+      if (nextIndex === activeIndex) return false;
+      setActiveIndex(nextIndex);
+      return true;
+    };
+
+    const resetPointer = () => {
+      if (pointerId != null && typeof carousel.releasePointerCapture === 'function') {
+        try { carousel.releasePointerCapture(pointerId); }
+        catch {}
+      }
+      pointerId = null;
+      pointerActive = false;
+      swipeHandled = false;
+    };
+
+    const onPointerDown = (ev) => {
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+      pointerActive = true;
+      swipeHandled = false;
+      pointerId = ev.pointerId;
+      startX = ev.clientX;
+      if (typeof carousel.setPointerCapture === 'function') {
+        try { carousel.setPointerCapture(pointerId); }
+        catch {}
+      }
+    };
+
+    const onPointerMove = (ev) => {
+      if (!pointerActive || ev.pointerId !== pointerId || swipeHandled) return;
+      const deltaX = ev.clientX - startX;
+      if (handleSwipeDelta(deltaX)) swipeHandled = true;
+    };
+
+    const onPointerUpOrCancel = (ev) => {
+      if (!pointerActive || (pointerId != null && ev.pointerId !== pointerId)) return;
+      if (!swipeHandled) handleSwipeDelta(ev.clientX - startX);
+      resetPointer();
+    };
+
+    carousel.addEventListener('pointerdown', onPointerDown);
+    carousel.addEventListener('pointermove', onPointerMove);
+    carousel.addEventListener('pointerup', onPointerUpOrCancel);
+    carousel.addEventListener('pointercancel', onPointerUpOrCancel);
+    carousel.addEventListener('pointerleave', onPointerUpOrCancel);
+
+    exports.updateControlCarousel = () => setActiveIndex(activeIndex);
+  }
+
   function bindMenuControls(){
     const menuToggleBtn = exports.$ ? exports.$('#menuToggle') : null;
     const menuBackdrop = exports.$ ? exports.$('#menuBackdrop') : null;
@@ -845,6 +973,7 @@
     bindScoreButtons();
     bindAdjustButtons();
     bindClockControls();
+    bindControlCarousel();
     bindMenuControls();
     bindRemoteForm();
     runSelfTests();
