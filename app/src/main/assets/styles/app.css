@@ -292,7 +292,9 @@
     .game-stats .stat-empty { margin:6px 0 0; font-size:14px; color:var(--muted); font-style:italic; }
     body[data-view="player"] .game-stats { display:grid; }
     .clock-card { background: transparent; border: none; border-radius:22px; padding:20px 18px; display:flex; flex-direction:column; gap:16px; align-items:center; text-align:center; justify-content:center; box-shadow:none; }
-    .clock-tile { width:100%; background:#ffffff; border-radius:20px; padding:22px 20px; display:flex; flex-direction:column; gap:14px; align-items:center; justify-content:center; box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05); }
+    .clock-tiles { width:100%; display:flex; flex-direction:column; gap:12px; }
+    .clock-tile,
+    .down-tile { width:100%; background:#ffffff; border-radius:20px; padding:22px 20px; display:flex; flex-direction:column; gap:14px; align-items:center; justify-content:center; box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05); }
     .time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(26px, 8vw, 44px); font-weight:900; cursor:pointer; line-height:1.05; }
     .time.editing { display:flex; flex-direction:column; gap:6px; align-items:center; }
     .banner { font-size:12px; color:var(--muted); font-weight:800; letter-spacing:.02em; }
@@ -301,8 +303,8 @@
     .down-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(26px, 6vw, 46px); font-weight:900; min-width:clamp(42px, 14vw, 58px); text-align:center; }
     .girl-indicator { width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; }
     .girl-track { width:100%; max-width:220px; display:flex; gap:12px; justify-content:center; }
-    .girl-track span { flex:1; height:8px; border-radius:999px; background:#ffffff; }
-    .girl-track span.used { background:var(--accent); }
+    .girl-track span { flex:1; height:8px; border-radius:999px; background:var(--accent); }
+    .girl-track span.used { background:#ffffff; }
 
     .control-carousel { position: relative; overflow: hidden; display:flex; flex-direction:column; gap:12px; --active-index: 0; touch-action: pan-y; }
     .control-carousel .control-track { display:flex; width:100%; transform: translateX(calc(-100% * var(--active-index))); transition: transform 0.35s ease; }
@@ -357,10 +359,10 @@
     .metric { flex:1; min-width:52px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px; display:flex; align-items:center; justify-content:center; }
     .metric-track { width:100%; display:flex; justify-content:center; }
     .pip-row { display:flex; gap:10px; justify-content:center; align-items:flex-end; }
-    .pip-timeout { width:12px; height:34px; border-radius:999px; background:#ffffff; }
-    .pip-timeout.used { background:var(--accent); }
-    .pip-blitz { width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent; border-top:18px solid #ffffff; }
-    .pip-blitz.used { border-top-color:var(--accent); }
+    .pip-timeout { width:12px; height:34px; border-radius:999px; background:var(--accent); }
+    .pip-timeout.used { background:#ffffff; }
+    .pip-blitz { width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent; border-top:18px solid var(--accent); }
+    .pip-blitz.used { border-top-color:#ffffff; }
 
     .score-actions { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; display:grid; gap:12px; box-shadow:0 12px 28px rgba(15,23,42,0.08); }
     .score-actions .score-row { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
@@ -390,7 +392,8 @@
       .team-card,
       .clock-card { padding: clamp(10px, 3.6vw, 16px) clamp(8px, 3.2vw, 14px); }
       .score-tile,
-      .clock-tile { padding: clamp(12px, 4vw, 18px); }
+      .clock-tile,
+      .down-tile { padding: clamp(12px, 4vw, 18px); }
       .name { font-size: clamp(15px, 4.2vw, 18px); }
       .score-value { font-size: clamp(26px, 8vw, 40px); }
       .time { font-size: clamp(22px, 6.6vw, 34px); }
