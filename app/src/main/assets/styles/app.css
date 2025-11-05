@@ -282,7 +282,7 @@
     }
 
     .scoreboard-shell { width:100%; background: var(--card); border:1px solid var(--line); border-radius:28px; padding:24px; box-shadow:0 12px 28px rgba(15,23,42,0.08); display:flex; }
-    .scoreboard { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; align-items:stretch; width:100%; flex:1 1 auto; min-width:0; }
+    .scoreboard { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; align-items:stretch; width:100%; }
     .game-stats { display:none; gap:12px; }
     .game-stats .team-slot { background: var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; }
     .game-stats .team-slot > h4 { margin:0; font-size:14px; font-weight:800; color:var(--muted); letter-spacing:0.04em; text-transform:uppercase; }
