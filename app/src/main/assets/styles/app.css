@@ -385,13 +385,31 @@
     }
 
     @media (max-width: 560px) {
-      .scoreboard { grid-template-columns: 1fr; }
+      .scoreboard-shell { padding: clamp(10px, 3.5vw, 16px); }
+      .scoreboard { gap: clamp(4px, 1.8vw, 8px); }
+      .team-card,
+      .clock-card { padding: clamp(10px, 3.6vw, 16px) clamp(8px, 3.2vw, 14px); }
+      .score-tile,
+      .clock-tile { padding: clamp(12px, 4vw, 18px); }
+      .name { font-size: clamp(15px, 4.2vw, 18px); }
+      .score-value { font-size: clamp(26px, 8vw, 40px); }
+      .time { font-size: clamp(22px, 6.6vw, 34px); }
+      .down-value { font-size: clamp(22px, 6.2vw, 36px); min-width: clamp(36px, 11vw, 48px); }
       .clock-actions { grid-template-columns: 1fr; }
       .clock-actions .action-stack { flex-direction:row; justify-content:center; }
       .clock-actions .action-stack .btn { min-width:140px; }
       .score-actions .score-row { grid-template-columns: 1fr; }
       .score-actions .action-row { grid-template-columns: 1fr; }
       .down-controls { gap:4px; }
+    }
+
+    @media (max-width: 420px) {
+      .scoreboard-shell { padding: 10px 12px; }
+      .team-card,
+      .clock-card { gap: clamp(8px, 3vw, 14px); }
+      .girl-track { gap: 8px; }
+      .girl-track span { height: 6px; }
+      .clock-actions .action-stack .btn { min-width: 0; }
     }
 
     @media (max-width: 720px) and (orientation: portrait) {
