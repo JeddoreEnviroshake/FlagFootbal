@@ -407,15 +407,16 @@
     .btn { -webkit-tap-highlight-color: transparent; display:inline-flex; align-items:center; justify-content:center; text-align:center; width:100%; min-height:56px; padding:12px 14px; border-radius:14px; border:1px solid var(--line); font-weight:900; font-size:16px; letter-spacing:0.02em; background:#ffffff; color:var(--ink); cursor:pointer; transition:transform .15s ease, box-shadow .15s ease; box-shadow:0 8px 20px rgba(15,23,42,0.08); }
     .btn.tall { min-height:72px; }
     .btn:active { transform: scale(0.98); }
-    .btn.primary { background:var(--accent); border-color:var(--accent); color:#ffffff; box-shadow:0 12px 24px rgba(37,99,235,0.3); }
-    .btn.warn { background:#FEE4E2; border-color:#FDA29B; color:#B42318; }
-    .btn.flag-toggle { background: rgba(253, 211, 0, 0.18); border-color: rgba(253, 211, 0, 0.45); color: #a16207; }
+    .btn.primary { background:#0F9D58; border-color:#0F9D58; color:#ffffff; box-shadow:0 12px 24px rgba(15,157,88,0.32); }
+    .btn.warn { background:#F04438; border-color:#B42318; color:#ffffff; box-shadow:0 12px 24px rgba(240,68,56,0.26); }
+    .btn.flag-toggle { background:#FEF0C7; border-color:#FEDF89; color:#7A2E0E; }
     .btn.flag-toggle.active,
-    .btn.flag-toggle[aria-pressed="true"] { background:#ffd300; border-color:#ffd300; color:#0b1120; box-shadow:0 8px 22px rgba(253, 211, 0, 0.35); }
-    #g_downReset { background:#facc15; border-color:#fbbf24; color:#422006; }
-    #g_turnover { background:#f97316; border-color:#fdba74; color:#431407; }
-    #g_score1 { background-color: var(--accent); color: #ffffff; }
-    #g_scorem1 { color: var(--ink); }
+    .btn.flag-toggle[aria-pressed="true"] { background:#FDB022; border-color:#FDB022; color:#7A2E0E; box-shadow:0 8px 22px rgba(253,176,34,0.34); }
+    #g_downReset { background:#FDB022; border-color:#FDB022; color:#7A2E0E; }
+    #g_turnover { background:#F04438; border-color:#B42318; color:#ffffff; }
+    #g_score1 { background-color:#0F9D58; border-color:#0F9D58; color:#ffffff; }
+    #g_scorem1 { color:#ffffff; }
+    .clock-actions .action-stack .btn { background:#ffffff; color:var(--ink); }
 
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
 
