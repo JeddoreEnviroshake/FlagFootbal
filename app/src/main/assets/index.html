@@ -59,28 +59,30 @@
     <section class="page active" data-page="game">
 
       <div class="game-board">
-        <div class="scoreboard">
-          <section class="team-card" id="teamCard0"></section>
+        <div class="scoreboard-shell">
+          <div class="scoreboard">
+            <section class="team-card" id="teamCard0"></section>
 
-          <div class="clock-card">
-            <div class="banner" id="timeoutBanner" style="display:none;">Timeout — <span id="timeoutTeam"></span> <span id="timeoutTime">1:00</span></div>
-            <div class="clock-tile">
-              <div class="time" id="gameTime" title="Tap to edit when paused">25:00</div>
-              <div class="down-controls">
-                <div class="down-label" aria-hidden="true">Down</div>
-                <div class="down-value" id="downValue" aria-live="polite">1</div>
+            <div class="clock-card">
+              <div class="banner" id="timeoutBanner" style="display:none;">Timeout — <span id="timeoutTeam"></span> <span id="timeoutTime">1:00</span></div>
+              <div class="clock-tile">
+                <div class="time" id="gameTime" title="Tap to edit when paused">25:00</div>
+                <div class="down-controls">
+                  <div class="down-label" aria-hidden="true">Down</div>
+                  <div class="down-value" id="downValue" aria-live="polite">1</div>
+                </div>
+              </div>
+              <div class="girl-indicator">
+                <div class="girl-track" id="girlPlayTrack" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                </div>
+                <span id="girlPlayText" class="sr-only">Girl play in 2</span>
               </div>
             </div>
-            <div class="girl-indicator">
-              <div class="girl-track" id="girlPlayTrack" aria-hidden="true">
-                <span></span>
-                <span></span>
-              </div>
-              <span id="girlPlayText" class="sr-only">Girl play in 2</span>
-            </div>
+
+            <section class="team-card" id="teamCard1"></section>
           </div>
-
-          <section class="team-card" id="teamCard1"></section>
         </div>
 
         <div class="control-carousel" id="controlCarousel" data-active-index="0">
