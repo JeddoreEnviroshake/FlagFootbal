@@ -281,7 +281,25 @@
       flex: 0 0 auto;
     }
 
-    .scoreboard { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; align-items:stretch; }
+    .scoreboard-shell {
+      width: 100%;
+      min-width: 0;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: clamp(12px, 4vw, 24px);
+      box-shadow: 0 12px 28px rgba(15,23,42,0.08);
+      display: flex;
+    }
+    .scoreboard {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(6px, 2.5vw, 12px);
+      align-items: stretch;
+      width: 100%;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
     .game-stats { display:none; gap:12px; }
     .game-stats .team-slot { background: var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; }
     .game-stats .team-slot > h4 { margin:0; font-size:14px; font-weight:800; color:var(--muted); letter-spacing:0.04em; text-transform:uppercase; }
@@ -290,14 +308,38 @@
     .game-stats .stat-value { display:flex; align-items:center; justify-content:flex-end; gap:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:18px; }
     .game-stats .stat-empty { margin:6px 0 0; font-size:14px; color:var(--muted); font-style:italic; }
     body[data-view="player"] .game-stats { display:grid; }
-    .clock-card { background:#F2F2F2; border:1px solid var(--line); border-radius:22px; padding:20px 18px; display:flex; flex-direction:column; gap:16px; align-items:center; text-align:center; justify-content:center; box-shadow:0 12px 28px rgba(15,23,42,0.08); }
-    .clock-tile { width:100%; background:#ffffff; border-radius:20px; padding:22px 20px; display:flex; flex-direction:column; gap:14px; align-items:center; justify-content:center; box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05); }
-    .time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(26px, 8vw, 44px); font-weight:900; cursor:pointer; line-height:1.05; }
+    .clock-card {
+      background: transparent;
+      border: none;
+      border-radius: 22px;
+      padding: clamp(12px, 4vw, 20px) clamp(10px, 4vw, 18px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(8px, 3vw, 16px);
+      align-items: center;
+      text-align: center;
+      justify-content: center;
+      box-shadow: none;
+      min-width: 0;
+    }
+    .clock-tile {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 20px;
+      padding: clamp(14px, 4.5vw, 22px) clamp(12px, 4vw, 20px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(8px, 3vw, 14px);
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05);
+    }
+    .time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(24px, 7vw, 44px); font-weight:900; cursor:pointer; line-height:1.05; }
     .time.editing { display:flex; flex-direction:column; gap:6px; align-items:center; }
     .banner { font-size:12px; color:var(--muted); font-weight:800; letter-spacing:.02em; }
-    .down-controls { display:flex; flex-direction:column; align-items:center; gap:4px; justify-content:center; }
+    .down-controls { display:flex; flex-direction:column; align-items:center; gap:4px; justify-content:center; min-width:0; }
     .down-label { font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); font-weight:700; }
-    .down-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(26px, 6vw, 46px); font-weight:900; min-width:58px; text-align:center; }
+    .down-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(26px, 6vw, 46px); font-weight:900; min-width:clamp(42px, 14vw, 58px); text-align:center; }
     .girl-indicator { width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; }
     .girl-track { width:100%; max-width:220px; display:flex; gap:12px; justify-content:center; }
     .girl-track span { flex:1; height:8px; border-radius:999px; background:#ffffff; }
@@ -317,7 +359,22 @@
     .clock-actions .action-stack { display:flex; flex-direction:column; gap:10px; width:100%; }
     .start-btn { min-height:68px; font-size:18px; letter-spacing:0.05em; }
 
-    .team-card { position:relative; background:#F2F2F2; border:1px solid var(--line); border-radius:24px; padding:22px 18px; display:flex; flex-direction:column; gap:18px; align-items:center; text-align:center; cursor:pointer; transition:border-color .2s ease, box-shadow .2s ease; box-shadow:0 10px 20px rgba(15,23,42,0.08); }
+    .team-card {
+      position: relative;
+      background: transparent;
+      border: none;
+      border-radius: 24px;
+      padding: clamp(14px, 4.5vw, 22px) clamp(10px, 4vw, 18px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(10px, 3.4vw, 18px);
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s ease, box-shadow .2s ease;
+      box-shadow: none;
+      min-width: 0;
+    }
     body[data-view="player"] .team-card { cursor:default; }
     .team-card.active { border-color:var(--line); box-shadow:none; }
 
@@ -340,10 +397,20 @@
     .name-input { font-weight:900; font-size:18px; width:100%; padding:8px 10px; border-radius:12px; border:2px solid var(--line); text-align:center; }
 
     .score-value { font-size:clamp(32px, 9vw, 64px); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:900; color:var(--ink); width:100%; display:flex; align-items:center; justify-content:center; text-align:center; }
-    .score-tile { background:#ffffff; border-radius:20px; padding:18px 24px; min-width:140px; display:flex; justify-content:center; align-items:center; box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05); }
+    .score-tile {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: clamp(14px, 4.5vw, 24px);
+      min-width: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05);
+    }
 
-    .team-metrics { width:100%; display:flex; gap:12px; justify-content:center; }
-    .metric { flex:1; min-width:70px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px; display:flex; align-items:center; justify-content:center; }
+    .team-metrics { width:100%; display:flex; gap: clamp(6px, 2.5vw, 12px); justify-content:center; }
+    .metric { flex:1; min-width:52px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px; display:flex; align-items:center; justify-content:center; }
     .metric-track { width:100%; display:flex; justify-content:center; }
     .pip-row { display:flex; gap:10px; justify-content:center; align-items:flex-end; }
     .pip-timeout { width:12px; height:34px; border-radius:999px; background:#ffffff; }
@@ -374,7 +441,16 @@
     }
 
     @media (max-width: 560px) {
-      .scoreboard { grid-template-columns: 1fr; }
+      .scoreboard-shell { padding: clamp(10px, 3.5vw, 16px); }
+      .scoreboard { gap: clamp(4px, 1.8vw, 8px); }
+      .team-card,
+      .clock-card { padding: clamp(10px, 3.6vw, 16px) clamp(8px, 3.2vw, 14px); }
+      .score-tile,
+      .clock-tile { padding: clamp(12px, 4vw, 18px); }
+      .name { font-size: clamp(15px, 4.2vw, 18px); }
+      .score-value { font-size: clamp(26px, 8vw, 40px); }
+      .time { font-size: clamp(22px, 6.6vw, 34px); }
+      .down-value { font-size: clamp(22px, 6.2vw, 36px); min-width: clamp(36px, 11vw, 48px); }
       .clock-actions { grid-template-columns: 1fr; }
       .clock-actions .action-stack { flex-direction:row; justify-content:center; }
       .clock-actions .action-stack .btn { min-width:140px; }
@@ -383,9 +459,18 @@
       .down-controls { gap:4px; }
     }
 
+    @media (max-width: 420px) {
+      .scoreboard-shell { padding: 10px 12px; }
+      .team-card,
+      .clock-card { gap: clamp(8px, 3vw, 14px); }
+      .girl-track { gap: 8px; }
+      .girl-track span { height: 6px; }
+      .clock-actions .action-stack .btn { min-width: 0; }
+    }
+
     @media (max-width: 720px) and (orientation: portrait) {
       .game-board { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
-      .scoreboard { display: contents; }
+      .scoreboard-shell { grid-column: 1 / span 3; }
       #teamCard0 { grid-column: 1; grid-row: 1; }
       .clock-card { grid-column: 2; grid-row: 1; }
       #teamCard1 { grid-column: 3; grid-row: 1; }
