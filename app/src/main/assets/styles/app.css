@@ -280,7 +280,8 @@
     .game-stats .stat-value { display:flex; align-items:center; justify-content:flex-end; gap:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:18px; }
     .game-stats .stat-empty { margin:6px 0 0; font-size:14px; color:var(--muted); font-style:italic; }
     body[data-view="player"] .game-stats { display:grid; }
-    .clock-card { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:20px 18px; display:flex; flex-direction:column; gap:16px; align-items:center; text-align:center; justify-content:center; box-shadow:0 12px 28px rgba(15,23,42,0.08); }
+    .clock-card { background:#F2F2F2; border:1px solid var(--line); border-radius:22px; padding:20px 18px; display:flex; flex-direction:column; gap:16px; align-items:center; text-align:center; justify-content:center; box-shadow:0 12px 28px rgba(15,23,42,0.08); }
+    .clock-tile { width:100%; background:#ffffff; border-radius:20px; padding:22px 20px; display:flex; flex-direction:column; gap:14px; align-items:center; box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05); }
     .time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:clamp(28px, 7vw, 44px); font-weight:900; cursor:pointer; line-height:1.05; }
     .time.editing { display:flex; flex-direction:column; gap:6px; align-items:center; }
     .banner { font-size:12px; color:var(--muted); font-weight:800; letter-spacing:.02em; }
@@ -296,7 +297,7 @@
     .clock-actions .action-stack { display:flex; flex-direction:column; gap:10px; width:100%; }
     .start-btn { min-height:68px; font-size:18px; letter-spacing:0.05em; }
 
-    .team-card { background:var(--card); border:1px solid var(--line); border-radius:24px; padding:22px 18px; display:flex; flex-direction:column; gap:18px; align-items:center; text-align:center; cursor:pointer; transition:border-color .2s ease, box-shadow .2s ease; box-shadow:0 10px 20px rgba(15,23,42,0.08); }
+    .team-card { background:#F2F2F2; border:1px solid var(--line); border-radius:24px; padding:22px 18px; display:flex; flex-direction:column; gap:18px; align-items:center; text-align:center; cursor:pointer; transition:border-color .2s ease, box-shadow .2s ease; box-shadow:0 10px 20px rgba(15,23,42,0.08); }
     body[data-view="player"] .team-card { cursor:default; }
     .team-card.active { border-color:var(--accent); box-shadow:0 8px 24px rgba(37,99,235,0.25); }
     .team-card header { width:100%; display:flex; justify-content:center; }
@@ -304,7 +305,8 @@
     .name.editing { background:#ffffff; color:var(--ink); }
     .name-input { font-weight:900; font-size:18px; width:100%; padding:8px 10px; border-radius:12px; border:2px solid var(--line); text-align:center; }
 
-    .score-value { font-size:64px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:900; color:var(--ink); }
+    .score-value { font-size:64px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:900; color:var(--ink); width:100%; display:flex; justify-content:center; }
+    .score-tile { background:#ffffff; border-radius:20px; padding:18px 24px; min-width:140px; display:flex; justify-content:center; align-items:center; box-shadow: inset 0 0 0 1px rgba(15,23,42,0.05); }
 
     .team-metrics { width:100%; display:flex; gap:12px; justify-content:center; }
     .metric { flex:1; min-width:70px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px; display:flex; align-items:center; justify-content:center; }
