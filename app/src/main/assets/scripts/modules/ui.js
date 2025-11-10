@@ -312,17 +312,29 @@
   }
 
   function renderPage(){
-    const activePage = 'game';
+    const activePage = exports.currentPage || 'game';
     document.body.dataset.page = activePage;
     document.querySelectorAll('.page').forEach(sec => {
-      const isActive = sec.dataset.page === activePage || !sec.dataset.page;
+      const sectionPage = sec.dataset.page || 'game';
+      const isActive = sectionPage === activePage;
       sec.classList.toggle('active', isActive);
       sec.hidden = !isActive;
     });
     document.querySelectorAll('#menuDrawer .drawer-item[data-page]').forEach(btn => {
+      const targetPage = btn.dataset.page || 'game';
       const requiredView = btn.dataset.view;
+      const matchesPage = targetPage === activePage;
       const matchesView = !requiredView || requiredView === exports.viewMode;
-      btn.classList.toggle('active', matchesView);
+      btn.classList.toggle('active', matchesPage && matchesView);
+    });
+    document.querySelectorAll('.bottom-nav__item').forEach(btn => {
+      const targetPage = btn.dataset.page || 'game';
+      const requiredView = btn.dataset.view;
+      const matchesPage = targetPage === activePage;
+      const matchesView = !requiredView || requiredView === exports.viewMode;
+      const isActive = matchesPage && matchesView;
+      btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
   }
 
@@ -346,7 +358,11 @@
     document.body.classList.toggle('flagged', isFlagged);
     const indicator = exports.$ ? exports.$('#viewIndicator') : null;
     if (indicator) {
-      indicator.textContent = exports.viewMode === 'ref' ? 'Game dashboard' : 'Scoreboard';
+      let indicatorText = 'Game dashboard';
+      if (exports.currentPage === 'schedule') indicatorText = 'Schedule';
+      else if (exports.currentPage === 'profile') indicatorText = 'Profile';
+      else indicatorText = exports.viewMode === 'ref' ? 'Game dashboard' : 'Scoreboard';
+      indicator.textContent = indicatorText;
     }
 
     document.querySelectorAll('#menuDrawer .drawer-item[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === exports.viewMode));

@@ -256,7 +256,6 @@
     }
 
     body[data-page="game"] .app {
-      height: 100svh;
       overflow: hidden;
     }
 
@@ -274,6 +273,92 @@
     body[data-view="player"][data-page="game"] .page.active {
       overflow: hidden;
       justify-content: center;
+    }
+    .static-page {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      padding: 48px 16px 72px;
+      text-align: center;
+    }
+
+    .static-page h1 {
+      font-size: 24px;
+      margin: 0;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .empty-state {
+      margin: 0;
+      font-size: 16px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .profile-sign-out {
+      border: none;
+      border-radius: 999px;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      background: var(--danger);
+      box-shadow: var(--tile-shadow);
+      cursor: pointer;
+    }
+
+    .profile-sign-out:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.9);
+      outline-offset: 2px;
+    }
+
+    .bottom-nav {
+      position: sticky;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding: 10px 12px calc(env(safe-area-inset-bottom) + 10px);
+      background: rgba(242, 242, 242, 0.95);
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(8px);
+      z-index: 35;
+    }
+
+    .bottom-nav__item {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 12px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .bottom-nav__item.is-active {
+      background: rgba(37, 99, 235, 0.12);
+      color: var(--accent);
+    }
+
+    .bottom-nav__item:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .bottom-nav__label {
+      line-height: 1;
     }
     h1 { font-size: 20px; margin: 0 0 6px; font-weight: 800; text-align:center; }
 
