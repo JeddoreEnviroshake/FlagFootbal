@@ -445,6 +445,40 @@
     else openMenu();
   }
 
+  function performSignOut(){
+    let handled = false;
+    try {
+      const androidApp = window.AndroidApp;
+      if (androidApp && typeof androidApp.signOut === 'function') {
+        androidApp.signOut();
+        handled = true;
+      }
+    } catch (err) {
+      console.warn('[menu] Android sign-out failed', err);
+    }
+
+    if (!handled && window.firebase?.auth) {
+      try {
+        window.firebase.auth().signOut();
+        handled = true;
+      } catch (err) {
+        console.warn('[menu] Firebase sign-out failed', err);
+      }
+    }
+
+    if (!handled) {
+      console.info('[menu] Sign-out requested but no handler responded');
+    }
+  }
+
+  function setPage(page){
+    const next = (page === 'schedule' || page === 'profile') ? page : 'game';
+    if (exports.currentPage === next) return;
+    exports.currentPage = next;
+    closeMenu();
+    exports.render();
+  }
+
   function setViewMode(mode){
     const next = (mode === 'player' || mode === 'scoreboard') ? 'player' : 'ref';
     if (exports.viewMode === next) return;
@@ -870,21 +904,25 @@
     if (signOutBtn) {
       signOutBtn.addEventListener('click', () => {
         try { closeMenu(); } catch {}
+        performSignOut();
+      });
+    }
+  }
 
-        let handled = false;
-        try {
-          const androidApp = window.AndroidApp;
-          if (androidApp && typeof androidApp.signOut === 'function') {
-            androidApp.signOut();
-            handled = true;
-          }
-        } catch (err) {
-          console.warn('[menu] Android sign-out failed', err);
-        }
+  function bindBottomNav(){
+    document.querySelectorAll('.bottom-nav__item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetPage = btn.dataset.page || 'game';
+        const targetView = btn.dataset.view;
+        setPage(targetPage);
+        if (targetView) setViewMode(targetView);
+      });
+    });
 
-        if (!handled && window.firebase?.auth) {
-          try { window.firebase.auth().signOut(); } catch {}
-        }
+    const profileSignOut = document.getElementById('profileSignOut');
+    if (profileSignOut) {
+      profileSignOut.addEventListener('click', () => {
+        performSignOut();
       });
     }
   }
@@ -975,6 +1013,7 @@
     bindClockControls();
     bindControlCarousel();
     bindMenuControls();
+    bindBottomNav();
     bindRemoteForm();
     runSelfTests();
   }
@@ -999,6 +1038,8 @@
   exports.closeMenu = closeMenu;
   exports.toggleMenu = toggleMenu;
   exports.setViewMode = setViewMode;
+  exports.setPage = setPage;
+  exports.performSignOut = performSignOut;
   exports.setFlaggedState = setFlaggedState;
   exports.toggleFlaggedState = toggleFlaggedState;
   exports.initializeControls = initializeControls;

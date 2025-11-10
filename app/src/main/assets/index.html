@@ -161,7 +161,36 @@
       </div>
     </section>
 
+    <section class="page" data-page="schedule" aria-labelledby="scheduleTitle">
+      <div class="static-page">
+        <h1 id="scheduleTitle">Schedule</h1>
+        <p class="empty-state" role="status">No Games Available</p>
+      </div>
+    </section>
+
+    <section class="page" data-page="profile" aria-labelledby="profileTitle">
+      <div class="static-page">
+        <h1 id="profileTitle">Profile</h1>
+        <button class="profile-sign-out" id="profileSignOut" type="button">Sign out</button>
+      </div>
+    </section>
+
   </div>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <button class="bottom-nav__item is-active" type="button" data-page="game" data-view="ref" aria-pressed="true">
+      <span class="bottom-nav__label">Ref</span>
+    </button>
+    <button class="bottom-nav__item" type="button" data-page="game" data-view="player" aria-pressed="false">
+      <span class="bottom-nav__label">Watch</span>
+    </button>
+    <button class="bottom-nav__item" type="button" data-page="schedule" aria-pressed="false">
+      <span class="bottom-nav__label">Schedule</span>
+    </button>
+    <button class="bottom-nav__item" type="button" data-page="profile" aria-pressed="false">
+      <span class="bottom-nav__label">Profile</span>
+    </button>
+  </nav>
 
 <script src="scripts/modules/state.js"></script>
 <script src="scripts/modules/remote.js"></script>
