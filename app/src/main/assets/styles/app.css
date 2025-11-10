@@ -358,7 +358,7 @@
     }
 
     .team-metrics { width:100%; display:flex; gap: clamp(6px, 2.5vw, 12px); justify-content:center; }
-    .metric { flex:1; min-width:52px; background:var(--card); border:none; border-radius:16px; padding:10px; display:flex; align-items:center; justify-content:center; box-shadow:var(--tile-shadow); }
+    .metric { flex:1; min-width:52px; background:transparent; border:none; border-radius:16px; padding:10px; display:flex; align-items:center; justify-content:center; box-shadow:none; }
     .metric-track { width:100%; display:flex; justify-content:center; }
     .pip-row { display:flex; gap:10px; justify-content:center; align-items:flex-end; }
     .pip-timeout { width:12px; height:34px; border-radius:999px; background:var(--accent); }
