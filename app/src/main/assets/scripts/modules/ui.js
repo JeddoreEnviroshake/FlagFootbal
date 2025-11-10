@@ -408,12 +408,21 @@
       activeTeamLabel.textContent = activeTeam.name;
     }
     const downValueEl = exports.$ ? exports.$('#downValue') : null;
+    const downTileEl = exports.$ ? exports.$('.down-tile') : document.querySelector('.down-tile');
     const girlTrackEl = exports.$ ? exports.$('#girlPlayTrack') : null;
     const girlTextEl = exports.$ ? exports.$('#girlPlayText') : null;
     if (activeTeam) {
       if (downValueEl) downValueEl.textContent = clampDown(activeTeam.downs != null ? activeTeam.downs : 1);
       updateGirlTrack(girlTrackEl, activeTeam.girlPlay);
       if (girlTextEl) girlTextEl.textContent = describeGirlPlay(activeTeam.girlPlay);
+    }
+    if (downTileEl) {
+      const activeIdx = exports.state.activeTeam;
+      let possession = null;
+      if (activeIdx === 0 && exports.state.teams[0]) possession = 'home';
+      else if (activeIdx === 1 && exports.state.teams[1]) possession = 'away';
+      if (possession) downTileEl.dataset.possession = possession;
+      else delete downTileEl.dataset.possession;
     }
     renderTeams();
     renderPage();
