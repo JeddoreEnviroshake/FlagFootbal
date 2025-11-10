@@ -331,6 +331,13 @@
       z-index: 35;
     }
 
+    @media (orientation: landscape) {
+      .topbar,
+      .bottom-nav {
+        display: none;
+      }
+    }
+
     .bottom-nav__item {
       border: none;
       border-radius: 999px;
