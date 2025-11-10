@@ -350,19 +350,53 @@
     }
   }
 
+  const VIEW_LABELS = {
+    referee: 'Referee',
+    scoreboard: 'Scoreboard',
+    statistician: 'Statistician'
+  };
+
+  const PAGE_LABELS = {
+    schedule: 'Schedule',
+    profile: 'Profile',
+    teams: 'Teams'
+  };
+
+  function getActiveViewKey(){
+    if (exports.currentPage === 'statistician') return 'statistician';
+    if (exports.currentPage === 'game') {
+      return exports.viewMode === 'player' ? 'scoreboard' : 'referee';
+    }
+    return null;
+  }
+
   function render(){
     const nowMs = Date.now();
     exports.reconcileAll(nowMs);
     document.body.dataset.view = exports.viewMode;
     const isFlagged = !!exports.state.flagged;
     document.body.classList.toggle('flagged', isFlagged);
-    const indicator = exports.$ ? exports.$('#viewIndicator') : null;
-    if (indicator) {
-      let indicatorText = 'Game dashboard';
-      if (exports.currentPage === 'schedule') indicatorText = 'Schedule';
-      else if (exports.currentPage === 'profile') indicatorText = 'Profile';
-      else indicatorText = exports.viewMode === 'ref' ? 'Game dashboard' : 'Scoreboard';
-      indicator.textContent = indicatorText;
+    const activeViewKey = getActiveViewKey();
+    const indicatorLabel = exports.$ ? exports.$('#viewIndicatorLabel') : null;
+    const indicatorButton = exports.$ ? exports.$('#viewIndicator') : null;
+    const viewMenu = exports.$ ? exports.$('#viewPickerMenu') : null;
+    let indicatorText = VIEW_LABELS.referee;
+    if (activeViewKey && VIEW_LABELS[activeViewKey]) {
+      indicatorText = VIEW_LABELS[activeViewKey];
+    } else if (PAGE_LABELS[exports.currentPage]) {
+      indicatorText = PAGE_LABELS[exports.currentPage];
+    }
+    if (indicatorLabel) indicatorLabel.textContent = indicatorText;
+    if (indicatorButton) {
+      indicatorButton.setAttribute('aria-label', `Current view: ${indicatorText}. Activate to change.`);
+    }
+    if (viewMenu) {
+      viewMenu.querySelectorAll('.view-picker__option').forEach(option => {
+        const key = option.dataset.viewKey || '';
+        const isActive = !!activeViewKey && key === activeViewKey;
+        option.classList.toggle('is-active', isActive);
+        option.setAttribute('aria-checked', isActive ? 'true' : 'false');
+      });
     }
 
     document.querySelectorAll('#menuDrawer .drawer-item[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === exports.viewMode));
