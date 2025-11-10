@@ -1,6 +1,8 @@
 (function(exports){
   'use strict';
 
+  const ALLOWED_PAGES = ['game', 'schedule', 'profile', 'teams', 'statistician'];
+
   function mutateTeam(teamIdx, mutator){
     if (exports.viewMode !== 'ref') return false;
     if (teamIdx == null || teamIdx < 0) return false;
@@ -472,8 +474,11 @@
   }
 
   function setPage(page){
-    const next = (page === 'schedule' || page === 'profile') ? page : 'game';
-    if (exports.currentPage === next) return;
+    const next = ALLOWED_PAGES.includes(page) ? page : 'game';
+    if (exports.currentPage === next) {
+      closeMenu();
+      return;
+    }
     exports.currentPage = next;
     closeMenu();
     exports.render();
@@ -896,8 +901,15 @@
     if (menuToggleBtn) menuToggleBtn.addEventListener('click', toggleMenu);
     if (menuBackdrop) menuBackdrop.addEventListener('click', closeMenu);
     document.addEventListener('keydown', (ev)=>{ if (ev.key === 'Escape') closeMenu(); });
-    document.querySelectorAll('#menuDrawer .drawer-item[data-view]').forEach(btn => {
-      btn.addEventListener('click', ()=> setViewMode(btn.dataset.view));
+    document.querySelectorAll('#menuDrawer .drawer-item').forEach(btn => {
+      if (!btn.dataset.page && !btn.dataset.view) return;
+      btn.addEventListener('click', () => {
+        const targetPage = btn.dataset.page;
+        const targetView = btn.dataset.view;
+        if (targetPage) setPage(targetPage);
+        if (targetView) setViewMode(targetView);
+        else if (targetPage === 'statistician') setViewMode('ref');
+      });
     });
 
     const signOutBtn = exports.$ ? exports.$('#menuSignOut') : null;
@@ -916,6 +928,7 @@
         const targetView = btn.dataset.view;
         setPage(targetPage);
         if (targetView) setViewMode(targetView);
+        else if (targetPage === 'statistician') setViewMode('ref');
       });
     });
 
@@ -925,6 +938,126 @@
         performSignOut();
       });
     }
+  }
+
+  function bindViewPicker(){
+    const picker = document.getElementById('viewPicker');
+    const toggle = document.getElementById('viewIndicator');
+    const menu = document.getElementById('viewPickerMenu');
+    if (!picker || !toggle || !menu) return;
+
+    const options = Array.from(menu.querySelectorAll('.view-picker__option'));
+    if (!options.length) return;
+    menu.hidden = true;
+    menu.setAttribute('aria-hidden', 'true');
+    picker.dataset.open = 'false';
+    toggle.setAttribute('aria-expanded', 'false');
+
+    const focusOption = (el) => {
+      if (!el) return;
+      if (el.getAttribute('tabindex') !== '-1') el.setAttribute('tabindex', '-1');
+      el.focus();
+    };
+
+    const focusActiveOrFirst = () => {
+      const active = menu.querySelector('.view-picker__option.is-active');
+      focusOption(active || options[0]);
+    };
+
+    const canUsePicker = () => !picker.classList.contains('is-inactive');
+
+    const closePicker = () => {
+      picker.dataset.open = 'false';
+      toggle.setAttribute('aria-expanded', 'false');
+      menu.hidden = true;
+      menu.setAttribute('aria-hidden', 'true');
+    };
+
+    const openPicker = () => {
+      if (!canUsePicker()) return;
+      picker.dataset.open = 'true';
+      toggle.setAttribute('aria-expanded', 'true');
+      menu.hidden = false;
+      menu.setAttribute('aria-hidden', 'false');
+    };
+
+    const selectOption = (option) => {
+      if (!option) return;
+      const targetPage = option.dataset.page;
+      const targetView = option.dataset.view;
+      if (targetPage) setPage(targetPage);
+      if (targetView) setViewMode(targetView);
+      else if (targetPage === 'statistician') setViewMode('ref');
+      closePicker();
+      toggle.focus();
+    };
+
+    const handleToggle = (ev) => {
+      ev.stopPropagation();
+      if (!canUsePicker()) return;
+      if (picker.dataset.open === 'true') {
+        closePicker();
+      } else {
+        openPicker();
+        focusActiveOrFirst();
+      }
+    };
+
+    toggle.addEventListener('click', handleToggle);
+    toggle.addEventListener('keydown', (ev) => {
+      if (ev.key === 'ArrowDown' || ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        if (picker.dataset.open !== 'true') {
+          openPicker();
+        }
+        focusActiveOrFirst();
+      } else if (ev.key === 'Escape') {
+        ev.preventDefault();
+        closePicker();
+      }
+    });
+
+    const handleOutsideClick = (ev) => {
+      if (picker.dataset.open !== 'true') return;
+      if (!picker.contains(ev.target)) closePicker();
+    };
+
+    document.addEventListener('click', handleOutsideClick);
+    document.addEventListener('focusin', (ev) => {
+      if (picker.dataset.open !== 'true') return;
+      if (!picker.contains(ev.target)) closePicker();
+    });
+
+    options.forEach((option, idx) => {
+      option.setAttribute('tabindex', '-1');
+      option.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        selectOption(option);
+      });
+      option.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape') {
+          ev.preventDefault();
+          closePicker();
+          toggle.focus();
+          return;
+        }
+        if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+          ev.preventDefault();
+          const delta = ev.key === 'ArrowDown' ? 1 : -1;
+          const nextIdx = (idx + delta + options.length) % options.length;
+          focusOption(options[nextIdx]);
+          return;
+        }
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          selectOption(option);
+          return;
+        }
+        if (ev.key === 'Tab') {
+          closePicker();
+        }
+      });
+    });
   }
 
   function bindRemoteForm(){
@@ -1014,6 +1147,7 @@
     bindControlCarousel();
     bindMenuControls();
     bindBottomNav();
+    bindViewPicker();
     bindRemoteForm();
     runSelfTests();
   }
