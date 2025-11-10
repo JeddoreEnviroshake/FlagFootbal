@@ -134,18 +134,6 @@
       -webkit-appearance: none;
     }
 
-    .view-indicator[aria-disabled="true"] {
-      cursor: default;
-      pointer-events: none;
-      background: transparent;
-      border-color: transparent;
-      color: var(--muted);
-    }
-
-    .view-indicator[aria-disabled="true"]::after {
-      display: none;
-    }
-
     .view-indicator::after {
       content: '▾';
       font-size: 10px;

@@ -380,8 +380,6 @@
     const indicatorLabel = exports.$ ? exports.$('#viewIndicatorLabel') : null;
     const indicatorButton = exports.$ ? exports.$('#viewIndicator') : null;
     const viewMenu = exports.$ ? exports.$('#viewPickerMenu') : null;
-    const viewPickerHost = exports.$ ? exports.$('#viewPicker') : null;
-    const shouldEnableViewPicker = exports.currentPage === 'game';
     let indicatorText = VIEW_LABELS.referee;
     if (activeViewKey && VIEW_LABELS[activeViewKey]) {
       indicatorText = VIEW_LABELS[activeViewKey];
@@ -390,31 +388,9 @@
     }
     if (indicatorLabel) indicatorLabel.textContent = indicatorText;
     if (indicatorButton) {
-      const isOpen = viewPickerHost?.dataset.open === 'true' && shouldEnableViewPicker;
-      indicatorButton.setAttribute('aria-label', shouldEnableViewPicker ? `Current view: ${indicatorText}. Activate to change.` : `Current section: ${indicatorText}.`);
-      indicatorButton.setAttribute('aria-haspopup', shouldEnableViewPicker ? 'true' : 'false');
-      indicatorButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      if (shouldEnableViewPicker) {
-        indicatorButton.removeAttribute('aria-disabled');
-        indicatorButton.removeAttribute('tabindex');
-      } else {
-        indicatorButton.setAttribute('aria-disabled', 'true');
-        indicatorButton.setAttribute('tabindex', '-1');
-      }
-    }
-    if (viewPickerHost) {
-      if (!shouldEnableViewPicker && viewPickerHost.dataset.open === 'true') {
-        viewPickerHost.dataset.open = 'false';
-      }
-      viewPickerHost.classList.toggle('is-inactive', !shouldEnableViewPicker);
+      indicatorButton.setAttribute('aria-label', `Current view: ${indicatorText}. Activate to change.`);
     }
     if (viewMenu) {
-      if (!shouldEnableViewPicker) {
-        viewMenu.hidden = true;
-        viewMenu.setAttribute('aria-hidden', 'true');
-      } else {
-        viewMenu.setAttribute('aria-hidden', viewMenu.hidden ? 'true' : 'false');
-      }
       viewMenu.querySelectorAll('.view-picker__option').forEach(option => {
         const key = option.dataset.viewKey || '';
         const isActive = !!activeViewKey && key === activeViewKey;

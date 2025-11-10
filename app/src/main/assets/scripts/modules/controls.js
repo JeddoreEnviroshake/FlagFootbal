@@ -949,7 +949,6 @@
     const options = Array.from(menu.querySelectorAll('.view-picker__option'));
     if (!options.length) return;
     menu.hidden = true;
-    menu.setAttribute('aria-hidden', 'true');
     picker.dataset.open = 'false';
     toggle.setAttribute('aria-expanded', 'false');
 
@@ -964,21 +963,16 @@
       focusOption(active || options[0]);
     };
 
-    const canUsePicker = () => !picker.classList.contains('is-inactive');
-
     const closePicker = () => {
       picker.dataset.open = 'false';
       toggle.setAttribute('aria-expanded', 'false');
       menu.hidden = true;
-      menu.setAttribute('aria-hidden', 'true');
     };
 
     const openPicker = () => {
-      if (!canUsePicker()) return;
       picker.dataset.open = 'true';
       toggle.setAttribute('aria-expanded', 'true');
       menu.hidden = false;
-      menu.setAttribute('aria-hidden', 'false');
     };
 
     const selectOption = (option) => {
@@ -994,7 +988,6 @@
 
     const handleToggle = (ev) => {
       ev.stopPropagation();
-      if (!canUsePicker()) return;
       if (picker.dataset.open === 'true') {
         closePicker();
       } else {
