@@ -22,15 +22,25 @@
   <header class="topbar">
     <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false">☰</button>
     <div class="topbar-title">Synqro Game Tracker</div>
-    <div class="view-indicator" id="viewIndicator">Game dashboard</div>
+    <div class="view-picker" id="viewPicker" data-open="false">
+      <button class="view-indicator" id="viewIndicator" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="viewPickerMenu">
+        <span id="viewIndicatorLabel">Referee</span>
+      </button>
+      <div class="view-picker__menu" id="viewPickerMenu" role="menu" aria-labelledby="viewIndicator" hidden>
+        <button class="view-picker__option is-active" type="button" role="menuitemradio" aria-checked="true" data-page="game" data-view="ref" data-view-key="referee">Referee</button>
+        <button class="view-picker__option" type="button" role="menuitemradio" aria-checked="false" data-page="game" data-view="player" data-view-key="scoreboard">Scoreboard</button>
+        <button class="view-picker__option" type="button" role="menuitemradio" aria-checked="false" data-page="statistician" data-view-key="statistician">Statistician</button>
+      </div>
+    </div>
   </header>
 
   <nav class="drawer" id="menuDrawer" aria-hidden="true">
     <div class="drawer-section">
       <h2>Pages</h2>
-      <button class="drawer-item active" data-page="game" data-view="ref" type="button">Game dashboard</button>
+      <button class="drawer-item active" data-page="game" data-view="ref" type="button">Referee</button>
       <button class="drawer-item" data-page="game" data-view="player" type="button">Scoreboard</button>
-      <p class="drawer-note">Game dashboard lets refs manage the game. Scoreboard is a read-only view for players and spectators.</p>
+      <button class="drawer-item" data-page="statistician" type="button">Statistician</button>
+      <p class="drawer-note">Referee lets refs manage the game. Scoreboard is a read-only view for players and spectators.</p>
     </div>
 
     <div class="drawer-section">
@@ -164,6 +174,20 @@
       </div>
     </section>
 
+    <section class="page" data-page="statistician" aria-labelledby="statisticianTitle">
+      <div class="static-page">
+        <h1 id="statisticianTitle">Statistician</h1>
+        <p class="empty-state" role="status">Statistician Not Yet Available</p>
+      </div>
+    </section>
+
+    <section class="page" data-page="teams" aria-labelledby="teamsTitle">
+      <div class="static-page">
+        <h1 id="teamsTitle">Teams</h1>
+        <p class="empty-state" role="status">Teams No Teams Available</p>
+      </div>
+    </section>
+
     <section class="page" data-page="profile" aria-labelledby="profileTitle">
       <div class="static-page">
         <h1 id="profileTitle">Profile</h1>
@@ -177,8 +201,8 @@
     <button class="bottom-nav__item is-active" type="button" data-page="game" data-view="ref" aria-pressed="true">
       <span class="bottom-nav__label">Ref</span>
     </button>
-    <button class="bottom-nav__item" type="button" data-page="game" data-view="player" aria-pressed="false">
-      <span class="bottom-nav__label">Watch</span>
+    <button class="bottom-nav__item" type="button" data-page="teams" aria-pressed="false">
+      <span class="bottom-nav__label">Teams</span>
     </button>
     <button class="bottom-nav__item" type="button" data-page="schedule" aria-pressed="false">
       <span class="bottom-nav__label">Schedule</span>
