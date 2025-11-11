@@ -533,6 +533,10 @@
       else delete downTileEl.dataset.possession;
     }
     renderTeams();
+    if (typeof exports.renderTeamsDirectory === 'function') {
+      try { exports.renderTeamsDirectory(); }
+      catch (err) { console.warn('[teams] render failed', err); }
+    }
     renderProfileOverview();
     renderPage();
     renderGameStatsView();

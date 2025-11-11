@@ -166,9 +166,17 @@
     </section>
 
     <section class="page" data-page="teams" aria-labelledby="teamsTitle">
-      <div class="static-page">
-        <h1 id="teamsTitle">Teams</h1>
-        <p class="empty-state" role="status">Teams No Teams Available</p>
+      <div class="teams-page" id="teamsPage">
+        <header class="teams-page__header">
+          <h1 id="teamsTitle">Teams</h1>
+          <p class="teams-status" id="teamsPageStatus" role="status">No teams yet.</p>
+        </header>
+
+        <div class="teams-grid" id="teamsDirectoryList" role="list"></div>
+
+        <div class="teams-actions">
+          <button class="teams-actions__add btn-inline primary" id="teamsAddTeam" type="button">Add Team</button>
+        </div>
       </div>
     </section>
 
@@ -341,6 +349,7 @@
 
 <script src="scripts/modules/state.js"></script>
 <script src="scripts/modules/remote.js"></script>
+<script src="scripts/modules/teams.js"></script>
 <script src="scripts/modules/ui.js"></script>
 <script src="scripts/modules/controls.js"></script>
 <script src="scripts/main.js"></script>
