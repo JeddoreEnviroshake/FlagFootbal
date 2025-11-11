@@ -396,7 +396,10 @@
   const VIEW_LABELS = {
     referee: 'Referee',
     scoreboard: 'Scoreboard',
-    statistician: 'Statistician'
+    statistician: 'Statistician',
+    teams: 'Teams',
+    schedule: 'Schedule',
+    profile: 'Profile'
   };
 
   const PAGE_LABELS = {
@@ -406,10 +409,18 @@
   };
 
   function getActiveViewKey(){
-    if (exports.currentPage === 'statistician') return 'statistician';
-    if (exports.currentPage === 'game') {
+    if (typeof exports.computeActiveViewKey === 'function') {
+      const computed = exports.computeActiveViewKey();
+      if (computed) return computed;
+    }
+    const page = exports.currentPage || 'game';
+    if (page === 'statistician') return 'statistician';
+    if (page === 'game') {
       return exports.viewMode === 'player' ? 'scoreboard' : 'referee';
     }
+    if (page === 'teams') return 'teams';
+    if (page === 'schedule') return 'schedule';
+    if (page === 'profile') return 'profile';
     return null;
   }
 
@@ -438,7 +449,11 @@
         const key = option.dataset.viewKey || '';
         const isActive = !!activeViewKey && key === activeViewKey;
         option.classList.toggle('is-active', isActive);
-        option.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        if (option.getAttribute('role') === 'menuitemradio') {
+          option.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        } else {
+          option.removeAttribute('aria-checked');
+        }
       });
     }
 

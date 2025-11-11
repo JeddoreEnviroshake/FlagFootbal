@@ -6,9 +6,92 @@
   const CSS_URL_QUOTE = /"/g;
   const MAX_PROFILE_IMAGE_DIMENSION = 512;
 
+  const VIEW_PICKER_OPTIONS = {
+    game: [
+      { key: 'referee', label: 'Referee', page: 'game', view: 'ref' },
+      { key: 'scoreboard', label: 'Scoreboard', page: 'game', view: 'player' },
+      { key: 'statistician', label: 'Statistician', page: 'statistician' },
+    ],
+    teams: [
+      { key: 'teams', label: 'Teams', page: 'teams' },
+      { key: 'league-id', label: 'League ID', action: 'league-id', type: 'action' },
+      { key: 'switch-league', label: 'Switch League', action: 'switch-league', type: 'action' },
+      { key: 'create-league', label: 'Create League', action: 'create-league', type: 'action' },
+      { key: 'leave-league', label: 'Leave League', action: 'leave-league', type: 'action' },
+    ],
+    schedule: [
+      { key: 'schedule', label: 'Schedule', page: 'schedule' },
+    ],
+    profile: [
+      { key: 'profile', label: 'Profile', page: 'profile' },
+      { key: 'terms-of-service', label: 'Terms of Service', action: 'terms-of-service', type: 'action' },
+      { key: 'privacy-policy', label: 'Privacy Policy', action: 'privacy-policy', type: 'action' },
+      { key: 'sign-out', label: 'Sign Out', action: 'sign-out', type: 'action' },
+    ],
+  };
+
   function escapeCssUrl(val){
     if (typeof val !== 'string') return '';
     return val.replace(CSS_URL_QUOTE, '\\"');
+  }
+
+  function computeActiveViewKey(){
+    const page = exports.currentPage || 'game';
+    if (page === 'statistician') return 'statistician';
+    if (page === 'game') return exports.viewMode === 'player' ? 'scoreboard' : 'referee';
+    if (page === 'teams') return 'teams';
+    if (page === 'schedule') return 'schedule';
+    if (page === 'profile') return 'profile';
+    return null;
+  }
+
+  function getSupportDocumentUrl(action){
+    if (action === 'privacy-policy') return 'privacy_policy.html';
+    if (action === 'terms-of-service') return 'https://synqro.com/terms';
+    return '';
+  }
+
+  function openSupportDocument(action){
+    if (!action) return false;
+    const androidApp = window.AndroidApp;
+    let handled = false;
+    try {
+      if (androidApp){
+        if (action === 'terms-of-service' && typeof androidApp.openTermsOfService === 'function'){
+          androidApp.openTermsOfService();
+          handled = true;
+        } else if (action === 'privacy-policy' && typeof androidApp.openPrivacyPolicy === 'function'){
+          androidApp.openPrivacyPolicy();
+          handled = true;
+        } else if (typeof androidApp.openUrl === 'function'){
+          const fallbackUrl = getSupportDocumentUrl(action);
+          if (fallbackUrl){
+            androidApp.openUrl(fallbackUrl);
+            handled = true;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[view-picker] Native handler failed for ${action}`, err);
+    }
+
+    if (!handled){
+      const url = getSupportDocumentUrl(action);
+      if (!url) return false;
+      try {
+        window.open(url, '_blank', 'noopener');
+        handled = true;
+      } catch (err) {
+        try {
+          window.location.href = url;
+          handled = true;
+        } catch (err2) {
+          console.warn(`[view-picker] Unable to open support document for ${action}`, err2);
+        }
+      }
+    }
+
+    return handled;
   }
 
   function mutateTeam(teamIdx, mutator){
@@ -491,6 +574,7 @@
     exports.currentPage = next;
     closeMenu();
     exports.render();
+    if (typeof exports.refreshViewPickerOptions === 'function') exports.refreshViewPickerOptions();
   }
 
   function setViewMode(mode){
@@ -512,6 +596,7 @@
     exports.render();
     exports.renderPage();
     if (typeof exports.updateControlCarousel === 'function') exports.updateControlCarousel();
+    if (typeof exports.updateViewPickerActiveStates === 'function') exports.updateViewPickerActiveStates();
   }
 
   function bindScoreButtons(){
@@ -1377,8 +1462,8 @@
     const menu = document.getElementById('viewPickerMenu');
     if (!picker || !toggle || !menu) return;
 
-    const options = Array.from(menu.querySelectorAll('.view-picker__option'));
-    if (!options.length) return;
+    let optionElements = [];
+
     menu.hidden = true;
     menu.setAttribute('aria-hidden', 'true');
     picker.dataset.open = 'false';
@@ -1437,13 +1522,16 @@
 
     const focusOption = (el) => {
       if (!el) return;
+      optionElements.forEach((opt) => {
+        if (opt !== el) opt.setAttribute('tabindex', '-1');
+      });
       if (el.getAttribute('tabindex') !== '-1') el.setAttribute('tabindex', '-1');
       el.focus();
     };
 
     const focusActiveOrFirst = () => {
-      const active = menu.querySelector('.view-picker__option.is-active');
-      focusOption(active || options[0]);
+      const active = optionElements.find((opt) => opt.classList.contains('is-active'));
+      focusOption(active || optionElements[0]);
     };
 
     const closePicker = () => {
@@ -1463,22 +1551,149 @@
       }
       clearScheduledHide();
       setMenuHidden(false);
-      // Force layout so the transition runs when data-open flips to true again
       menu.getBoundingClientRect();
       picker.dataset.open = 'true';
       toggle.setAttribute('aria-expanded', 'true');
       document.body.classList.add('view-picker-open');
     };
 
-    const selectOption = (option) => {
-      if (!option) return;
-      const targetPage = option.dataset.page;
-      const targetView = option.dataset.view;
+    const getActiveNavKey = () => {
+      const page = exports.currentPage || 'game';
+      return page === 'statistician' ? 'game' : page;
+    };
+
+    const getOptionsConfig = () => {
+      const navKey = getActiveNavKey();
+      return VIEW_PICKER_OPTIONS[navKey] || VIEW_PICKER_OPTIONS.game;
+    };
+
+    const dispatchActionEvent = (action, option) => {
+      if (!action) return;
+      try {
+        const evt = new CustomEvent('app:view-picker-action', { detail: { action, option } });
+        document.dispatchEvent(evt);
+      } catch (err) {
+        console.warn('[view-picker] Failed to dispatch action event', err);
+      }
+    };
+
+    const handleViewPickerAction = (action, option) => {
+      if (!action) return;
+      dispatchActionEvent(action, option);
+      if (action === 'sign-out') {
+        performSignOut();
+        return;
+      }
+      if (action === 'terms-of-service' || action === 'privacy-policy') {
+        openSupportDocument(action);
+      }
+    };
+
+    const updateOptionStates = () => {
+      const activeKey = computeActiveViewKey();
+      optionElements.forEach((option) => {
+        const config = option.__viewPickerConfig;
+        const role = option.getAttribute('role');
+        const isActive = !!config && !!activeKey && config.key === activeKey;
+        option.classList.toggle('is-active', !!isActive);
+        if (role === 'menuitemradio') {
+          option.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        } else {
+          option.removeAttribute('aria-checked');
+        }
+      });
+    };
+
+    const handleOptionKeydown = (ev, option) => {
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        closePicker();
+        toggle.focus();
+        return;
+      }
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        if (!optionElements.length) return;
+        const delta = ev.key === 'ArrowDown' ? 1 : -1;
+        const currentIdx = optionElements.indexOf(option);
+        const nextIdx = (currentIdx + delta + optionElements.length) % optionElements.length;
+        focusOption(optionElements[nextIdx]);
+        return;
+      }
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        selectOption(option, option.__viewPickerConfig);
+        return;
+      }
+      if (ev.key === 'Tab') {
+        closePicker();
+      }
+    };
+
+    const createOptionElement = (config) => {
+      const option = document.createElement('button');
+      option.className = 'view-picker__option';
+      option.type = 'button';
+      option.textContent = config.label;
+      if (config.key) option.dataset.viewKey = config.key;
+      if (config.page) option.dataset.page = config.page;
+      if (config.view) option.dataset.view = config.view;
+      if (config.action) option.dataset.action = config.action;
+      option.__viewPickerConfig = config;
+      const role = config.type === 'action' ? 'menuitem' : 'menuitemradio';
+      option.setAttribute('role', role);
+      option.setAttribute('tabindex', '-1');
+      option.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        selectOption(option, config);
+      });
+      option.addEventListener('keydown', (ev) => handleOptionKeydown(ev, option));
+      return option;
+    };
+
+    const renderViewPickerMenu = () => {
+      const optionsConfig = getOptionsConfig();
+      optionElements = [];
+      menu.innerHTML = '';
+      const fragment = document.createDocumentFragment();
+      optionsConfig.forEach((config) => {
+        const option = createOptionElement(config);
+        fragment.appendChild(option);
+        optionElements.push(option);
+      });
+      menu.appendChild(fragment);
+      updateOptionStates();
+    };
+
+    function selectOption(option, config){
+      if (!option || !config) return;
+      const targetPage = config.page;
+      const targetView = config.view;
       if (targetPage) setPage(targetPage);
       if (targetView) setViewMode(targetView);
       else if (targetPage === 'statistician') setViewMode('ref');
+      if (config.action) handleViewPickerAction(config.action, config);
       closePicker();
       toggle.focus();
+    }
+
+    const refreshViewPickerOptions = ({ preserveOpen = false } = {}) => {
+      const previousNav = picker.dataset.navKey || '';
+      const currentNav = getActiveNavKey();
+      const navChanged = currentNav !== previousNav;
+      picker.dataset.navKey = currentNav;
+
+      if (navChanged) {
+        renderViewPickerMenu();
+      } else {
+        updateOptionStates();
+      }
+
+      if (!preserveOpen || navChanged) {
+        closePicker();
+      } else if (picker.dataset.open === 'true') {
+        focusActiveOrFirst();
+      }
     };
 
     const handleToggle = (ev) => {
@@ -1518,36 +1733,11 @@
 
     document.addEventListener(VIEW_PICKER_CLOSE_EVENT, closePicker);
 
-    options.forEach((option, idx) => {
-      option.setAttribute('tabindex', '-1');
-      option.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        selectOption(option);
-      });
-      option.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Escape') {
-          ev.preventDefault();
-          closePicker();
-          toggle.focus();
-          return;
-        }
-        if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
-          ev.preventDefault();
-          const delta = ev.key === 'ArrowDown' ? 1 : -1;
-          const nextIdx = (idx + delta + options.length) % options.length;
-          focusOption(options[nextIdx]);
-          return;
-        }
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault();
-          selectOption(option);
-          return;
-        }
-        if (ev.key === 'Tab') {
-          closePicker();
-        }
-      });
-    });
+    picker.dataset.navKey = getActiveNavKey();
+    renderViewPickerMenu();
+
+    exports.refreshViewPickerOptions = (opts = {}) => { refreshViewPickerOptions(opts); };
+    exports.updateViewPickerActiveStates = () => { updateOptionStates(); };
   }
 
   function bindRemoteForm(){
@@ -1667,6 +1857,7 @@
   exports.performSignOut = performSignOut;
   exports.setFlaggedState = setFlaggedState;
   exports.toggleFlaggedState = toggleFlaggedState;
+  exports.computeActiveViewKey = computeActiveViewKey;
   exports.initializeControls = initializeControls;
 
 })(window.App = window.App || {});
