@@ -1021,6 +1021,15 @@
         placeholder: btn.dataset.profileFieldPlaceholder || title,
         helper: btn.dataset.profileFieldTitle || name
       };
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        openFieldSheet(key, btn);
+      });
+      btn.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        ev.preventDefault();
+        openFieldSheet(key, btn);
+      });
     });
     const sanitize = typeof exports.sanitizeProfile === 'function' ? exports.sanitizeProfile : null;
     let pendingImage = null;
@@ -1209,7 +1218,7 @@
       }
     };
 
-    const openFieldSheet = (key, button) => {
+    function openFieldSheet(key, button) {
       if (!fieldSheet) return;
       if (!pendingProfile) fillForm();
       activeFieldKey = key;
@@ -1243,7 +1252,7 @@
           }
         }, 160);
       });
-    };
+    }
 
     const openSheet = () => {
       if (sheet.dataset.open === 'true') return;
@@ -1348,10 +1357,6 @@
         ev.preventDefault();
         closeSheet(true);
       });
-    });
-    fieldButtons.forEach((btn) => {
-      const key = btn.dataset.profileField;
-      btn.addEventListener('click', () => openFieldSheet(key, btn));
     });
     if (fieldForm) fieldForm.addEventListener('submit', handleFieldSubmit);
     if (fieldSheet) {
