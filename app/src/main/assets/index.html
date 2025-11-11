@@ -36,14 +36,6 @@
 
   <nav class="drawer" id="menuDrawer" aria-hidden="true">
     <div class="drawer-section">
-      <h2>Pages</h2>
-      <button class="drawer-item active" data-page="game" data-view="ref" type="button">Referee</button>
-      <button class="drawer-item" data-page="game" data-view="player" type="button">Scoreboard</button>
-      <button class="drawer-item" data-page="statistician" type="button">Statistician</button>
-      <p class="drawer-note">Referee lets refs manage the game. Scoreboard is a read-only view for players and spectators.</p>
-    </div>
-
-    <div class="drawer-section">
       <h2>Live sync</h2>
       <form id="syncForm">
         <label for="syncGame">Game code</label>
@@ -56,11 +48,6 @@
       </p>
       <div class="sync-status" id="syncStatus" role="status">Offline</div>
 
-    </div>
-
-    <div class="drawer-section">
-      <h2>Account</h2>
-      <button class="drawer-item drawer-item--danger" type="button" id="menuSignOut">Sign out</button>
     </div>
   </nav>
   <div class="drawer-backdrop" id="menuBackdrop" tabindex="-1" aria-hidden="true"></div>
