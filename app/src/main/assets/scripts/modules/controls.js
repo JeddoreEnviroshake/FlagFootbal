@@ -2,6 +2,7 @@
   'use strict';
 
   const ALLOWED_PAGES = ['game', 'schedule', 'profile', 'teams', 'statistician'];
+  const VIEW_PICKER_CLOSE_EVENT = 'app:view-picker-close-request';
 
   function mutateTeam(teamIdx, mutator){
     if (exports.viewMode !== 'ref') return false;
@@ -422,6 +423,7 @@
   }
 
   function openMenu(){
+    document.dispatchEvent(new CustomEvent(VIEW_PICKER_CLOSE_EVENT));
     const menuDrawer = exports.$ ? exports.$('#menuDrawer') : null;
     const menuBackdrop = exports.$ ? exports.$('#menuBackdrop') : null;
     const menuToggleBtn = exports.$ ? exports.$('#menuToggle') : null;
@@ -949,8 +951,60 @@
     const options = Array.from(menu.querySelectorAll('.view-picker__option'));
     if (!options.length) return;
     menu.hidden = true;
+    menu.setAttribute('aria-hidden', 'true');
     picker.dataset.open = 'false';
     toggle.setAttribute('aria-expanded', 'false');
+
+    let hideTimer = null;
+    let transitionHandler = null;
+
+    const prefersReducedMotion = () => {
+      try {
+        return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      } catch (err) {
+        return false;
+      }
+    };
+
+    const clearScheduledHide = () => {
+      if (hideTimer != null) {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+      if (transitionHandler) {
+        menu.removeEventListener('transitionend', transitionHandler);
+        transitionHandler = null;
+      }
+    };
+
+    const setMenuHidden = (isHidden) => {
+      if (isHidden) {
+        menu.hidden = true;
+        menu.setAttribute('aria-hidden', 'true');
+      } else {
+        menu.hidden = false;
+        menu.setAttribute('aria-hidden', 'false');
+      }
+    };
+
+    const scheduleHideAfterTransition = () => {
+      clearScheduledHide();
+      if (prefersReducedMotion()) {
+        setMenuHidden(true);
+        return;
+      }
+      transitionHandler = (ev) => {
+        if (ev.target !== menu) return;
+        if (ev.propertyName !== 'transform' && ev.propertyName !== 'opacity') return;
+        clearScheduledHide();
+        if (picker.dataset.open !== 'true') setMenuHidden(true);
+      };
+      menu.addEventListener('transitionend', transitionHandler);
+      hideTimer = window.setTimeout(() => {
+        clearScheduledHide();
+        if (picker.dataset.open !== 'true') setMenuHidden(true);
+      }, 300);
+    };
 
     const focusOption = (el) => {
       if (!el) return;
@@ -966,13 +1020,25 @@
     const closePicker = () => {
       picker.dataset.open = 'false';
       toggle.setAttribute('aria-expanded', 'false');
-      menu.hidden = true;
+      document.body.classList.remove('view-picker-open');
+      menu.setAttribute('aria-hidden', 'true');
+      if (menu.hidden) return;
+      scheduleHideAfterTransition();
     };
 
     const openPicker = () => {
+      if (picker.dataset.open === 'true' && !menu.hidden) {
+        toggle.setAttribute('aria-expanded', 'true');
+        document.body.classList.add('view-picker-open');
+        return;
+      }
+      clearScheduledHide();
+      setMenuHidden(false);
+      // Force layout so the transition runs when data-open flips to true again
+      menu.getBoundingClientRect();
       picker.dataset.open = 'true';
       toggle.setAttribute('aria-expanded', 'true');
-      menu.hidden = false;
+      document.body.classList.add('view-picker-open');
     };
 
     const selectOption = (option) => {
@@ -1020,6 +1086,8 @@
       if (picker.dataset.open !== 'true') return;
       if (!picker.contains(ev.target)) closePicker();
     });
+
+    document.addEventListener(VIEW_PICKER_CLOSE_EVENT, closePicker);
 
     options.forEach((option, idx) => {
       option.setAttribute('tabindex', '-1');

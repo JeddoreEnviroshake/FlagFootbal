@@ -157,10 +157,21 @@
       flex-direction: column;
       gap: 4px;
       z-index: 60;
+      transform: translateY(-12px);
+      opacity: 0;
+      pointer-events: none;
+      transform-origin: top right;
+      transition: transform 0.24s ease, opacity 0.24s ease;
     }
 
     .view-picker__menu[hidden] {
       display: none;
+    }
+
+    .view-picker[data-open="true"] .view-picker__menu {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .view-picker__option {
@@ -221,7 +232,8 @@
     }
 
     body.menu-open .drawer { transform: translateX(0); }
-    body.menu-open .drawer-backdrop { opacity: 1; visibility: visible; }
+    body.menu-open .drawer-backdrop,
+    body.view-picker-open .drawer-backdrop { opacity: 1; visibility: visible; }
 
     .drawer h2 {
       margin: 0 0 10px;
@@ -302,7 +314,8 @@
 
     .sync-status { font-size: 12px; color: var(--muted); }
 
-    body.menu-open { overflow: hidden; }
+    body.menu-open,
+    body.view-picker-open { overflow: hidden; }
 
     .app {
       max-width: 1040px;
@@ -628,6 +641,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .control-carousel .control-track { transition-duration: 0s; }
+      .view-picker__menu { transition-duration: 0s; }
     }
 
     /* Inline numeric editor (kept from codex/refactor-inline-editor...) */
