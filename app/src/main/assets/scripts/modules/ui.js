@@ -373,7 +373,9 @@
     document.querySelectorAll('.bottom-nav__item').forEach(btn => {
       const targetPage = btn.dataset.page || 'game';
       const requiredView = btn.dataset.view;
-      const matchesPage = targetPage === activePage || (targetPage === 'game' && activePage === 'statistician');
+      const matchesPage = targetPage === activePage
+        || (targetPage === 'game' && activePage === 'statistician')
+        || (targetPage === 'teams' && activePage === 'teamPlayers');
       const matchesView = !requiredView || requiredView === exports.viewMode || targetPage === 'game';
       const isActive = matchesPage && matchesView;
       btn.classList.toggle('is-active', isActive);
@@ -405,7 +407,8 @@
   const PAGE_LABELS = {
     schedule: 'Schedule',
     profile: 'Profile',
-    teams: 'Teams'
+    teams: 'Teams',
+    teamPlayers: 'Teams'
   };
 
   function getActiveViewKey(){
@@ -418,7 +421,7 @@
     if (page === 'game') {
       return exports.viewMode === 'player' ? 'scoreboard' : 'referee';
     }
-    if (page === 'teams') return 'teams';
+    if (page === 'teams' || page === 'teamPlayers') return 'teams';
     if (page === 'schedule') return 'schedule';
     if (page === 'profile') return 'profile';
     return null;
@@ -430,6 +433,10 @@
     document.body.dataset.view = exports.viewMode;
     const isFlagged = !!exports.state.flagged;
     document.body.classList.toggle('flagged', isFlagged);
+    if (typeof exports.renderTeamStatsGrid === 'function') {
+      try { exports.renderTeamStatsGrid(); }
+      catch (err) { console.warn('[ui] team stats render failed', err); }
+    }
     const activeViewKey = getActiveViewKey();
     const indicatorLabel = exports.$ ? exports.$('#viewIndicatorLabel') : null;
     const indicatorButton = exports.$ ? exports.$('#viewIndicator') : null;

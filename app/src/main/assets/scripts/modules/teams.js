@@ -33,6 +33,11 @@
     field.resolvedKeys = Array.from(variants);
   });
 
+  const normalizeName = (value) => {
+    if (value == null) return '';
+    return String(value).trim().toLowerCase();
+  };
+
   function entityName(entity, fallback = ''){
     if (!entity || typeof entity !== 'object') return fallback;
     const raw = entity.name;
@@ -49,6 +54,23 @@
       if (nameA === nameB) return a.localeCompare(b);
       return nameA.localeCompare(nameB);
     });
+  }
+
+  function findTeamMatchByName(name){
+    const target = normalizeName(name);
+    if (!target) return null;
+    const data = teamsDirectory.data || {};
+    const ordered = teamsDirectory.orderedTeamIds && teamsDirectory.orderedTeamIds.length
+      ? teamsDirectory.orderedTeamIds
+      : Object.keys(data);
+    for (const id of ordered){
+      const team = data[id];
+      if (!team) continue;
+      if (normalizeName(team.name) === target) {
+        return { id, team };
+      }
+    }
+    return null;
   }
 
   function valueFromField(player, field){
@@ -108,55 +130,41 @@
     }
   }
 
-  function renderTeamStatsGrid(){
-    const host = document.getElementById('teamStatsGrid');
-    if (!host) return;
-
-    const db = exports.db;
-    if (!db) {
-      host.innerHTML = '<div class="stats-grid-empty">Connect to Firebase to record stats.</div>';
-      return;
-    }
-    const teamId = teamsDirectory.activeTeamId;
-    if (!teamId) {
-      host.innerHTML = '<div class="stats-grid-empty">Select a team to view and record stats.</div>';
-      return;
-    }
-    const team = teamsDirectory.data?.[teamId] || {};
-    const players = team.players || {};
-    const playerIds = teamsDirectory.orderedPlayerIds || Object.keys(players);
-
-    if (!playerIds.length) {
-      host.innerHTML = '<div class="stats-grid-empty">No players yet. Add players to start recording stats.</div>';
-      return;
-    }
-
+  function buildStatsTable(teamId, players, playerIds){
     const table = document.createElement('table');
     table.className = 'stats-grid';
+
     const thead = document.createElement('thead');
     const trh = document.createElement('tr');
 
-    const thName = document.createElement('th'); thName.textContent = 'Player';
+    const thName = document.createElement('th');
+    thName.textContent = 'Player';
     trh.appendChild(thName);
+
     TEAM_STAT_FIELDS.forEach(field => {
-      const th = document.createElement('th'); th.textContent = field.label;
+      const key = getPrimaryKeyForField(field);
+      if (!key) return;
+      const th = document.createElement('th');
+      th.textContent = field.label;
       trh.appendChild(th);
     });
+
     thead.appendChild(trh);
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
 
     playerIds.forEach(pid => {
-      const p = players[pid] || {};
+      const player = players[pid] || {};
       const tr = document.createElement('tr');
 
       const nameTd = document.createElement('td');
-      nameTd.textContent = entityName(p, 'Unnamed player');
+      nameTd.textContent = entityName(player, 'Unnamed player');
       tr.appendChild(nameTd);
 
       TEAM_STAT_FIELDS.forEach(field => {
         const key = getPrimaryKeyForField(field);
+        if (!key) return;
         const td = document.createElement('td');
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -164,9 +172,11 @@
         btn.dataset.teamId = teamId;
         btn.dataset.playerId = pid;
         btn.dataset.statKey = key;
-        const val = valueFromField(p, field);
-        btn.textContent = Number.isFinite(val) ? String(val) : String(Number(val || 0));
-        btn.setAttribute('aria-label', `Add 1 to ${field.label} for ${entityName(p, 'player')}`);
+        let value = valueFromField(player, field);
+        if (value == null || value === '') value = 0;
+        const numeric = Number(value);
+        btn.textContent = Number.isFinite(numeric) ? String(numeric) : String(value);
+        btn.setAttribute('aria-label', `Add 1 to ${field.label} for ${entityName(player, 'player')}`);
         td.appendChild(btn);
         tr.appendChild(td);
       });
@@ -175,8 +185,93 @@
     });
 
     table.appendChild(tbody);
+    return table;
+  }
+
+  function renderTeamStatsGrid(){
+    const host = document.getElementById('statisticianTeamTotals');
+    if (!host) return;
+
+    const statusEl = document.getElementById('statisticianStatus');
+
+    const db = exports.db;
+    if (!db) {
+      host.innerHTML = '<div class="stats-grid-empty">Connect to Firebase to record stats.</div>';
+      if (statusEl) statusEl.textContent = 'Connect to Firebase to view live team totals.';
+      return;
+    }
+
+    const stateTeams = exports.state && Array.isArray(exports.state.teams) ? exports.state.teams : [];
+    const gameTeams = stateTeams.slice(0, 2);
+    if (!gameTeams.length) {
+      host.innerHTML = '<div class="stats-grid-empty">Select Home and Away teams on the Game page to view player totals.</div>';
+      if (statusEl) statusEl.textContent = 'No game teams selected.';
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    let linkedTeams = 0;
+    let totalPlayers = 0;
+
+    gameTeams.forEach((team, idx) => {
+      const section = document.createElement('section');
+      section.className = 'statistician-game-team';
+
+      const fallbackName = idx === 0 ? 'Home' : (idx === 1 ? 'Away' : `Team ${idx + 1}`);
+      const title = document.createElement('h2');
+      title.className = 'statistician-game-team__title';
+      title.textContent = entityName(team, fallbackName);
+      section.appendChild(title);
+
+      const meta = document.createElement('div');
+      meta.className = 'statistician-game-team__meta';
+      section.appendChild(meta);
+
+      const rawName = team && typeof team.name === 'string' ? team.name : '';
+      const match = findTeamMatchByName(rawName);
+      if (!match) {
+        meta.textContent = rawName && rawName.trim()
+          ? 'No matching roster found in Teams.'
+          : 'Name this team to link it to a roster.';
+        const empty = document.createElement('p');
+        empty.className = 'statistician-game-team__empty';
+        empty.textContent = 'Add this roster on the Teams page to see player totals here.';
+        section.appendChild(empty);
+        fragment.appendChild(section);
+        return;
+      }
+
+      const players = match.team && match.team.players ? match.team.players : {};
+      const playerIds = sortKeysByName(players);
+      linkedTeams += 1;
+      totalPlayers += playerIds.length;
+      meta.textContent = playerIds.length === 1 ? '1 player' : `${playerIds.length} players`;
+
+      if (!playerIds.length) {
+        const empty = document.createElement('p');
+        empty.className = 'statistician-game-team__empty';
+        empty.textContent = 'No players yet. Add players from the Teams page.';
+        section.appendChild(empty);
+        fragment.appendChild(section);
+        return;
+      }
+
+      const table = buildStatsTable(match.id, players, playerIds);
+      section.appendChild(table);
+      fragment.appendChild(section);
+    });
+
     host.innerHTML = '';
-    host.appendChild(table);
+    host.appendChild(fragment);
+
+    if (statusEl) {
+      if (!linkedTeams) {
+        statusEl.textContent = 'Link your game teams to rosters to record stats.';
+      } else {
+        const teamLabel = linkedTeams === 1 ? 'team' : 'teams';
+        statusEl.textContent = `Tracking ${totalPlayers} players across ${linkedTeams} ${teamLabel}.`;
+      }
+    }
 
     if (!host.__wired) {
       host.addEventListener('click', (e) => {
@@ -190,15 +285,141 @@
     }
   }
 
+  function renderTeamDetailsPage(){
+    const $ = exports.$;
+    const titleEl = $('#teamDetailsTitle');
+    const statusEl = $('#teamDetailsStatus');
+    const listEl = $('#teamDetailsPlayerList');
+    const tileEl = $('#teamPlayerTile');
+    const addPlayerBtn = $('#teamDetailsAddPlayer');
+
+    const activeTeamId = teamsDirectory.activeTeamId;
+    const team = activeTeamId ? teamsDirectory.data?.[activeTeamId] : null;
+    const players = team && team.players ? team.players : {};
+    const playerIds = teamsDirectory.orderedPlayerIds && teamsDirectory.orderedPlayerIds.length
+      ? teamsDirectory.orderedPlayerIds
+      : sortKeysByName(players);
+
+    if (titleEl) {
+      titleEl.textContent = team ? entityName(team, 'Unnamed team') : 'Team';
+    }
+
+    if (statusEl) {
+      if (teamsDirectory.loading) {
+        statusEl.textContent = activeTeamId ? 'Loading players…' : 'Loading teams…';
+      } else if (!activeTeamId) {
+        statusEl.textContent = 'Select a team to view players.';
+      } else if (!playerIds.length) {
+        statusEl.textContent = 'No players yet.';
+      } else {
+        statusEl.textContent = playerIds.length === 1 ? '1 player' : `${playerIds.length} players`;
+      }
+    }
+
+    if (addPlayerBtn) {
+      const hasDb = !!exports.db;
+      const hasTeam = !!activeTeamId;
+      addPlayerBtn.disabled = !hasTeam || !hasDb;
+      if (!hasTeam) {
+        addPlayerBtn.title = 'Select a team to add players.';
+      } else if (!hasDb) {
+        addPlayerBtn.title = 'Connect to Firebase to add players.';
+      } else {
+        addPlayerBtn.removeAttribute('title');
+      }
+    }
+
+    if (listEl) {
+      listEl.innerHTML = '';
+      if (!activeTeamId) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'Pick a team first.';
+        listEl.appendChild(empty);
+      } else if (!playerIds.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No players yet.';
+        listEl.appendChild(empty);
+      } else {
+        playerIds.forEach(id => {
+          const player = players[id] || {};
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.dataset.playerId = id;
+          btn.textContent = entityName(player, 'Unnamed player');
+          btn.setAttribute('role', 'option');
+          btn.setAttribute('aria-selected', id === teamsDirectory.activePlayerId ? 'true' : 'false');
+          if (id === teamsDirectory.activePlayerId) btn.classList.add('active');
+          btn.addEventListener('click', () => selectPlayer(id));
+          listEl.appendChild(btn);
+        });
+      }
+    }
+
+    if (tileEl) {
+      tileEl.innerHTML = '';
+      if (!activeTeamId) {
+        const placeholder = document.createElement('p');
+        placeholder.className = 'placeholder';
+        placeholder.textContent = 'Select a team to view players.';
+        tileEl.appendChild(placeholder);
+        return;
+      }
+
+      const activePlayer = teamsDirectory.activePlayerId ? players[teamsDirectory.activePlayerId] : null;
+      if (!activePlayer) {
+        const placeholder = document.createElement('p');
+        placeholder.className = 'placeholder';
+        placeholder.textContent = playerIds.length ? 'Select a player to view stats.' : 'Add players to get started.';
+        tileEl.appendChild(placeholder);
+        return;
+      }
+
+      const card = document.createElement('article');
+      card.className = 'player-card';
+
+      const header = document.createElement('div');
+      header.className = 'player-card__header';
+      const title = document.createElement('h2');
+      title.className = 'player-card__title';
+      title.textContent = entityName(activePlayer, 'Unnamed player');
+      header.appendChild(title);
+      const meta = document.createElement('div');
+      meta.className = 'player-card__meta';
+      meta.textContent = 'Tracked via Statistician tab';
+      header.appendChild(meta);
+      card.appendChild(header);
+
+      const statsGrid = document.createElement('div');
+      statsGrid.className = 'player-card__stats';
+
+      TEAM_STAT_FIELDS.forEach(field => {
+        const stat = document.createElement('div');
+        stat.className = 'player-card__stat';
+        const label = document.createElement('span');
+        label.className = 'player-card__stat-label';
+        label.textContent = field.label;
+        const valueEl = document.createElement('span');
+        valueEl.className = 'player-card__stat-value';
+        let value = valueFromField(activePlayer, field);
+        if (value == null || value === '') value = 0;
+        const numeric = Number(value);
+        valueEl.textContent = Number.isFinite(numeric) ? String(numeric) : String(value);
+        stat.appendChild(label);
+        stat.appendChild(valueEl);
+        statsGrid.appendChild(stat);
+      });
+
+      card.appendChild(statsGrid);
+      tileEl.appendChild(card);
+    }
+  }
+
   function renderTeamsDirectory(){
     const $ = exports.$;
     const statusEl = $('#teamsPageStatus');
     const teamListEl = $('#teamsDirectoryList');
-    const playerListEl = $('#teamsPlayerList');
-    const playerTitleEl = $('#teamsSelectedPlayer');
-    const statsEl = $('#teamsStatsList');
-    const teamTitleEl = $('#teamsSelectedTeam');
-    const addPlayerBtn = $('#teamsAddPlayer');
 
     if (statusEl) {
       statusEl.classList.toggle('error', !!teamsDirectory.error);
@@ -253,88 +474,13 @@
             : 'No players yet';
           btn.appendChild(nameEl);
           btn.appendChild(metaEl);
-          btn.addEventListener('click', () => selectTeam(id));
+          btn.addEventListener('click', () => selectTeam(id, { openPage: true }));
           teamListEl.appendChild(btn);
         });
       }
     }
 
-    const activeTeam = teamsDirectory.activeTeamId ? teamsDirectory.data?.[teamsDirectory.activeTeamId] : null;
-    if (teamTitleEl) {
-      teamTitleEl.textContent = teamsDirectory.activeTeamId
-        ? entityName(activeTeam, 'Unnamed team')
-        : 'Select a team';
-    }
-    if (addPlayerBtn) {
-      const hasDb = !!exports.db;
-      const hasTeam = !!teamsDirectory.activeTeamId;
-      addPlayerBtn.disabled = !hasTeam || !hasDb;
-      if (!hasTeam) {
-        addPlayerBtn.title = 'Select a team to add players.';
-      } else if (!hasDb) {
-        addPlayerBtn.title = 'Connect to Firebase to add players.';
-      } else {
-        addPlayerBtn.removeAttribute('title');
-      }
-    }
-    const players = activeTeam && activeTeam.players ? activeTeam.players : {};
-
-    if (playerListEl) {
-      playerListEl.innerHTML = '';
-      if (!teamsDirectory.activeTeamId) {
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = 'Pick a team first.';
-        playerListEl.appendChild(empty);
-      } else if (!teamsDirectory.orderedPlayerIds.length) {
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = 'No players yet.';
-        playerListEl.appendChild(empty);
-      } else {
-        teamsDirectory.orderedPlayerIds.forEach(id => {
-          const player = players[id] || {};
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.setAttribute('role', 'option');
-          btn.dataset.playerId = id;
-          btn.textContent = entityName(player, 'Unnamed player');
-          if (id === teamsDirectory.activePlayerId) btn.classList.add('active');
-          btn.setAttribute('aria-selected', id === teamsDirectory.activePlayerId ? 'true' : 'false');
-          btn.addEventListener('click', () => selectPlayer(id));
-          playerListEl.appendChild(btn);
-        });
-      }
-    }
-
-    const activePlayer = teamsDirectory.activePlayerId ? players[teamsDirectory.activePlayerId] : null;
-    if (playerTitleEl) {
-      playerTitleEl.textContent = activePlayer
-        ? entityName(activePlayer, 'Unnamed player')
-        : (teamsDirectory.activeTeamId ? 'Select a player' : 'Select a team to view players');
-    }
-    if (statsEl) {
-      statsEl.innerHTML = '';
-      if (!activePlayer) {
-        const empty = document.createElement('p');
-        empty.className = 'teams-placeholder';
-        empty.textContent = teamsDirectory.activeTeamId ? 'Select a player to view stats.' : 'Select a team to get started.';
-        statsEl.appendChild(empty);
-      } else {
-        TEAM_STAT_FIELDS.forEach(field => {
-          const row = document.createElement('div');
-          row.className = 'teams-stat-row';
-          const label = document.createElement('span');
-          label.textContent = field.label;
-          const valueEl = document.createElement('span');
-          const value = valueFromField(activePlayer, field);
-          valueEl.textContent = (value == null || value === '') ? '0' : value;
-          row.appendChild(label);
-          row.appendChild(valueEl);
-          statsEl.appendChild(row);
-        });
-      }
-    }
+    renderTeamDetailsPage();
     renderTeamStatsGrid();
   }
 
@@ -380,14 +526,20 @@
     teamsDirectory.unsubscribe = () => ref.off('value', handler);
   }
 
-  function selectTeam(teamId){
+  function selectTeam(teamId, options = {}){
     if (!teamId || !teamsDirectory.data || !teamsDirectory.data[teamId]) return;
     teamsDirectory.activeTeamId = teamId;
     const team = teamsDirectory.data[teamId] || {};
     const players = team.players || {};
     teamsDirectory.orderedPlayerIds = sortKeysByName(players);
-    teamsDirectory.activePlayerId = teamsDirectory.orderedPlayerIds[0] || null;
+    if (!teamsDirectory.orderedPlayerIds.includes(teamsDirectory.activePlayerId)) {
+      teamsDirectory.activePlayerId = teamsDirectory.orderedPlayerIds[0] || null;
+    }
     renderTeamsDirectory();
+    if (options.openPage && typeof exports.setPage === 'function') {
+      try { exports.setPage('teamPlayers'); }
+      catch (err) { console.warn('[teams] unable to open team details page', err); }
+    }
   }
 
   function selectPlayer(playerId){
@@ -411,23 +563,19 @@
       if (!teamKey) {
         teamKey = `local-${Date.now()}`;
       }
-      teamsDirectory.activeTeamId = teamKey;
-      teamsDirectory.activePlayerId = null;
       if (!teamsDirectory.data) teamsDirectory.data = {};
       teamsDirectory.data[teamKey] = { name: trimmed };
       teamsDirectory.orderedTeamIds = sortKeysByName(teamsDirectory.data);
       teamsDirectory.orderedPlayerIds = [];
-      renderTeamsDirectory();
+      selectTeam(teamKey, { openPage: true });
     } catch (err) {
       console.warn('[teams] Unable to add team remotely', err);
       const fallbackKey = `local-${Date.now()}`;
       if (!teamsDirectory.data) teamsDirectory.data = {};
       teamsDirectory.data[fallbackKey] = { name: trimmed };
-      teamsDirectory.activeTeamId = fallbackKey;
-      teamsDirectory.activePlayerId = null;
       teamsDirectory.orderedTeamIds = sortKeysByName(teamsDirectory.data);
       teamsDirectory.orderedPlayerIds = [];
-      renderTeamsDirectory();
+      selectTeam(fallbackKey, { openPage: true });
     }
   }
 

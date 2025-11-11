@@ -159,9 +159,25 @@
     </section>
 
     <section class="page" data-page="statistician" aria-labelledby="statisticianTitle">
-      <div class="static-page">
-        <h1 id="statisticianTitle">Statistician</h1>
-        <p class="empty-state" role="status">Statistician Not Yet Available</p>
+      <div class="statistician-page" id="statisticianPage">
+        <header class="statistician-page__header">
+          <h1 id="statisticianTitle">Statistician</h1>
+          <p class="statistician-status" id="statisticianStatus" role="status"></p>
+        </header>
+
+        <div class="statistician-tabs" id="statisticianTabs" role="tablist" aria-label="Statistician views">
+          <button class="statistician-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="statisticianGameTab" id="statisticianTabGame" data-stat-tab="game">Game</button>
+          <button class="statistician-tab" type="button" role="tab" aria-selected="false" aria-controls="statisticianSeasonTab" id="statisticianTabSeason" data-stat-tab="season">Season</button>
+        </div>
+
+        <div class="statistician-panels">
+          <section class="statistician-panel is-active" id="statisticianGameTab" role="tabpanel" tabindex="0" aria-labelledby="statisticianTabGame" data-stat-panel="game">
+            <div class="statistician-game" id="statisticianTeamTotals"></div>
+          </section>
+          <section class="statistician-panel" id="statisticianSeasonTab" role="tabpanel" tabindex="0" aria-labelledby="statisticianTabSeason" data-stat-panel="season">
+            <p class="statistician-placeholder">Season stats are coming soon.</p>
+          </section>
+        </div>
       </div>
     </section>
 
@@ -180,27 +196,23 @@
               <button class="teams-actions__add btn-inline primary" id="teamsAddTeam" type="button">Add Team</button>
             </div>
           </div>
-
-          <aside class="teams-details" aria-labelledby="teamsSelectedTeam">
-            <header class="teams-details__header">
-              <h2 class="teams-details__title" id="teamsSelectedTeam">Select a team</h2>
-              <button class="teams-add-player" id="teamsAddPlayer" type="button" disabled>Add Player</button>
-            </header>
-
-            <div class="teams-details__body">
-              <section class="teams-player-list" aria-label="Players" id="teamsPlayerList" role="listbox"></section>
-              <section class="teams-player-stats" aria-live="polite">
-                <h3 class="teams-player-stats__title" id="teamsSelectedPlayer">Select a player</h3>
-                <div class="teams-stats" id="teamsStatsList"></div>
-              </section>
-            </div>
-          </aside>
         </div>
+      </div>
+    </section>
 
-        <section class="teams-team-stats" aria-live="polite" aria-label="Team statistics">
-          <h2 class="teams-team-stats__title">Team totals</h2>
-          <div id="teamStatsGrid"></div>
-        </section>
+    <section class="page" data-page="teamPlayers" aria-labelledby="teamDetailsTitle">
+      <div class="team-details-page" id="teamDetailsPage">
+        <header class="team-details-header">
+          <button class="team-details-back" id="teamDetailsBack" type="button" aria-label="Back to teams">Back</button>
+          <h1 class="team-details-title" id="teamDetailsTitle">Team</h1>
+          <button class="teams-add-player" id="teamDetailsAddPlayer" type="button" disabled>Add Player</button>
+        </header>
+        <p class="team-details-status" id="teamDetailsStatus" role="status">Select a team to view players.</p>
+
+        <div class="team-details-content">
+          <section class="team-details-list" aria-label="Players" id="teamDetailsPlayerList" role="listbox"></section>
+          <section class="team-player-panel" id="teamPlayerTile" aria-live="polite"></section>
+        </div>
       </div>
     </section>
 
