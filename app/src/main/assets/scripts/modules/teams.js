@@ -199,6 +199,7 @@
     const statsEl = $('#teamsStatsList');
 
     if (statusEl) {
+      statusEl.classList.toggle('error', !!teamsDirectory.error);
       if (teamsDirectory.loading) {
         statusEl.textContent = 'Loading teams…';
       } else if (teamsDirectory.error) {
@@ -206,7 +207,8 @@
       } else if (!teamsDirectory.orderedTeamIds.length) {
         statusEl.textContent = 'No teams yet.';
       } else {
-        statusEl.textContent = '';
+        const count = teamsDirectory.orderedTeamIds.length;
+        statusEl.textContent = count === 1 ? '1 team available' : `${count} teams available`;
       }
     }
 
@@ -214,12 +216,17 @@
       teamListEl.innerHTML = '';
       if (teamsDirectory.loading) {
         const loading = document.createElement('div');
-        loading.className = 'loading';
-        loading.textContent = 'Loading…';
+        loading.className = 'team-tile empty';
+        loading.textContent = 'Loading teams…';
         teamListEl.appendChild(loading);
+      } else if (teamsDirectory.error) {
+        const errorTile = document.createElement('div');
+        errorTile.className = 'team-tile empty';
+        errorTile.textContent = 'Unable to load teams.';
+        teamListEl.appendChild(errorTile);
       } else if (!teamsDirectory.orderedTeamIds.length) {
         const empty = document.createElement('div');
-        empty.className = 'empty';
+        empty.className = 'team-tile empty';
         empty.textContent = 'No teams yet.';
         teamListEl.appendChild(empty);
       } else {
@@ -228,10 +235,22 @@
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.dataset.teamId = id;
-          btn.setAttribute('role', 'option');
-          btn.textContent = entityName(team, 'Unnamed team');
+          btn.className = 'team-tile';
+          btn.setAttribute('role', 'listitem');
           if (id === teamsDirectory.activeTeamId) btn.classList.add('active');
-          btn.setAttribute('aria-selected', id === teamsDirectory.activeTeamId ? 'true' : 'false');
+          const nameEl = document.createElement('div');
+          nameEl.className = 'team-tile__name';
+          nameEl.textContent = entityName(team, 'Unnamed team');
+          const metaEl = document.createElement('div');
+          metaEl.className = 'team-tile__meta';
+          const playerCount = team.players && typeof team.players === 'object'
+            ? Object.keys(team.players).length
+            : 0;
+          metaEl.textContent = playerCount
+            ? `${playerCount} player${playerCount === 1 ? '' : 's'}`
+            : 'No players yet';
+          btn.appendChild(nameEl);
+          btn.appendChild(metaEl);
           btn.addEventListener('click', () => selectTeam(id));
           teamListEl.appendChild(btn);
         });
@@ -354,24 +373,38 @@
   }
 
   async function handleAddTeam(){
-    const db = exports.db;
-    if (!db) { alert('Firebase connection required to add a team.'); return; }
     const name = prompt('Team name');
     if (!name) return;
     const trimmed = name.trim();
     if (!trimmed) return;
     try {
-      const ref = db.ref('teams').push();
-      await ref.set({ name: trimmed });
-      teamsDirectory.activeTeamId = ref.key;
+      const db = exports.db;
+      let teamKey = null;
+      if (db) {
+        const ref = db.ref('teams').push();
+        await ref.set({ name: trimmed });
+        teamKey = ref.key;
+      }
+      if (!teamKey) {
+        teamKey = `local-${Date.now()}`;
+      }
+      teamsDirectory.activeTeamId = teamKey;
       teamsDirectory.activePlayerId = null;
       if (!teamsDirectory.data) teamsDirectory.data = {};
-      teamsDirectory.data[ref.key] = { name: trimmed };
+      teamsDirectory.data[teamKey] = { name: trimmed };
       teamsDirectory.orderedTeamIds = sortKeysByName(teamsDirectory.data);
       teamsDirectory.orderedPlayerIds = [];
       renderTeamsDirectory();
     } catch (err) {
-      alert('Unable to add team: ' + (err && err.message ? err.message : err));
+      console.warn('[teams] Unable to add team remotely', err);
+      const fallbackKey = `local-${Date.now()}`;
+      if (!teamsDirectory.data) teamsDirectory.data = {};
+      teamsDirectory.data[fallbackKey] = { name: trimmed };
+      teamsDirectory.activeTeamId = fallbackKey;
+      teamsDirectory.activePlayerId = null;
+      teamsDirectory.orderedTeamIds = sortKeysByName(teamsDirectory.data);
+      teamsDirectory.orderedPlayerIds = [];
+      renderTeamsDirectory();
     }
   }
 

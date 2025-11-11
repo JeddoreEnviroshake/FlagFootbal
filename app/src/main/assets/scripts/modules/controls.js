@@ -1820,6 +1820,25 @@
     } catch (e) { console.warn('Self tests error:', e); console.groupEnd(); }
   }
 
+  function bindTeamsDirectoryControls(){
+    const addTeamBtn = exports.$ ? exports.$('#teamsAddTeam') : null;
+    if (addTeamBtn) {
+      addTeamBtn.addEventListener('click', () => {
+        if (typeof exports.handleAddTeam === 'function') {
+          exports.handleAddTeam();
+        }
+      });
+    }
+    if (typeof exports.ensureTeamsListener === 'function') {
+      try { exports.ensureTeamsListener(); }
+      catch (err) { console.warn('[teams] ensure listener failed', err); }
+    }
+    if (typeof exports.renderTeamsDirectory === 'function') {
+      try { exports.renderTeamsDirectory(); }
+      catch (err) { console.warn('[teams] render failed', err); }
+    }
+  }
+
   function initializeControls(){
     bindScoreButtons();
     bindAdjustButtons();
@@ -1827,6 +1846,7 @@
     bindControlCarousel();
     bindMenuControls();
     bindBottomNav();
+    bindTeamsDirectoryControls();
     bindProfileControls();
     bindViewPicker();
     bindRemoteForm();
