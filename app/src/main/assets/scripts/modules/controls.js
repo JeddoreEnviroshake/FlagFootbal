@@ -1,7 +1,7 @@
 (function(exports){
   'use strict';
 
-  const ALLOWED_PAGES = ['game', 'schedule', 'profile', 'teams', 'statistician'];
+  const ALLOWED_PAGES = ['game', 'schedule', 'profile', 'teams', 'teamPlayers', 'statistician'];
   const VIEW_PICKER_CLOSE_EVENT = 'app:view-picker-close-request';
   const CSS_URL_QUOTE = /"/g;
   const MAX_PROFILE_IMAGE_DIMENSION = 512;
@@ -39,7 +39,7 @@
     const page = exports.currentPage || 'game';
     if (page === 'statistician') return 'statistician';
     if (page === 'game') return exports.viewMode === 'player' ? 'scoreboard' : 'referee';
-    if (page === 'teams') return 'teams';
+    if (page === 'teams' || page === 'teamPlayers') return 'teams';
     if (page === 'schedule') return 'schedule';
     if (page === 'profile') return 'profile';
     return null;
@@ -1820,6 +1820,74 @@
     } catch (e) { console.warn('Self tests error:', e); console.groupEnd(); }
   }
 
+  function bindStatisticianTabs(){
+    const tabButtons = Array.from(document.querySelectorAll('[data-stat-tab]'));
+    const panels = Array.from(document.querySelectorAll('[data-stat-panel]'));
+    if (!tabButtons.length || !panels.length) return;
+
+    if (!exports.statisticianTab) exports.statisticianTab = 'game';
+
+    const findButtonByTab = (tabKey) => tabButtons.find(btn => (btn.dataset.statTab || '') === tabKey) || null;
+
+    const setActive = (tabKey) => {
+      let key = tabKey;
+      if (!findButtonByTab(key)) {
+        key = tabButtons[0]?.dataset.statTab || '';
+      }
+      if (!key) return;
+      exports.statisticianTab = key;
+      tabButtons.forEach(btn => {
+        const isActive = (btn.dataset.statTab === key);
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        btn.setAttribute('tabindex', isActive ? '0' : '-1');
+      });
+      panels.forEach(panel => {
+        const isActive = (panel.dataset.statPanel === key);
+        panel.classList.toggle('is-active', isActive);
+        panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+      });
+      if (typeof exports.renderTeamStatsGrid === 'function') {
+        try { exports.renderTeamStatsGrid(); }
+        catch (err) { console.warn('[statistician] render failed', err); }
+      }
+    };
+
+    const focusByOffset = (currentIdx, delta) => {
+      if (!tabButtons.length) return;
+      const len = tabButtons.length;
+      const nextIdx = (currentIdx + delta + len) % len;
+      const nextBtn = tabButtons[nextIdx];
+      if (!nextBtn) return;
+      setActive(nextBtn.dataset.statTab || '');
+      try { nextBtn.focus(); }
+      catch {}
+    };
+
+    tabButtons.forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        setActive(btn.dataset.statTab || '');
+      });
+      btn.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+          event.preventDefault();
+          focusByOffset(idx, 1);
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          focusByOffset(idx, -1);
+        } else if (event.key === 'Home') {
+          event.preventDefault();
+          focusByOffset(0, 0);
+        } else if (event.key === 'End') {
+          event.preventDefault();
+          focusByOffset(tabButtons.length - 1, 0);
+        }
+      });
+    });
+
+    setActive(exports.statisticianTab);
+  }
+
   function bindTeamsDirectoryControls(){
     const addTeamBtn = exports.$ ? exports.$('#teamsAddTeam') : null;
     if (addTeamBtn) {
@@ -1829,11 +1897,19 @@
         }
       });
     }
-    const addPlayerBtn = exports.$ ? exports.$('#teamsAddPlayer') : null;
+    const addPlayerBtn = exports.$ ? (exports.$('#teamDetailsAddPlayer') || exports.$('#teamsAddPlayer')) : null;
     if (addPlayerBtn) {
       addPlayerBtn.addEventListener('click', () => {
         if (typeof exports.handleAddPlayer === 'function') {
           exports.handleAddPlayer();
+        }
+      });
+    }
+    const backBtn = exports.$ ? exports.$('#teamDetailsBack') : null;
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        if (typeof exports.setPage === 'function') {
+          exports.setPage('teams');
         }
       });
     }
@@ -1854,6 +1930,7 @@
     bindControlCarousel();
     bindMenuControls();
     bindBottomNav();
+    bindStatisticianTabs();
     bindTeamsDirectoryControls();
     bindProfileControls();
     bindViewPicker();
