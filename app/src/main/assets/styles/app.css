@@ -371,6 +371,13 @@
       color: var(--ink);
     }
 
+    .profile-page {
+      justify-content: flex-start;  /* top align */
+      align-items: stretch;         /* keep layout wide instead of centered */
+      text-align: left;             /* keep your existing text alignment */
+      padding-top: 16px;            /* optional spacing from top */
+    }
+
     .empty-state {
       margin: 0;
       font-size: 16px;
@@ -395,8 +402,8 @@
       padding: 14px 28px;
       font-size: 16px;
       font-weight: 700;
-      color: #ffffff;
-      background: var(--danger);
+      color: var(--ink);
+      background: var(--card);
       box-shadow: var(--tile-shadow);
       cursor: pointer;
       align-self: flex-start;
