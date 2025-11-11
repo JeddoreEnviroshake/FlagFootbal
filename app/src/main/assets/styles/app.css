@@ -1458,3 +1458,9 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Hide the description + helper under the input in the field sheet */
+.profile-field-form__description,
+.profile-field-form__helper {
+  display: none;
+}
