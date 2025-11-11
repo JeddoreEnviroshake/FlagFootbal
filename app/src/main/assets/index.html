@@ -172,11 +172,35 @@
           <p class="teams-status" id="teamsPageStatus" role="status">No teams yet.</p>
         </header>
 
-        <div class="teams-grid" id="teamsDirectoryList" role="list"></div>
+        <div class="teams-content">
+          <div class="teams-directory">
+            <div class="teams-grid" id="teamsDirectoryList" role="list"></div>
 
-        <div class="teams-actions">
-          <button class="teams-actions__add btn-inline primary" id="teamsAddTeam" type="button">Add Team</button>
+            <div class="teams-actions">
+              <button class="teams-actions__add btn-inline primary" id="teamsAddTeam" type="button">Add Team</button>
+            </div>
+          </div>
+
+          <aside class="teams-details" aria-labelledby="teamsSelectedTeam">
+            <header class="teams-details__header">
+              <h2 class="teams-details__title" id="teamsSelectedTeam">Select a team</h2>
+              <button class="teams-add-player" id="teamsAddPlayer" type="button" disabled>Add Player</button>
+            </header>
+
+            <div class="teams-details__body">
+              <section class="teams-player-list" aria-label="Players" id="teamsPlayerList" role="listbox"></section>
+              <section class="teams-player-stats" aria-live="polite">
+                <h3 class="teams-player-stats__title" id="teamsSelectedPlayer">Select a player</h3>
+                <div class="teams-stats" id="teamsStatsList"></div>
+              </section>
+            </div>
+          </aside>
         </div>
+
+        <section class="teams-team-stats" aria-live="polite" aria-label="Team statistics">
+          <h2 class="teams-team-stats__title">Team totals</h2>
+          <div id="teamStatsGrid"></div>
+        </section>
       </div>
     </section>
 

@@ -197,6 +197,8 @@
     const playerListEl = $('#teamsPlayerList');
     const playerTitleEl = $('#teamsSelectedPlayer');
     const statsEl = $('#teamsStatsList');
+    const teamTitleEl = $('#teamsSelectedTeam');
+    const addPlayerBtn = $('#teamsAddPlayer');
 
     if (statusEl) {
       statusEl.classList.toggle('error', !!teamsDirectory.error);
@@ -258,6 +260,23 @@
     }
 
     const activeTeam = teamsDirectory.activeTeamId ? teamsDirectory.data?.[teamsDirectory.activeTeamId] : null;
+    if (teamTitleEl) {
+      teamTitleEl.textContent = teamsDirectory.activeTeamId
+        ? entityName(activeTeam, 'Unnamed team')
+        : 'Select a team';
+    }
+    if (addPlayerBtn) {
+      const hasDb = !!exports.db;
+      const hasTeam = !!teamsDirectory.activeTeamId;
+      addPlayerBtn.disabled = !hasTeam || !hasDb;
+      if (!hasTeam) {
+        addPlayerBtn.title = 'Select a team to add players.';
+      } else if (!hasDb) {
+        addPlayerBtn.title = 'Connect to Firebase to add players.';
+      } else {
+        addPlayerBtn.removeAttribute('title');
+      }
+    }
     const players = activeTeam && activeTeam.players ? activeTeam.players : {};
 
     if (playerListEl) {
@@ -289,7 +308,11 @@
     }
 
     const activePlayer = teamsDirectory.activePlayerId ? players[teamsDirectory.activePlayerId] : null;
-    if (playerTitleEl) playerTitleEl.textContent = activePlayer ? entityName(activePlayer, '') : '';
+    if (playerTitleEl) {
+      playerTitleEl.textContent = activePlayer
+        ? entityName(activePlayer, 'Unnamed player')
+        : (teamsDirectory.activeTeamId ? 'Select a player' : 'Select a team to view players');
+    }
     if (statsEl) {
       statsEl.innerHTML = '';
       if (!activePlayer) {
