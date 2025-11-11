@@ -176,9 +176,90 @@
     </section>
 
     <section class="page" data-page="profile" aria-labelledby="profileTitle">
-      <div class="static-page">
+      <div class="static-page profile-page">
         <h1 id="profileTitle">Profile</h1>
+
+        <button class="profile-card" id="profileOverview" type="button" aria-haspopup="dialog" aria-controls="profileEditor">
+          <div class="profile-card__main">
+            <div class="profile-card__avatar" id="profileAvatar" aria-hidden="true">
+              <span>Add Image</span>
+            </div>
+            <div class="profile-card__details">
+              <div class="profile-card__name" id="profileFirstName">Name</div>
+              <div class="profile-card__team" id="profileTeamName">Team</div>
+              <div class="profile-card__location" id="profileLocation">City, Province</div>
+            </div>
+          </div>
+          <div class="profile-card__stats" aria-hidden="true">
+            <div class="profile-card__stat">
+              <div class="profile-card__stat-value">1st</div>
+              <div class="profile-card__stat-label">Standing</div>
+            </div>
+            <div class="profile-card__stat">
+              <div class="profile-card__stat-value">Top 25</div>
+              <div class="profile-card__stat-label">Player Rank</div>
+            </div>
+            <div class="profile-card__stat">
+              <div class="profile-card__stat-value">Sunday @ 10:00 AM</div>
+              <div class="profile-card__stat-label">Next Game</div>
+            </div>
+          </div>
+        </button>
+
         <button class="profile-sign-out" id="profileSignOut" type="button">Sign out</button>
+      </div>
+
+      <div class="profile-sheet" id="profileEditor" aria-hidden="true" data-open="false">
+        <div class="profile-sheet__backdrop" data-profile-close></div>
+        <div class="profile-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="profileEditorTitle" tabindex="-1">
+          <header class="profile-sheet__header">
+            <h2 id="profileEditorTitle">Edit profile</h2>
+            <button class="profile-sheet__close" type="button" data-profile-close aria-label="Close profile editor"></button>
+          </header>
+          <form id="profileForm" class="profile-form">
+            <div class="profile-form__group">
+              <label class="profile-form__label">Profile picture</label>
+              <div class="profile-photo-field">
+                <div class="profile-photo-field__preview" id="profilePhotoPreview">
+                  <span>Add Image</span>
+                </div>
+                <div class="profile-photo-field__actions">
+                  <label class="profile-photo-field__button" for="profilePhotoInput">
+                    <input id="profilePhotoInput" type="file" accept="image/*" />
+                    Upload photo
+                  </label>
+                  <button class="profile-photo-field__clear" id="profilePhotoClear" type="button">Remove photo</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="profile-form__group">
+              <label class="profile-form__label" for="profileFirstNameInput">First name</label>
+              <input class="profile-form__input" id="profileFirstNameInput" name="firstName" type="text" placeholder="Name" autocomplete="given-name" />
+            </div>
+
+            <div class="profile-form__group">
+              <label class="profile-form__label" for="profileTeamInput">Team</label>
+              <input class="profile-form__input" id="profileTeamInput" name="team" type="text" placeholder="Team" autocomplete="organization" />
+            </div>
+
+            <div class="profile-form__grid">
+              <div class="profile-form__group">
+                <label class="profile-form__label" for="profileCityInput">City</label>
+                <input class="profile-form__input" id="profileCityInput" name="city" type="text" placeholder="City" autocomplete="address-level2" />
+              </div>
+              <div class="profile-form__group">
+                <label class="profile-form__label" for="profileProvinceInput">Province</label>
+                <input class="profile-form__input" id="profileProvinceInput" name="province" type="text" placeholder="Province" autocomplete="address-level1" />
+              </div>
+            </div>
+
+            <div class="profile-sheet__actions">
+              <button class="profile-sheet__button profile-sheet__button--secondary" type="button" data-profile-close>Cancel</button>
+              <button class="profile-sheet__button profile-sheet__button--primary" type="submit">Save changes</button>
+            </div>
+          </form>
+        </div>
       </div>
     </section>
 

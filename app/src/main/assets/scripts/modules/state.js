@@ -24,6 +24,18 @@
     return Math.floor(num);
   }
 
+  const PROFILE_STRING_LIMIT = 120;
+
+  function defaultProfile(){
+    return {
+      firstName: '',
+      teamName: '',
+      city: '',
+      province: '',
+      photoData: null
+    };
+  }
+
   function defaultState(){
     return {
       activeTeam: 0,
@@ -34,7 +46,8 @@
       game: { seconds: 25*60, running: false, startedAtMs: null, secondsAtStart: null },
       timeout: { running: false, secondsRemaining: 0, team: null, startedAtMs: null, secondsAtStart: null },
       halftime: { running: false, secondsRemaining: 0, startedAtMs: null, secondsAtStart: null },
-      flagged: false
+      flagged: false,
+      profile: defaultProfile()
     };
   }
 
@@ -51,6 +64,33 @@
     if (oldVal <= 1) return 2;
     if (oldVal === 2) return 1;
     return 0;
+  }
+
+  function coerceProfileString(val){
+    if (val == null) return '';
+    const str = String(val).trim();
+    if (!str) return '';
+    if (str.length > PROFILE_STRING_LIMIT) return str.slice(0, PROFILE_STRING_LIMIT);
+    return str;
+  }
+
+  function sanitizeProfile(profile){
+    const base = defaultProfile();
+    if (!profile || typeof profile !== 'object') return base;
+    base.firstName = coerceProfileString(profile.firstName != null ? profile.firstName : profile.fn);
+    base.teamName = coerceProfileString(profile.teamName != null ? profile.teamName : (profile.team != null ? profile.team : profile.tn));
+    base.city = coerceProfileString(profile.city != null ? profile.city : profile.c);
+    base.province = coerceProfileString(profile.province != null ? profile.province : (profile.provinceCode != null ? profile.provinceCode : profile.pv));
+    let photo = profile.photoData != null ? profile.photoData : (profile.photo != null ? profile.photo : (profile.image != null ? profile.image : profile.i));
+    if (typeof photo === 'string') {
+      const trimmed = photo.trim();
+      if (trimmed && trimmed.length <= 350000) {
+        base.photoData = trimmed;
+      } else {
+        base.photoData = null;
+      }
+    }
+    return base;
   }
 
   function serializeState(s){
@@ -88,7 +128,8 @@
         startedAtMs: coerceMs(halftime.startedAtMs),
         secondsAtStart: halftime.secondsAtStart != null ? coerceSeconds(halftime.secondsAtStart) : null
       },
-      flagged: !!s.flagged
+      flagged: !!s.flagged,
+      profile: sanitizeProfile(s.profile)
     };
     if (!safe.game.startedAtMs) safe.game.startedAtMs = null;
     if (!safe.game.secondsAtStart) safe.game.secondsAtStart = null;
@@ -96,6 +137,7 @@
     if (!safe.timeout.secondsAtStart) safe.timeout.secondsAtStart = null;
     if (!safe.halftime.startedAtMs) safe.halftime.startedAtMs = null;
     if (!safe.halftime.secondsAtStart) safe.halftime.secondsAtStart = null;
+    if (!safe.profile.photoData) safe.profile.photoData = null;
     return safe;
   }
 
@@ -205,6 +247,9 @@
 
       const flaggedRaw = obj.flagged != null ? obj.flagged : (obj.f != null ? obj.f : null);
       base.flagged = flaggedRaw === true || flaggedRaw === 1;
+
+      const profileRaw = obj.profile != null ? obj.profile : (obj.p != null ? obj.p : null);
+      base.profile = sanitizeProfile(profileRaw);
     } catch {}
     return base;
   }
@@ -255,7 +300,14 @@
     try { localStorage.setItem(STORAGE_KEY, payload); }
     catch(e){
       try {
-        const tiny = JSON.stringify({
+        const profile = sanitizeProfile(state.profile);
+        const profilePayload = {};
+        if (profile.firstName) profilePayload.fn = profile.firstName;
+        if (profile.teamName) profilePayload.tn = profile.teamName;
+        if (profile.city) profilePayload.c = profile.city;
+        if (profile.province) profilePayload.pv = profile.province;
+        if (profile.photoData) profilePayload.ph = profile.photoData;
+        const tinyObj = {
           a: state.activeTeam,
           t: state.teams.map(t=>({n:t.name, s:t.score|0, d:t.downs|0, g:Math.min(2,Math.max(0,t.girlPlay|0)), r:t.rushes|0, o:t.timeouts|0})),
           g: {
@@ -278,7 +330,9 @@
             ms: state.halftime.startedAtMs != null ? coerceMs(state.halftime.startedAtMs) : null
           },
           f: state.flagged === true
-        });
+        };
+        if (Object.keys(profilePayload).length) tinyObj.p = profilePayload;
+        const tiny = JSON.stringify(tinyObj);
         localStorage.setItem(STORAGE_KEY, tiny);
       } catch(e2){ try{ localStorage.removeItem(STORAGE_KEY);}catch{} }
     }
@@ -384,9 +438,11 @@
   exports.coerceMs = coerceMs;
   exports.coerceSeconds = coerceSeconds;
   exports.defaultState = defaultState;
+  exports.defaultProfile = defaultProfile;
   exports.VALUE_RULES = VALUE_RULES;
   exports.migrateGirlPlay = migrateGirlPlay;
   exports.serializeState = serializeState;
+  exports.sanitizeProfile = sanitizeProfile;
   exports.inflate = inflate;
   exports.loadMigrated = loadMigrated;
   exports.loadViewMode = loadViewMode;

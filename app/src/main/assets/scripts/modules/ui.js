@@ -311,6 +311,49 @@
     }
   }
 
+  function escapeCssUrl(val){
+    if (typeof val !== 'string') return '';
+    return val.replace(/"/g, '\\"');
+  }
+
+  function renderProfileOverview(){
+    if (!exports.$) return;
+    const card = exports.$('#profileOverview');
+    if (!card) return;
+    const sanitize = typeof exports.sanitizeProfile === 'function' ? exports.sanitizeProfile : null;
+    const rawProfile = exports.state && exports.state.profile ? exports.state.profile : {};
+    const profile = sanitize ? sanitize(rawProfile) : rawProfile;
+    const firstName = profile.firstName && profile.firstName.trim() ? profile.firstName.trim() : 'Name';
+    const teamName = profile.teamName && profile.teamName.trim() ? profile.teamName.trim() : 'Team';
+    const nameEl = exports.$('#profileFirstName');
+    if (nameEl) nameEl.textContent = firstName;
+    const teamEl = exports.$('#profileTeamName');
+    if (teamEl) teamEl.textContent = teamName;
+    const locationEl = exports.$('#profileLocation');
+    if (locationEl) {
+      const parts = [];
+      if (profile.city) parts.push(profile.city);
+      if (profile.province) parts.push(profile.province);
+      const locationText = parts.join(', ');
+      locationEl.textContent = locationText || 'City, Province';
+      locationEl.classList.toggle('is-placeholder', !locationText);
+    }
+    const avatarEl = exports.$('#profileAvatar');
+    if (avatarEl) {
+      if (profile.photoData) {
+        avatarEl.classList.add('has-image');
+        avatarEl.style.backgroundImage = `url("${escapeCssUrl(profile.photoData)}")`;
+      } else {
+        avatarEl.classList.remove('has-image');
+        avatarEl.style.backgroundImage = '';
+      }
+    }
+    const accessibleLabel = firstName && firstName !== 'Name'
+      ? `Edit profile for ${firstName}`
+      : 'Edit profile';
+    card.setAttribute('aria-label', accessibleLabel);
+  }
+
   function renderPage(){
     const activePage = exports.currentPage || 'game';
     document.body.dataset.page = activePage;
@@ -475,6 +518,7 @@
       else delete downTileEl.dataset.possession;
     }
     renderTeams();
+    renderProfileOverview();
     renderPage();
     renderGameStatsView();
     syncTimersWithState();
@@ -495,6 +539,7 @@
   exports.updateGirlTrack = updateGirlTrack;
   exports.renderGameStatsView = renderGameStatsView;
   exports.renderTeams = renderTeams;
+  exports.renderProfileOverview = renderProfileOverview;
   exports.renderPage = renderPage;
   exports.syncTimersWithState = syncTimersWithState;
   exports.render = render;
