@@ -320,7 +320,7 @@
     .app {
       max-width: 1040px;
       margin: 0 auto;
-      padding: 16px 12px 32px;
+      padding: 16px 24px 32px;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -335,7 +335,7 @@
     }
 
     body[data-page="game"] .app {
-      overflow: hidden;
+      overflow: visible;
     }
 
     .page { display: none; }
@@ -346,7 +346,7 @@
     }
 
     body[data-page="game"] .page.active {
-      overflow: hidden;
+      overflow: visible;
     }
 
     body[data-view="player"][data-page="game"] .page.active {
