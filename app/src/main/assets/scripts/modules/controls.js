@@ -997,27 +997,95 @@
     const photoInput = document.getElementById('profilePhotoInput');
     const photoPreview = document.getElementById('profilePhotoPreview');
     const clearPhotoBtn = document.getElementById('profilePhotoClear');
-    const firstNameInput = document.getElementById('profileFirstNameInput');
-    const teamInput = document.getElementById('profileTeamInput');
-    const cityInput = document.getElementById('profileCityInput');
-    const provinceInput = document.getElementById('profileProvinceInput');
+    const fieldSheet = document.getElementById('profileFieldSheet');
+    const fieldPanel = fieldSheet ? fieldSheet.querySelector('.profile-field-sheet__panel') : null;
+    const fieldForm = document.getElementById('profileFieldForm');
+    const fieldInput = document.getElementById('profileFieldInput');
+    const fieldTitle = document.getElementById('profileFieldTitle');
+    const fieldDescription = document.getElementById('profileFieldDescription');
+    const fieldHelper = document.getElementById('profileFieldHelper');
+    const fieldLabel = document.getElementById('profileFieldLabel');
+    const fieldButtons = Array.from(sheet.querySelectorAll('[data-profile-field]'));
+    const fieldDisplays = {};
+    const fieldMeta = {};
+    fieldButtons.forEach((btn) => {
+      const key = btn.dataset.profileField;
+      if (!key) return;
+      const valueEl = btn.querySelector('[data-profile-field-value]');
+      if (valueEl) fieldDisplays[key] = valueEl;
+      const title = btn.dataset.profileFieldTitle || btn.getAttribute('aria-label') || key;
+      const name = btn.dataset.profileFieldName || title;
+      fieldMeta[key] = {
+        title,
+        name,
+        placeholder: btn.dataset.profileFieldPlaceholder || title,
+        helper: btn.dataset.profileFieldTitle || name
+      };
+    });
     const sanitize = typeof exports.sanitizeProfile === 'function' ? exports.sanitizeProfile : null;
     let pendingImage = null;
+    let pendingProfile = null;
     let lastFocusedElement = null;
     let closeFallback = null;
+    let activeFieldKey = null;
+    let activeFieldButton = null;
+    let fieldCloseFallback = null;
+    const visualViewport = window.visualViewport || null;
 
     if (sheet.dataset.open !== 'true') {
       sheet.setAttribute('aria-hidden', 'true');
       sheet.hidden = true;
     }
+    if (fieldSheet && fieldSheet.dataset.open !== 'true') {
+      fieldSheet.setAttribute('aria-hidden', 'true');
+      fieldSheet.hidden = true;
+    }
+
+    const getFieldMeta = (key) => {
+      if (!key) return { title: 'Field', name: 'field', placeholder: 'Value', helper: 'Field' };
+      const base = fieldMeta[key];
+      if (base) {
+        const title = base.title || key;
+        const name = base.name || title;
+        return {
+          title,
+          name,
+          placeholder: base.placeholder || title,
+          helper: base.helper || title
+        };
+      }
+      const label = key.replace(/([A-Z])/g, ' $1').replace(/\s+/g, ' ').trim() || key;
+      const title = label.replace(/^\w/, (c) => c.toUpperCase());
+      return {
+        title,
+        name: label.toLowerCase(),
+        placeholder: title,
+        helper: title
+      };
+    };
 
     const getProfile = () => {
       const source = exports.state && exports.state.profile ? exports.state.profile : {};
       return sanitize ? sanitize(source) : source;
     };
 
+    const updateFieldDisplays = (profile) => {
+      const source = profile || pendingProfile || getProfile();
+      Object.keys(fieldDisplays).forEach((key) => {
+        const meta = getFieldMeta(key);
+        const valueEl = fieldDisplays[key];
+        if (!valueEl) return;
+        const raw = source && source[key] != null ? String(source[key]) : '';
+        const trimmed = raw.trim();
+        const display = trimmed || meta.placeholder || meta.title;
+        valueEl.textContent = display;
+        valueEl.classList.toggle('is-placeholder', !trimmed);
+      });
+    };
+
     const setPreview = (dataUrl) => {
       pendingImage = dataUrl && typeof dataUrl === 'string' && dataUrl.trim() ? dataUrl.trim() : null;
+      if (pendingProfile) pendingProfile.photoData = pendingImage;
       if (!photoPreview) return;
       if (pendingImage) {
         photoPreview.classList.add('has-image');
@@ -1030,18 +1098,82 @@
 
     const fillForm = () => {
       const profile = getProfile();
-      if (firstNameInput) firstNameInput.value = profile.firstName || '';
-      if (teamInput) teamInput.value = profile.teamName || '';
-      if (cityInput) cityInput.value = profile.city || '';
-      if (provinceInput) provinceInput.value = profile.province || '';
-      setPreview(profile.photoData || null);
+      pendingProfile = Object.assign({}, profile);
+      pendingImage = pendingProfile.photoData || null;
+      updateFieldDisplays(pendingProfile);
+      setPreview(pendingImage);
       if (photoInput) photoInput.value = '';
+    };
+
+    const updateKeyboardInset = () => {
+      if (!fieldSheet || fieldSheet.dataset.open !== 'true' || !visualViewport) return;
+      const bottomOffset = Math.max(0, (window.innerHeight - visualViewport.height - visualViewport.offsetTop));
+      fieldSheet.style.setProperty('--keyboard-inset', `${bottomOffset}px`);
+    };
+
+    const attachViewportListeners = () => {
+      if (!visualViewport) return;
+      visualViewport.addEventListener('resize', updateKeyboardInset);
+      visualViewport.addEventListener('scroll', updateKeyboardInset);
+      updateKeyboardInset();
+    };
+
+    const detachViewportListeners = () => {
+      if (!visualViewport) return;
+      visualViewport.removeEventListener('resize', updateKeyboardInset);
+      visualViewport.removeEventListener('scroll', updateKeyboardInset);
+      if (fieldSheet) fieldSheet.style.removeProperty('--keyboard-inset');
+    };
+
+    const finalizeFieldClose = (focusField = false) => {
+      if (fieldSheet) {
+        fieldSheet.hidden = true;
+        fieldSheet.style.removeProperty('--keyboard-inset');
+      }
+      fieldCloseFallback = null;
+      detachViewportListeners();
+      const target = focusField ? (activeFieldButton || null) : null;
+      activeFieldKey = null;
+      activeFieldButton = null;
+      if (target && typeof target.focus === 'function') {
+        try { target.focus(); } catch {}
+      }
+    };
+
+    const closeFieldSheet = (focusField = false) => {
+      if (!fieldSheet) return;
+      if (fieldSheet.dataset.open !== 'true') {
+        finalizeFieldClose(focusField);
+        return;
+      }
+      fieldSheet.dataset.open = 'false';
+      fieldSheet.setAttribute('aria-hidden', 'true');
+      detachViewportListeners();
+      if (fieldPanel) {
+        const onEnd = (ev) => {
+          if (ev.target !== fieldPanel) return;
+          fieldPanel.removeEventListener('transitionend', onEnd);
+          if (fieldCloseFallback != null) clearTimeout(fieldCloseFallback);
+          if (fieldSheet.dataset.open === 'true') return;
+          finalizeFieldClose(focusField);
+        };
+        fieldPanel.addEventListener('transitionend', onEnd);
+        fieldCloseFallback = window.setTimeout(() => {
+          fieldPanel.removeEventListener('transitionend', onEnd);
+          if (fieldSheet.dataset.open === 'true') return;
+          finalizeFieldClose(focusField);
+        }, 320);
+      } else {
+        finalizeFieldClose(focusField);
+      }
     };
 
     const finalizeClose = (focusTrigger = false) => {
       sheet.hidden = true;
       document.body.classList.remove('profile-sheet-open');
       closeFallback = null;
+      pendingProfile = null;
+      pendingImage = null;
       if (focusTrigger) {
         const focusTarget = lastFocusedElement && typeof lastFocusedElement.focus === 'function'
           ? lastFocusedElement
@@ -1051,6 +1183,7 @@
     };
 
     const closeSheet = (focusTrigger = false) => {
+      closeFieldSheet(false);
       if (sheet.dataset.open !== 'true') {
         finalizeClose(focusTrigger);
         return;
@@ -1076,6 +1209,42 @@
       }
     };
 
+    const openFieldSheet = (key, button) => {
+      if (!fieldSheet) return;
+      if (!pendingProfile) fillForm();
+      activeFieldKey = key;
+      activeFieldButton = button || null;
+      const meta = getFieldMeta(key);
+      const currentValue = pendingProfile && pendingProfile[key] != null ? String(pendingProfile[key]) : '';
+      if (fieldTitle) fieldTitle.textContent = meta.title;
+      if (fieldDescription) fieldDescription.textContent = `Please enter your ${meta.name.toLowerCase()}.`;
+      if (fieldHelper) fieldHelper.textContent = meta.helper;
+      if (fieldLabel) fieldLabel.textContent = meta.title;
+      if (fieldInput) {
+        fieldInput.value = currentValue;
+        fieldInput.placeholder = meta.placeholder || '';
+        fieldInput.setAttribute('name', key || 'profileField');
+      }
+      if (fieldSheet.hidden) fieldSheet.hidden = false;
+      requestAnimationFrame(() => {
+        fieldSheet.dataset.open = 'true';
+        fieldSheet.setAttribute('aria-hidden', 'false');
+        if (fieldPanel && typeof fieldPanel.focus === 'function') {
+          try { fieldPanel.focus(); } catch {}
+        }
+        attachViewportListeners();
+        window.setTimeout(() => {
+          if (fieldInput && typeof fieldInput.focus === 'function') {
+            try {
+              fieldInput.focus();
+              const len = fieldInput.value.length;
+              fieldInput.setSelectionRange(len, len);
+            } catch {}
+          }
+        }, 160);
+      });
+    };
+
     const openSheet = () => {
       if (sheet.dataset.open === 'true') return;
       lastFocusedElement = document.activeElement && typeof document.activeElement.focus === 'function'
@@ -1091,34 +1260,41 @@
         sheet.dataset.open = 'true';
         sheet.setAttribute('aria-hidden', 'false');
         document.body.classList.add('profile-sheet-open');
+        if (panel && typeof panel.focus === 'function') {
+          try { panel.focus(); } catch {}
+        }
         window.setTimeout(() => {
-          if (firstNameInput) {
-            try { firstNameInput.focus(); } catch {}
+          const focusTarget = fieldButtons[0] || clearPhotoBtn || panel;
+          if (focusTarget && typeof focusTarget.focus === 'function') {
+            try { focusTarget.focus(); } catch {}
           }
-        }, 120);
+        }, 140);
       });
     };
 
     const handleSubmit = (ev) => {
       ev.preventDefault();
-      const payload = {
-        firstName: firstNameInput ? firstNameInput.value : '',
-        teamName: teamInput ? teamInput.value : '',
-        city: cityInput ? cityInput.value : '',
-        province: provinceInput ? provinceInput.value : '',
-        photoData: pendingImage
-      };
+      if (!pendingProfile) fillForm();
+      const payload = Object.assign({}, pendingProfile || getProfile(), { photoData: pendingImage });
       const normalized = sanitize ? sanitize(payload) : payload;
       pendingImage = normalized.photoData || null;
+      pendingProfile = Object.assign({}, normalized);
       exports.state.profile = normalized;
       exports.renderAndPersist();
       closeSheet(true);
     };
 
     const handleKeyDown = (ev) => {
-      if (ev.key === 'Escape' && sheet.dataset.open === 'true') {
-        ev.preventDefault();
-        closeSheet(true);
+      if (ev.key === 'Escape') {
+        if (fieldSheet && fieldSheet.dataset.open === 'true') {
+          ev.preventDefault();
+          closeFieldSheet(true);
+          return;
+        }
+        if (sheet.dataset.open === 'true') {
+          ev.preventDefault();
+          closeSheet(true);
+        }
       }
     };
 
@@ -1135,6 +1311,27 @@
       if (photoInput) photoInput.value = '';
     };
 
+    const handleFieldSubmit = (ev) => {
+      ev.preventDefault();
+      if (!activeFieldKey) {
+        closeFieldSheet(true);
+        return;
+      }
+      if (!pendingProfile) fillForm();
+      const current = Object.assign({}, pendingProfile || {});
+      current[activeFieldKey] = fieldInput ? fieldInput.value : '';
+      current.photoData = pendingImage;
+      const normalized = sanitize ? sanitize(current) : current;
+      pendingProfile = Object.assign({}, normalized);
+      pendingImage = normalized.photoData || pendingImage || null;
+      updateFieldDisplays(pendingProfile);
+      if (fieldInput) {
+        const newValue = pendingProfile[activeFieldKey];
+        fieldInput.value = newValue != null ? String(newValue) : '';
+      }
+      closeFieldSheet(true);
+    };
+
     trigger.addEventListener('click', openSheet);
     trigger.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') {
@@ -1146,13 +1343,27 @@
     document.addEventListener('keydown', handleKeyDown);
     if (photoInput) photoInput.addEventListener('change', handlePhotoChange);
     if (clearPhotoBtn) clearPhotoBtn.addEventListener('click', handleClearPhoto);
-    sheet.querySelectorAll('[data-profile-close]').forEach(el => {
+    sheet.querySelectorAll('[data-profile-close]').forEach((el) => {
       el.addEventListener('click', (ev) => {
         ev.preventDefault();
         closeSheet(true);
       });
     });
+    fieldButtons.forEach((btn) => {
+      const key = btn.dataset.profileField;
+      btn.addEventListener('click', () => openFieldSheet(key, btn));
+    });
+    if (fieldForm) fieldForm.addEventListener('submit', handleFieldSubmit);
+    if (fieldSheet) {
+      fieldSheet.querySelectorAll('[data-profile-field-close]').forEach((el) => {
+        el.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          closeFieldSheet(true);
+        });
+      });
+    }
   }
+
 
   function bindViewPicker(){
     const picker = document.getElementById('viewPicker');
