@@ -153,24 +153,6 @@
 
       </div>
 
-      <div class="profile-field-sheet" id="profileFieldSheet" aria-hidden="true" data-open="false">
-        <div class="profile-field-sheet__backdrop" data-profile-field-close></div>
-        <div class="profile-field-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="profileFieldTitle" tabindex="-1">
-          <header class="profile-field-sheet__header">
-            <h2 id="profileFieldTitle">Field</h2>
-            <button class="profile-field-sheet__close" type="button" data-profile-field-close aria-label="Close field editor"></button>
-          </header>
-          <form id="profileFieldForm" class="profile-field-form">
-            <p class="profile-field-form__description" id="profileFieldDescription">Please enter your value.</p>
-            <label class="profile-field-form__label sr-only" id="profileFieldLabel" for="profileFieldInput">Profile field</label>
-            <input class="profile-field-form__input" id="profileFieldInput" type="text" aria-describedby="profileFieldDescription profileFieldHelper" autocomplete="off" />
-            <div class="profile-field-form__helper" id="profileFieldHelper">Field helper</div>
-            <div class="profile-field-form__actions">
-              <button class="profile-field-form__button" type="submit">Save</button>
-            </div>
-          </form>
-        </div>
-      </div>
     </section>
 
     <section class="page" data-page="schedule" aria-labelledby="scheduleTitle">
@@ -320,6 +302,25 @@
             <div class="profile-sheet__actions">
               <button class="profile-sheet__button profile-sheet__button--secondary" type="button" data-profile-close>Cancel</button>
               <button class="profile-sheet__button profile-sheet__button--primary" type="submit">Save changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="profile-field-sheet" id="profileFieldSheet" aria-hidden="true" data-open="false">
+        <div class="profile-field-sheet__backdrop" data-profile-field-close></div>
+        <div class="profile-field-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="profileFieldTitle" tabindex="-1">
+          <header class="profile-field-sheet__header">
+            <h2 id="profileFieldTitle">Field</h2>
+            <button class="profile-field-sheet__close" type="button" data-profile-field-close aria-label="Close field editor"></button>
+          </header>
+          <form id="profileFieldForm" class="profile-field-form">
+            <p class="profile-field-form__description" id="profileFieldDescription">Please enter your value.</p>
+            <label class="profile-field-form__label sr-only" id="profileFieldLabel" for="profileFieldInput">Profile field</label>
+            <input class="profile-field-form__input" id="profileFieldInput" type="text" aria-describedby="profileFieldDescription profileFieldHelper" autocomplete="off" />
+            <div class="profile-field-form__helper" id="profileFieldHelper">Field helper</div>
+            <div class="profile-field-form__actions">
+              <button class="profile-field-form__button" type="submit">Save</button>
             </div>
           </form>
         </div>
