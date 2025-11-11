@@ -3,6 +3,13 @@
 
   const ALLOWED_PAGES = ['game', 'schedule', 'profile', 'teams', 'statistician'];
   const VIEW_PICKER_CLOSE_EVENT = 'app:view-picker-close-request';
+  const CSS_URL_QUOTE = /"/g;
+  const MAX_PROFILE_IMAGE_DIMENSION = 512;
+
+  function escapeCssUrl(val){
+    if (typeof val !== 'string') return '';
+    return val.replace(CSS_URL_QUOTE, '\\"');
+  }
 
   function mutateTeam(teamIdx, mutator){
     if (exports.viewMode !== 'ref') return false;
@@ -942,6 +949,211 @@
     }
   }
 
+  async function readProfileImage(file){
+    if (!file || typeof FileReader === 'undefined') return null;
+    const base64 = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      try { reader.readAsDataURL(file); }
+      catch { resolve(null); }
+    });
+    if (typeof base64 !== 'string' || !base64) return null;
+    if (!base64.startsWith('data:image')) return base64;
+    try {
+      const img = await new Promise((resolve) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => resolve(null);
+        image.src = base64;
+      });
+      if (!img || !img.width || !img.height) return base64;
+      const maxDim = Math.max(img.width, img.height);
+      const scale = maxDim > MAX_PROFILE_IMAGE_DIMENSION ? (MAX_PROFILE_IMAGE_DIMENSION / maxDim) : 1;
+      if (scale >= 1 && base64.length <= 350000) return base64.trim();
+      const width = Math.max(1, Math.round(img.width * scale));
+      const height = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return base64.trim();
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      const mime = (file.type && /^image\//.test(file.type)) ? file.type : 'image/png';
+      if (mime === 'image/png') return canvas.toDataURL('image/png');
+      return canvas.toDataURL(mime, 0.85);
+    } catch {
+      return base64.trim();
+    }
+  }
+
+  function bindProfileControls(){
+    const trigger = document.getElementById('profileOverview');
+    const sheet = document.getElementById('profileEditor');
+    const form = document.getElementById('profileForm');
+    if (!trigger || !sheet || !form) return;
+    const panel = sheet.querySelector('.profile-sheet__panel');
+    const photoInput = document.getElementById('profilePhotoInput');
+    const photoPreview = document.getElementById('profilePhotoPreview');
+    const clearPhotoBtn = document.getElementById('profilePhotoClear');
+    const firstNameInput = document.getElementById('profileFirstNameInput');
+    const teamInput = document.getElementById('profileTeamInput');
+    const cityInput = document.getElementById('profileCityInput');
+    const provinceInput = document.getElementById('profileProvinceInput');
+    const sanitize = typeof exports.sanitizeProfile === 'function' ? exports.sanitizeProfile : null;
+    let pendingImage = null;
+    let lastFocusedElement = null;
+    let closeFallback = null;
+
+    if (sheet.dataset.open !== 'true') {
+      sheet.setAttribute('aria-hidden', 'true');
+      sheet.hidden = true;
+    }
+
+    const getProfile = () => {
+      const source = exports.state && exports.state.profile ? exports.state.profile : {};
+      return sanitize ? sanitize(source) : source;
+    };
+
+    const setPreview = (dataUrl) => {
+      pendingImage = dataUrl && typeof dataUrl === 'string' && dataUrl.trim() ? dataUrl.trim() : null;
+      if (!photoPreview) return;
+      if (pendingImage) {
+        photoPreview.classList.add('has-image');
+        photoPreview.style.backgroundImage = `url("${escapeCssUrl(pendingImage)}")`;
+      } else {
+        photoPreview.classList.remove('has-image');
+        photoPreview.style.backgroundImage = '';
+      }
+    };
+
+    const fillForm = () => {
+      const profile = getProfile();
+      if (firstNameInput) firstNameInput.value = profile.firstName || '';
+      if (teamInput) teamInput.value = profile.teamName || '';
+      if (cityInput) cityInput.value = profile.city || '';
+      if (provinceInput) provinceInput.value = profile.province || '';
+      setPreview(profile.photoData || null);
+      if (photoInput) photoInput.value = '';
+    };
+
+    const finalizeClose = (focusTrigger = false) => {
+      sheet.hidden = true;
+      document.body.classList.remove('profile-sheet-open');
+      closeFallback = null;
+      if (focusTrigger) {
+        const focusTarget = lastFocusedElement && typeof lastFocusedElement.focus === 'function'
+          ? lastFocusedElement
+          : trigger;
+        try { focusTarget && focusTarget.focus(); } catch {}
+      }
+    };
+
+    const closeSheet = (focusTrigger = false) => {
+      if (sheet.dataset.open !== 'true') {
+        finalizeClose(focusTrigger);
+        return;
+      }
+      sheet.dataset.open = 'false';
+      sheet.setAttribute('aria-hidden', 'true');
+      if (panel) {
+        const onEnd = (ev) => {
+          if (ev.target !== panel) return;
+          panel.removeEventListener('transitionend', onEnd);
+          if (closeFallback != null) clearTimeout(closeFallback);
+          if (sheet.dataset.open === 'true') return;
+          finalizeClose(focusTrigger);
+        };
+        panel.addEventListener('transitionend', onEnd);
+        closeFallback = window.setTimeout(() => {
+          panel.removeEventListener('transitionend', onEnd);
+          if (sheet.dataset.open === 'true') return;
+          finalizeClose(focusTrigger);
+        }, 380);
+      } else {
+        finalizeClose(focusTrigger);
+      }
+    };
+
+    const openSheet = () => {
+      if (sheet.dataset.open === 'true') return;
+      lastFocusedElement = document.activeElement && typeof document.activeElement.focus === 'function'
+        ? document.activeElement
+        : trigger;
+      if (closeFallback != null) {
+        clearTimeout(closeFallback);
+        closeFallback = null;
+      }
+      fillForm();
+      sheet.hidden = false;
+      requestAnimationFrame(() => {
+        sheet.dataset.open = 'true';
+        sheet.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('profile-sheet-open');
+        window.setTimeout(() => {
+          if (firstNameInput) {
+            try { firstNameInput.focus(); } catch {}
+          }
+        }, 120);
+      });
+    };
+
+    const handleSubmit = (ev) => {
+      ev.preventDefault();
+      const payload = {
+        firstName: firstNameInput ? firstNameInput.value : '',
+        teamName: teamInput ? teamInput.value : '',
+        city: cityInput ? cityInput.value : '',
+        province: provinceInput ? provinceInput.value : '',
+        photoData: pendingImage
+      };
+      const normalized = sanitize ? sanitize(payload) : payload;
+      pendingImage = normalized.photoData || null;
+      exports.state.profile = normalized;
+      exports.renderAndPersist();
+      closeSheet(true);
+    };
+
+    const handleKeyDown = (ev) => {
+      if (ev.key === 'Escape' && sheet.dataset.open === 'true') {
+        ev.preventDefault();
+        closeSheet(true);
+      }
+    };
+
+    const handlePhotoChange = async (ev) => {
+      const files = ev.target && ev.target.files ? Array.from(ev.target.files) : [];
+      if (!files.length) return;
+      const dataUrl = await readProfileImage(files[0]);
+      setPreview(dataUrl);
+      if (photoInput) photoInput.value = '';
+    };
+
+    const handleClearPhoto = () => {
+      setPreview(null);
+      if (photoInput) photoInput.value = '';
+    };
+
+    trigger.addEventListener('click', openSheet);
+    trigger.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        openSheet();
+      }
+    });
+    form.addEventListener('submit', handleSubmit);
+    document.addEventListener('keydown', handleKeyDown);
+    if (photoInput) photoInput.addEventListener('change', handlePhotoChange);
+    if (clearPhotoBtn) clearPhotoBtn.addEventListener('click', handleClearPhoto);
+    sheet.querySelectorAll('[data-profile-close]').forEach(el => {
+      el.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        closeSheet(true);
+      });
+    });
+  }
+
   function bindViewPicker(){
     const picker = document.getElementById('viewPicker');
     const toggle = document.getElementById('viewIndicator');
@@ -1208,6 +1420,7 @@
     bindControlCarousel();
     bindMenuControls();
     bindBottomNav();
+    bindProfileControls();
     bindViewPicker();
     bindRemoteForm();
     runSelfTests();
