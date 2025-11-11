@@ -990,10 +990,10 @@
     .score-actions .action-row.action-row--single { grid-template-columns: 1fr; }
 
     .manual-adjust { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
-    .adjust-card { background:var(--card); border:none; border-radius:16px; padding:24px; display:flex; align-items:center; gap:12px; box-shadow:var(--tile-shadow); }
-    .adjust-title { font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); font-weight:800; white-space:nowrap; }
-    .adjust-buttons { display:flex; gap:10px; align-items:center; }
-    .adjust-btn { width:44px; height:44px; border-radius:12px; border:none; background:#ffffff; color:var(--ink); font-size:20px; font-weight:800; cursor:pointer; box-shadow:2px 4px 4px rgba(15,23,42,0.12); }
+    .adjust-card { background:var(--card); border:none; border-radius:16px; padding:24px; display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:16px; text-align:center; box-shadow:var(--tile-shadow); }
+    .adjust-title { font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); font-weight:800; white-space:nowrap; width:100%; text-align:center; }
+    .adjust-buttons { display:flex; gap:14px; align-items:center; justify-content:center; width:100%; }
+    .adjust-btn { width:56px; height:56px; border-radius:14px; border:none; background:#ffffff; color:var(--ink); font-size:24px; font-weight:800; cursor:pointer; box-shadow:2px 4px 4px rgba(15,23,42,0.12); }
     .adjust-btn:active { transform:scale(0.96); }
 
     @media (max-width: 900px) {
@@ -1058,21 +1058,12 @@
         align-items: stretch;
       }
       .game-board .manual-adjust .adjust-card {
-        flex-direction: column;
-        align-items: stretch;
-        justify-content: space-between;
-        gap: 12px;
-        text-align: center;
         height: 100%;
-      }
-      .game-board .manual-adjust .adjust-title {
-        width: 100%;
       }
       .game-board .manual-adjust .adjust-buttons {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        width: 100%;
+        gap: 12px;
       }
       .game-board .manual-adjust .adjust-btn {
         width: 100%;
