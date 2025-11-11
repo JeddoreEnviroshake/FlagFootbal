@@ -1358,6 +1358,16 @@
         closeSheet(true);
       });
     });
+    sheet.addEventListener('click', (ev) => {
+      const fieldButton = ev.target && typeof ev.target.closest === 'function'
+        ? ev.target.closest('[data-profile-field]')
+        : null;
+      if (!fieldButton || !sheet.contains(fieldButton)) return;
+      ev.preventDefault();
+      const key = fieldButton.dataset ? fieldButton.dataset.profileField : null;
+      if (!key) return;
+      openFieldSheet(key, fieldButton);
+    });
     if (fieldForm) fieldForm.addEventListener('submit', handleFieldSubmit);
     if (fieldSheet) {
       fieldSheet.querySelectorAll('[data-profile-field-close]').forEach((el) => {
