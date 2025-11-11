@@ -1242,15 +1242,6 @@
           try { fieldPanel.focus(); } catch {}
         }
         attachViewportListeners();
-        window.setTimeout(() => {
-          if (fieldInput && typeof fieldInput.focus === 'function') {
-            try {
-              fieldInput.focus();
-              const len = fieldInput.value.length;
-              fieldInput.setSelectionRange(len, len);
-            } catch {}
-          }
-        }, 160);
       });
     }
 
