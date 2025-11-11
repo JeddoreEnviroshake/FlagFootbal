@@ -1349,9 +1349,15 @@
         closeSheet(true);
       });
     });
-    fieldButtons.forEach((btn) => {
-      const key = btn.dataset.profileField;
-      btn.addEventListener('click', () => openFieldSheet(key, btn));
+    sheet.addEventListener('click', (ev) => {
+      const fieldButton = ev.target && typeof ev.target.closest === 'function'
+        ? ev.target.closest('[data-profile-field]')
+        : null;
+      if (!fieldButton || !sheet.contains(fieldButton)) return;
+      ev.preventDefault();
+      const key = fieldButton.dataset ? fieldButton.dataset.profileField : null;
+      if (!key) return;
+      openFieldSheet(key, fieldButton);
     });
     if (fieldForm) fieldForm.addEventListener('submit', handleFieldSubmit);
     if (fieldSheet) {
