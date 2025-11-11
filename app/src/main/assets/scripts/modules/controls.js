@@ -1829,6 +1829,14 @@
         }
       });
     }
+    const addPlayerBtn = exports.$ ? exports.$('#teamsAddPlayer') : null;
+    if (addPlayerBtn) {
+      addPlayerBtn.addEventListener('click', () => {
+        if (typeof exports.handleAddPlayer === 'function') {
+          exports.handleAddPlayer();
+        }
+      });
+    }
     if (typeof exports.ensureTeamsListener === 'function') {
       try { exports.ensureTeamsListener(); }
       catch (err) { console.warn('[teams] ensure listener failed', err); }
