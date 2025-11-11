@@ -330,8 +330,8 @@
     document.querySelectorAll('.bottom-nav__item').forEach(btn => {
       const targetPage = btn.dataset.page || 'game';
       const requiredView = btn.dataset.view;
-      const matchesPage = targetPage === activePage;
-      const matchesView = !requiredView || requiredView === exports.viewMode;
+      const matchesPage = targetPage === activePage || (targetPage === 'game' && activePage === 'statistician');
+      const matchesView = !requiredView || requiredView === exports.viewMode || targetPage === 'game';
       const isActive = matchesPage && matchesView;
       btn.classList.toggle('is-active', isActive);
       btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
