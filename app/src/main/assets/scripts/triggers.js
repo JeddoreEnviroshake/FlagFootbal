@@ -59,7 +59,27 @@ window.triggerGirlPlay = function () {
     window.scrollTo(0, scrollY);
   }
 
+  // Helper: seed the big Edit Profile sheet preview spans from state
+  function seedProfileEditorFromState(){
+    const p = (window.App?.state?.profile) || {};
+    const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+
+    const setPreview = (k, val) => {
+      const el = document.querySelector(`[data-profile-field-value="${k}"]`);
+      if (!el) return;
+      const txt = (val || '').trim();
+      el.textContent = txt || placeholders[k];
+      el.classList.toggle('is-placeholder', !txt);
+    };
+
+    setPreview('firstName', p.firstName);
+    setPreview('teamName',  p.teamName);
+    setPreview('city',      p.city);
+    setPreview('province',  p.province);
+  }
+
   // Helper: swap text input -> <select> populated from Firebase Teams
+  // Accepts currentText so the dropdown preselects unsaved preview changes.
   async function setupProfileTeamPicker(currentText) {
     const input = document.getElementById('profileFieldInput');
     if (!input) return;
@@ -98,75 +118,54 @@ window.triggerGirlPlay = function () {
     }
   }
 
+  // Open the big Edit Profile sheet (Profile card button)
+  const profileOverviewBtn = document.getElementById('profileOverview');
+  if (profileOverviewBtn) {
+    profileOverviewBtn.addEventListener('click', () => {
+      const editor = document.getElementById('profileEditor');
+      if (!editor) return;
+      // Seed current state into the four preview rows
+      seedProfileEditorFromState();
+      // Open the sheet
+      editor.setAttribute('data-open', 'true');
+      editor.setAttribute('aria-hidden', 'false');
+      lockScroll();
+    });
+  }
 
-function seedProfileEditorFromState(){
-  const p = (window.App?.state?.profile) || {};
-  const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
-
-  const setPreview = (k, val) => {
-    const el = document.querySelector(`[data-profile-field-value="${k}"]`);
-    if (!el) return;
-    const txt = (val || '').trim();
-    el.textContent = txt || placeholders[k];
-    el.classList.toggle('is-placeholder', !txt);
-  };
-
-  setPreview('firstName', p.firstName);
-  setPreview('teamName',  p.teamName);
-  setPreview('city',      p.city);
-  setPreview('province',  p.province);
-}
-
-// Open the big Edit Profile sheet
-const profileOverviewBtn = document.getElementById('profileOverview');
-if (profileOverviewBtn) {
-  profileOverviewBtn.addEventListener('click', () => {
-    const editor = document.getElementById('profileEditor');
-    if (!editor) return;
-    // Seed current state into the four preview rows
-    seedProfileEditorFromState();
-    // Open the sheet
-    editor.setAttribute('data-open', 'true');
-    editor.setAttribute('aria-hidden', 'false');
-    lockScroll();
+  // Close buttons for the big sheet
+  document.querySelectorAll('[data-profile-close]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const editor = document.getElementById('profileEditor');
+      editor?.setAttribute('data-open', 'false');
+      editor?.setAttribute('aria-hidden', 'true');
+      unlockScroll();
+    });
   });
-}
-
-// Close buttons for the big sheet (re-use existing data-profile-close)
-document.querySelectorAll('[data-profile-close]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const editor = document.getElementById('profileEditor');
-    editor?.setAttribute('data-open', 'false');
-    editor?.setAttribute('aria-hidden', 'true');
-    unlockScroll();
-  });
-});
-
 
   // Open the single-field editor
   function openProfileFieldEditor(fieldKey, opts = {}) {
     if (fieldSheet) fieldSheet.dataset.key = fieldKey;
 
-// Read the current text from the big editor preview (not from state)
-const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
-const previewEl = document.querySelector(`[data-profile-field-value="${fieldKey}"]`);
-const previewTextRaw = (previewEl?.textContent || '').trim();
-const previewText = previewTextRaw && previewTextRaw !== placeholders[fieldKey] ? previewTextRaw : '';
+    // Get current preview text from big editor (not from state)
+    const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+    const previewEl = document.querySelector(`[data-profile-field-value="${fieldKey}"]`);
+    const previewTextRaw = (previewEl?.textContent || '').trim();
+    const previewText = previewTextRaw && previewTextRaw !== placeholders[fieldKey] ? previewTextRaw : '';
 
-
-  (function normalizeInput(){
-    const el = document.getElementById('profileFieldInput');
-    const needsText = fieldKey !== 'teamName';
-    if (needsText && el && el.tagName !== 'INPUT') {
-      const input = document.createElement('input');
-      input.className = 'profile-field-form__input';
-      input.id = 'profileFieldInput';
-      input.type = 'text';
-      input.setAttribute('aria-describedby', 'profileFieldDescription profileFieldHelper');
-      input.autocomplete = 'off';
-      el.replaceWith(input);
-    }
-  })();
+    (function normalizeInput(){
+      const el = document.getElementById('profileFieldInput');
+      const needsText = fieldKey !== 'teamName';
+      if (needsText && el && el.tagName !== 'INPUT') {
+        const input = document.createElement('input');
+        input.className = 'profile-field-form__input';
+        input.id = 'profileFieldInput';
+        input.type = 'text';
+        input.setAttribute('aria-describedby', 'profileFieldDescription profileFieldHelper');
+        input.autocomplete = 'off';
+        el.replaceWith(input);
+      }
+    })();
 
     const titleEl = document.getElementById('profileFieldTitle');
     const descEl  = document.getElementById('profileFieldDescription');
@@ -178,12 +177,15 @@ const previewText = previewTextRaw && previewTextRaw !== placeholders[fieldKey] 
     if (labelEl && opts.name) labelEl.textContent = opts.name;
     if (inputEl && opts.placeholder) inputEl.setAttribute('placeholder', opts.placeholder);
 
-    // Swap to dropdown for Team
+    // Swap to dropdown for Team, otherwise seed input with preview text
     if (fieldKey === 'teamName') {
-      setupProfileTeamPicker();
+      setupProfileTeamPicker(previewText); // pass current preview value
       const helper = document.getElementById('profileFieldHelper');
       if (helper) helper.textContent = 'Pick your team from the directory.';
       if (descEl) descEl.textContent = 'Select your team.';
+    } else {
+      // Prefill text input for non-team fields
+      if (inputEl) inputEl.value = previewText;
     }
 
     fieldSheet?.setAttribute('data-open', 'true');
@@ -204,7 +206,7 @@ const previewText = previewTextRaw && previewTextRaw !== placeholders[fieldKey] 
     });
   });
 
-  // Closers
+  // Closers for the small single-field sheet
   closers.forEach(btn => {
     btn.addEventListener('click', () => {
       fieldSheet?.setAttribute('data-open', 'false');
@@ -213,31 +215,33 @@ const previewText = previewTextRaw && previewTextRaw !== placeholders[fieldKey] 
     });
   });
 
-    // Submit handler — updates the edit-profile card only (no state write here)
-    const profileFieldForm = document.getElementById('profileFieldForm');
-    if (profileFieldForm) {
-      profileFieldForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const key = fieldSheet?.dataset?.key;
-        if (!key) return;
+  // Submit handler — updates the big edit-profile preview only (no state write here)
+  const profileFieldForm = document.getElementById('profileFieldForm');
+  if (profileFieldForm) {
+    profileFieldForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const key = fieldSheet?.dataset?.key;
+      if (!key) return;
 
-        const valEl = document.getElementById('profileFieldInput');
-        const next = valEl ? (valEl.value || '').trim() : '';
+      const valEl = document.getElementById('profileFieldInput');
+      const next = valEl ? (valEl.value || '').trim() : '';
 
-        // Update the visible value in the big Edit Profile sheet
-        const preview = document.querySelector(`[data-profile-field-value="${key}"]`);
-        if (preview) {
-          const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
-          preview.textContent = next || placeholders[key] || '';
-          preview.classList.toggle('is-placeholder', !next);
-        }
+      // Update the visible value in the big Edit Profile sheet
+      const preview = document.querySelector(`[data-profile-field-value="${key}"]`);
+      if (preview) {
+        const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+        preview.textContent = next || placeholders[key] || '';
+        preview.classList.toggle('is-placeholder', !next);
+      }
 
-        // Close the single-field sheet only
-        fieldSheet?.setAttribute('data-open', 'false');
-        fieldSheet?.setAttribute('aria-hidden', 'true');
-        unlockScroll();
-      });
-    }
+      // Close the single-field sheet only
+      fieldSheet?.setAttribute('data-open', 'false');
+      fieldSheet?.setAttribute('aria-hidden', 'true');
+      unlockScroll();
+    });
+  }
+
+  // Main Edit Profile form: persist to state.profile
   const profileForm = document.getElementById('profileForm');
   if (profileForm) {
     profileForm.addEventListener('submit', (e) => {
@@ -257,7 +261,6 @@ const previewText = previewTextRaw && previewTextRaw !== placeholders[fieldKey] 
         }
       });
 
-      if (!window.App.state.profile) window.App.state.profile = {};
       window.App.state.profile = nextProfile;
       if (typeof window.App.renderAndPersist === 'function') {
         window.App.renderAndPersist();
