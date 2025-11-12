@@ -182,8 +182,22 @@
   async function seedStateIfMissing(game){
     if (!remoteSync.canWrite) return;
     const ref = db.ref(`games/${game}/state`);
+    const hasSerializer = exports && typeof exports.serializeState === 'function';
+    const getDefaultState = () => (exports && typeof exports.defaultState === 'function')
+      ? exports.defaultState()
+      : null;
+    const currentState = exports && exports.state ? exports.state : null;
+    const localSeed = hasSerializer
+      ? exports.serializeState(currentState || getDefaultState() || {})
+      : null;
     await ref.transaction(s => {
-      return s || exports.serializeState(exports.defaultState());
+      if (s) return s;
+      if (localSeed) return localSeed;
+      const fallbackSource = getDefaultState();
+      const fallback = hasSerializer && fallbackSource
+        ? exports.serializeState(fallbackSource)
+        : null;
+      return fallback || null;
     });
   }
 
