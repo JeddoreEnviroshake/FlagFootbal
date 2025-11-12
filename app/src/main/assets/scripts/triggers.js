@@ -60,7 +60,7 @@ window.triggerGirlPlay = function () {
   }
 
   // Helper: swap text input -> <select> populated from Firebase Teams
-  async function setupProfileTeamPicker() {
+  async function setupProfileTeamPicker(currentText) {
     const input = document.getElementById('profileFieldInput');
     if (!input) return;
 
@@ -81,8 +81,11 @@ window.triggerGirlPlay = function () {
         select.appendChild(opt);
       });
 
-      // preselect current value if present
-      const current = (window.App?.state?.profile?.teamName || '').trim();
+      // Prefer the preview value (unsaved changes), fall back to state
+      const fromPreview = (currentText || '').trim();
+      const fromState   = (window.App?.state?.profile?.teamName || '').trim();
+      const current = fromPreview || fromState;
+
       if (current) {
         const idx = options.indexOf(current);
         if (idx >= 0) select.selectedIndex = idx;
@@ -95,9 +98,61 @@ window.triggerGirlPlay = function () {
     }
   }
 
+
+function seedProfileEditorFromState(){
+  const p = (window.App?.state?.profile) || {};
+  const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+
+  const setPreview = (k, val) => {
+    const el = document.querySelector(`[data-profile-field-value="${k}"]`);
+    if (!el) return;
+    const txt = (val || '').trim();
+    el.textContent = txt || placeholders[k];
+    el.classList.toggle('is-placeholder', !txt);
+  };
+
+  setPreview('firstName', p.firstName);
+  setPreview('teamName',  p.teamName);
+  setPreview('city',      p.city);
+  setPreview('province',  p.province);
+}
+
+// Open the big Edit Profile sheet
+const profileOverviewBtn = document.getElementById('profileOverview');
+if (profileOverviewBtn) {
+  profileOverviewBtn.addEventListener('click', () => {
+    const editor = document.getElementById('profileEditor');
+    if (!editor) return;
+    // Seed current state into the four preview rows
+    seedProfileEditorFromState();
+    // Open the sheet
+    editor.setAttribute('data-open', 'true');
+    editor.setAttribute('aria-hidden', 'false');
+    lockScroll();
+  });
+}
+
+// Close buttons for the big sheet (re-use existing data-profile-close)
+document.querySelectorAll('[data-profile-close]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const editor = document.getElementById('profileEditor');
+    editor?.setAttribute('data-open', 'false');
+    editor?.setAttribute('aria-hidden', 'true');
+    unlockScroll();
+  });
+});
+
+
   // Open the single-field editor
   function openProfileFieldEditor(fieldKey, opts = {}) {
     if (fieldSheet) fieldSheet.dataset.key = fieldKey;
+
+// Read the current text from the big editor preview (not from state)
+const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+const previewEl = document.querySelector(`[data-profile-field-value="${fieldKey}"]`);
+const previewTextRaw = (previewEl?.textContent || '').trim();
+const previewText = previewTextRaw && previewTextRaw !== placeholders[fieldKey] ? previewTextRaw : '';
+
 
   (function normalizeInput(){
     const el = document.getElementById('profileFieldInput');
@@ -158,25 +213,59 @@ window.triggerGirlPlay = function () {
     });
   });
 
-  // Submit handler — saves to App.state.profile and persists
-  const profileFieldForm = document.getElementById('profileFieldForm');
-  if (profileFieldForm) {
-    profileFieldForm.addEventListener('submit', (e) => {
+    // Submit handler — updates the edit-profile card only (no state write here)
+    const profileFieldForm = document.getElementById('profileFieldForm');
+    if (profileFieldForm) {
+      profileFieldForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const key = fieldSheet?.dataset?.key;
+        if (!key) return;
+
+        const valEl = document.getElementById('profileFieldInput');
+        const next = valEl ? (valEl.value || '').trim() : '';
+
+        // Update the visible value in the big Edit Profile sheet
+        const preview = document.querySelector(`[data-profile-field-value="${key}"]`);
+        if (preview) {
+          const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+          preview.textContent = next || placeholders[key] || '';
+          preview.classList.toggle('is-placeholder', !next);
+        }
+
+        // Close the single-field sheet only
+        fieldSheet?.setAttribute('data-open', 'false');
+        fieldSheet?.setAttribute('aria-hidden', 'true');
+        unlockScroll();
+      });
+    }
+  const profileForm = document.getElementById('profileForm');
+  if (profileForm) {
+    profileForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const key = fieldSheet?.dataset?.key;
-      if (!key) return;
 
-      const valEl = document.getElementById('profileFieldInput');
-      const next = valEl ? (valEl.value || '').trim() : '';
+      const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+      const keys = ['firstName', 'teamName', 'city', 'province'];
+      const nextProfile = { ...(window.App?.state?.profile || {}) };
 
-      if (!window.App?.state?.profile) window.App.state.profile = {};
-      window.App.state.profile[key] = next;
+      keys.forEach((k) => {
+        const el = document.querySelector(`[data-profile-field-value="${k}"]`);
+        const raw = (el?.textContent || '').trim();
+        if (!raw || raw === placeholders[k]) {
+          delete nextProfile[k];
+        } else {
+          nextProfile[k] = raw;
+        }
+      });
+
+      if (!window.App.state.profile) window.App.state.profile = {};
+      window.App.state.profile = nextProfile;
       if (typeof window.App.renderAndPersist === 'function') {
         window.App.renderAndPersist();
       }
 
-      fieldSheet?.setAttribute('data-open', 'false');
-      fieldSheet?.setAttribute('aria-hidden', 'true');
+      const editor = document.getElementById('profileEditor');
+      editor?.setAttribute('data-open', 'false');
+      editor?.setAttribute('aria-hidden', 'true');
       unlockScroll();
     });
   }
