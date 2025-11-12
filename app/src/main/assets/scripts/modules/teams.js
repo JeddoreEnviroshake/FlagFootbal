@@ -638,6 +638,7 @@
   exports.handleAddTeam = handleAddTeam;
   exports.handleAddPlayer = handleAddPlayer;
   exports.incPlayerStat = incPlayerStat;
+  exports.fetchTeamOptions = fetchTeamOptions;
 
   async function setTeamName(slotIdx, newName){
     if (!newName) return;
@@ -857,7 +858,6 @@
 
   exports.setTeamName = setTeamName;
   exports.chooseTeamForSlot = chooseTeamForSlot;
-  exports.fetchTeamOptions = fetchTeamOptions;
   exports.openTeamDropdown = openTeamDropdown;
   exports.openTeamPopover = openTeamPopover;
 
