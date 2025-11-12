@@ -205,15 +205,19 @@
         <header class="team-details-header">
           <button class="team-details-back" id="teamDetailsBack" type="button" aria-label="Back to teams">Back</button>
           <h1 class="team-details-title" id="teamDetailsTitle">Team</h1>
-          <button class="teams-add-player" id="teamDetailsAddPlayer" type="button" disabled>Add Player</button>
         </header>
+
         <p class="team-details-status" id="teamDetailsStatus" role="status">Select a team to view players.</p>
 
         <div class="team-details-content">
           <section class="team-player-panel" id="teamPlayerTile" aria-live="polite"></section>
           <section class="team-details-list" aria-label="Players" id="teamDetailsPlayerList" role="listbox"></section>
+
+          <!-- New actions row at the bottom -->
+          <div class="team-details-actions">
+            <button class="teams-add-player" id="teamDetailsAddPlayer" type="button" disabled>Add Player</button>
+          </div>
         </div>
-      </div>
     </section>
 
     <section class="page" data-page="profile" aria-labelledby="profileTitle">
@@ -246,8 +250,6 @@
             </div>
           </div>
         </button>
-
-        <button class="profile-sign-out" id="profileSignOut" type="button">Sign out</button>
       </div>
 
       <div class="profile-sheet" id="profileEditor" aria-hidden="true" data-open="false">

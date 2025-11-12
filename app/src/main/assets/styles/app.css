@@ -1507,3 +1507,23 @@
 .profile-field-form__helper {
   display: none;
 }
+
+.teams-page,
+.statistician-page {
+  justify-content: flex-start;
+  align-items: stretch;
+  text-align: left;
+  padding-top: 16px;
+}
+
+.teams-page h1,
+.statistician-page h1 {
+  text-align: left;
+  align-self: flex-start;
+}
+
+.teams-add-player {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}

@@ -1780,6 +1780,93 @@
     }
   }
 
+function bindProfileSheets(){
+  const body = document.body;
+  const overviewBtn = document.getElementById('profileOverview');
+  const profileSheet = document.getElementById('profileEditor');
+  const fieldSheet = document.getElementById('profileFieldSheet');
+  const fieldInput = document.getElementById('profileFieldInput');
+  const fieldTitle = document.getElementById('profileFieldTitle');
+  const fieldDesc  = document.getElementById('profileFieldDescription');
+  const fieldLabel = document.getElementById('profileFieldLabel');
+
+  const openSheet = (el) => {
+    if (!el) return;
+    el.setAttribute('aria-hidden', 'false');
+    el.dataset.open = 'true';
+    body.classList.add('profile-sheet-open');
+    const panel = el.querySelector('[role="dialog"]');
+    if (panel && typeof panel.focus === 'function') panel.focus();
+  };
+
+  const closeSheet = (el) => {
+    if (!el) return;
+    el.setAttribute('aria-hidden', 'true');
+    el.dataset.open = 'false';
+    // If both sheets are closed, remove the body class
+    const anyOpen = document.querySelector('.profile-sheet[data-open="true"], .profile-field-sheet[data-open="true"]');
+    if (!anyOpen) body.classList.remove('profile-sheet-open');
+  };
+
+  // Open the main Profile editor from the top card
+  overviewBtn?.addEventListener('click', () => openSheet(profileSheet));
+
+  // Close buttons/backdrops in the main sheet
+  document.querySelectorAll('[data-profile-close]').forEach(btn => {
+    btn.addEventListener('click', () => closeSheet(profileSheet));
+  });
+
+  // Open the “single field” editor
+  document.querySelectorAll('[data-profile-field]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const b = e.currentTarget;
+      const title = b.dataset.profileFieldTitle || 'Field';
+      const name  = b.dataset.profileFieldName || 'field';
+      const ph    = b.dataset.profileFieldPlaceholder || '';
+
+      if (fieldTitle) fieldTitle.textContent = title;
+      if (fieldDesc)  fieldDesc.textContent  = `Please enter your ${name}.`;
+      if (fieldLabel) fieldLabel.textContent = title;
+      if (fieldInput) fieldInput.placeholder  = ph;
+
+      openSheet(fieldSheet);
+      if (fieldInput) {
+        // Focus the input on open
+        setTimeout(()=> fieldInput.focus(), 0);
+      }
+    });
+  });
+
+  // Close buttons/backdrop in the field sheet
+  document.querySelectorAll('[data-profile-field-close]').forEach(btn => {
+    btn.addEventListener('click', () => closeSheet(fieldSheet));
+  });
+
+  // Escape key closes whichever is open
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const openField = document.querySelector('.profile-field-sheet[data-open="true"]');
+    const openMain  = document.querySelector('.profile-sheet[data-open="true"]');
+    if (openField) closeSheet(openField);
+    else if (openMain) closeSheet(openMain);
+  });
+}
+
+// Call this from your startup
+if (typeof exports.initializeControls === 'function') {
+  const originalInit = exports.initializeControls;
+  exports.initializeControls = function(...args){
+    originalInit.apply(this, args);
+    try { bindProfileSheets(); } catch {}
+  };
+} else {
+  // Fallback if initializeControls isn’t present
+  document.addEventListener('DOMContentLoaded', () => {
+    try { bindProfileSheets(); } catch {}
+  });
+}
+
+
   function runSelfTests(){
     if (location.hash !== '#test') return;
     console.group('[Self Tests]');
@@ -1936,6 +2023,7 @@
     bindViewPicker();
     bindRemoteForm();
     runSelfTests();
+    bindProfileSheets();
   }
 
   exports.mutateTeam = mutateTeam;

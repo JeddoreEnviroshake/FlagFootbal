@@ -387,8 +387,20 @@
       header.appendChild(title);
       const meta = document.createElement('div');
       meta.className = 'player-card__meta';
-      meta.textContent = 'Tracked via Statistician tab';
+
+      // Calculate Player Score
+      const scoringFields = TEAM_STAT_FIELDS.filter(f =>
+        ['Passing TD', 'Receiving TD', 'Rushing TD', 'Interception', 'Flag Pull'].includes(f.label)
+      );
+      let score = 0;
+      scoringFields.forEach(field => {
+        const val = valueFromField(activePlayer, field);
+        score += Number.isFinite(val) ? val : 0;
+      });
+
+      meta.textContent = `Player Score: ${score}`;
       header.appendChild(meta);
+
       card.appendChild(header);
 
       const statsGrid = document.createElement('div');
