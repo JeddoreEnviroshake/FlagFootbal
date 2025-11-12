@@ -38,18 +38,28 @@ window.triggerGirlPlay = function () {
   const openers = document.querySelectorAll('.profile-form__field-button[data-profile-field]');
   const closers = document.querySelectorAll('[data-profile-field-close]');
   let scrollY = 0;
+  let scrollLockDepth = 0;
 
   function lockScroll() {
-    scrollY = window.scrollY || window.pageYOffset || 0;
-    body.classList.add('profile-sheet-open');
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.left = '0';
-    body.style.right = '0';
-    body.style.width = '100%';
+    if (!body) return;
+    if (scrollLockDepth === 0) {
+      scrollY = window.scrollY || window.pageYOffset || 0;
+      body.classList.add('profile-sheet-open');
+      body.style.position = 'fixed';
+      body.style.top = `-${scrollY}px`;
+      body.style.left = '0';
+      body.style.right = '0';
+      body.style.width = '100%';
+    }
+    scrollLockDepth += 1;
   }
 
   function unlockScroll() {
+    if (!body) return;
+    if (scrollLockDepth === 0) return;
+    scrollLockDepth -= 1;
+    if (scrollLockDepth > 0) return;
+
     body.classList.remove('profile-sheet-open');
     body.style.position = '';
     body.style.top = '';
@@ -82,39 +92,59 @@ window.triggerGirlPlay = function () {
   // Accepts currentText so the dropdown preselects unsaved preview changes.
   async function setupProfileTeamPicker(currentText) {
     const input = document.getElementById('profileFieldInput');
-    if (!input) return;
+    if (!input) return false;
 
     const select = document.createElement('select');
     select.className = 'profile-field-form__input';
 
+    const describedBy = input.getAttribute('aria-describedby');
+    if (describedBy) select.setAttribute('aria-describedby', describedBy);
+
     try {
-      const options = typeof window.App?.fetchTeamOptions === 'function'
+      const rawOptions = typeof window.App?.fetchTeamOptions === 'function'
         ? await window.App.fetchTeamOptions()
         : [];
 
-      if (!options.length) return; // fallback: keep text input
+      const options = Array.isArray(rawOptions)
+        ? rawOptions.map(name => (name == null ? '' : String(name).trim())).filter(Boolean)
+        : [];
 
-      options.forEach(name => {
+      if (!options.length) return false; // fallback: keep text input
+
+      const fromPreview = (currentText || '').trim();
+      const fromState = (window.App?.state?.profile?.teamName || '').trim();
+      const current = fromPreview || fromState;
+
+      const unique = Array.from(new Set(options));
+      if (current && !unique.includes(current)) {
+        unique.unshift(current);
+      }
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a team';
+      select.appendChild(placeholder);
+
+      unique.forEach(name => {
         const opt = document.createElement('option');
         opt.value = name;
         opt.textContent = name;
         select.appendChild(opt);
       });
 
-      // Prefer the preview value (unsaved changes), fall back to state
-      const fromPreview = (currentText || '').trim();
-      const fromState   = (window.App?.state?.profile?.teamName || '').trim();
-      const current = fromPreview || fromState;
-
-      if (current) {
-        const idx = options.indexOf(current);
-        if (idx >= 0) select.selectedIndex = idx;
-      }
+      select.id = 'profileFieldInput'; // preserve id for submit handler
+      select.value = current || '';
 
       input.replaceWith(select);
-      select.id = 'profileFieldInput'; // preserve id for submit handler
+
+      setTimeout(() => {
+        try { select.focus(); } catch {}
+      }, 0);
+
+      return true;
     } catch (e) {
       console.warn('[profile team picker] falling back to text input', e);
+      return false;
     }
   }
 
@@ -179,10 +209,22 @@ window.triggerGirlPlay = function () {
 
     // Swap to dropdown for Team, otherwise seed input with preview text
     if (fieldKey === 'teamName') {
-      setupProfileTeamPicker(previewText); // pass current preview value
       const helper = document.getElementById('profileFieldHelper');
-      if (helper) helper.textContent = 'Pick your team from the directory.';
+      if (helper) helper.textContent = 'Loading teams…';
       if (descEl) descEl.textContent = 'Select your team.';
+
+      setupProfileTeamPicker(previewText).then((success) => {
+        if (fieldSheet?.dataset?.key !== 'teamName') return;
+        if (fieldSheet?.getAttribute('data-open') !== 'true') return;
+        const helperEl = document.getElementById('profileFieldHelper');
+        const descriptionEl = document.getElementById('profileFieldDescription');
+        if (success) {
+          if (helperEl) helperEl.textContent = 'Pick your team from the directory.';
+        } else {
+          if (helperEl) helperEl.textContent = 'Enter your team name.';
+          if (descriptionEl) descriptionEl.textContent = 'Type your team.';
+        }
+      });
     } else {
       // Prefill text input for non-team fields
       if (inputEl) inputEl.value = previewText;
@@ -211,6 +253,9 @@ window.triggerGirlPlay = function () {
     btn.addEventListener('click', () => {
       fieldSheet?.setAttribute('data-open', 'false');
       fieldSheet?.setAttribute('aria-hidden', 'true');
+      if (fieldSheet && 'key' in fieldSheet.dataset) {
+        delete fieldSheet.dataset.key;
+      }
       unlockScroll();
     });
   });
@@ -224,7 +269,15 @@ window.triggerGirlPlay = function () {
       if (!key) return;
 
       const valEl = document.getElementById('profileFieldInput');
-      const next = valEl ? (valEl.value || '').trim() : '';
+      let next = '';
+      if (valEl) {
+        if (valEl.tagName === 'SELECT') {
+          const opt = valEl.options[valEl.selectedIndex];
+          next = (opt?.value || '').trim();
+        } else {
+          next = (valEl.value || '').trim();
+        }
+      }
 
       // Update the visible value in the big Edit Profile sheet
       const preview = document.querySelector(`[data-profile-field-value="${key}"]`);
@@ -234,21 +287,12 @@ window.triggerGirlPlay = function () {
         preview.classList.toggle('is-placeholder', !next);
       }
 
-
-const valEl = document.getElementById('profileFieldInput');
-let next = '';
-if (valEl) {
-  if (valEl.tagName === 'SELECT') {
-    const opt = valEl.options[valEl.selectedIndex];
-    next = (opt?.value || '').trim();
-  } else {
-    next = (valEl.value || '').trim();
-  }
-}
-
       // Close the single-field sheet only
       fieldSheet?.setAttribute('data-open', 'false');
       fieldSheet?.setAttribute('aria-hidden', 'true');
+      if (fieldSheet && 'key' in fieldSheet.dataset) {
+        delete fieldSheet.dataset.key;
+      }
       unlockScroll();
     });
   }
