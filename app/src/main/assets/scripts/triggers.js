@@ -159,6 +159,7 @@ window.triggerGirlPlay = function () {
       // Open the sheet
       editor.setAttribute('data-open', 'true');
       editor.setAttribute('aria-hidden', 'false');
+      try { editor.hidden = false; } catch {}
       lockScroll();
     });
   }
@@ -169,6 +170,7 @@ window.triggerGirlPlay = function () {
       const editor = document.getElementById('profileEditor');
       editor?.setAttribute('data-open', 'false');
       editor?.setAttribute('aria-hidden', 'true');
+      try { if (editor) editor.hidden = true; } catch {}
       unlockScroll();
     });
   });
@@ -232,6 +234,7 @@ window.triggerGirlPlay = function () {
 
     fieldSheet?.setAttribute('data-open', 'true');
     fieldSheet?.setAttribute('aria-hidden', 'false');
+    try { if (fieldSheet) fieldSheet.hidden = false; } catch {}
     lockScroll();
     setTimeout(() => document.getElementById('profileFieldInput')?.focus(), 0);
   }
@@ -256,6 +259,7 @@ window.triggerGirlPlay = function () {
       if (fieldSheet && 'key' in fieldSheet.dataset) {
         delete fieldSheet.dataset.key;
       }
+      try { if (fieldSheet) fieldSheet.hidden = true; } catch {}
       unlockScroll();
     });
   });
@@ -293,6 +297,7 @@ window.triggerGirlPlay = function () {
       if (fieldSheet && 'key' in fieldSheet.dataset) {
         delete fieldSheet.dataset.key;
       }
+      try { if (fieldSheet) fieldSheet.hidden = true; } catch {}
       unlockScroll();
     });
   }
@@ -325,6 +330,7 @@ window.triggerGirlPlay = function () {
       const editor = document.getElementById('profileEditor');
       editor?.setAttribute('data-open', 'false');
       editor?.setAttribute('aria-hidden', 'true');
+      try { if (editor) editor.hidden = true; } catch {}
       unlockScroll();
     });
   }
