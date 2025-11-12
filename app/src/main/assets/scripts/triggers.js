@@ -234,6 +234,18 @@ window.triggerGirlPlay = function () {
         preview.classList.toggle('is-placeholder', !next);
       }
 
+
+const valEl = document.getElementById('profileFieldInput');
+let next = '';
+if (valEl) {
+  if (valEl.tagName === 'SELECT') {
+    const opt = valEl.options[valEl.selectedIndex];
+    next = (opt?.value || '').trim();
+  } else {
+    next = (valEl.value || '').trim();
+  }
+}
+
       // Close the single-field sheet only
       fieldSheet?.setAttribute('data-open', 'false');
       fieldSheet?.setAttribute('aria-hidden', 'true');
