@@ -1085,7 +1085,7 @@
     const fieldSheet = document.getElementById('profileFieldSheet');
     const fieldPanel = fieldSheet ? fieldSheet.querySelector('.profile-field-sheet__panel') : null;
     const fieldForm = document.getElementById('profileFieldForm');
-    const fieldInput = document.getElementById('profileFieldInput');
+    const getFieldInput = () => document.getElementById('profileFieldInput');
     const fieldTitle = document.getElementById('profileFieldTitle');
     const fieldDescription = document.getElementById('profileFieldDescription');
     const fieldHelper = document.getElementById('profileFieldHelper');
@@ -1314,9 +1314,17 @@
       if (fieldDescription) fieldDescription.textContent = `Please enter your ${meta.name.toLowerCase()}.`;
       if (fieldHelper) fieldHelper.textContent = meta.helper;
       if (fieldLabel) fieldLabel.textContent = meta.title;
+      const fieldInput = getFieldInput();
       if (fieldInput) {
-        fieldInput.value = currentValue;
-        fieldInput.placeholder = meta.placeholder || '';
+        if (fieldInput.tagName === 'SELECT') {
+          try { fieldInput.value = currentValue; }
+          catch { fieldInput.value = currentValue || ''; }
+        } else {
+          fieldInput.value = currentValue;
+        }
+        if ('placeholder' in fieldInput) {
+          fieldInput.placeholder = meta.placeholder || '';
+        }
         fieldInput.setAttribute('name', key || 'profileField');
       }
       if (fieldSheet.hidden) fieldSheet.hidden = false;
@@ -1404,15 +1412,31 @@
       }
       if (!pendingProfile) fillForm();
       const current = Object.assign({}, pendingProfile || {});
-      current[activeFieldKey] = fieldInput ? fieldInput.value : '';
+      const fieldInput = getFieldInput();
+      let nextValue = '';
+      if (fieldInput) {
+        if (fieldInput.tagName === 'SELECT') {
+          const option = fieldInput.options[fieldInput.selectedIndex];
+          nextValue = option ? option.value : fieldInput.value || '';
+        } else {
+          nextValue = fieldInput.value || '';
+        }
+      }
+      current[activeFieldKey] = nextValue;
       current.photoData = pendingImage;
       const normalized = sanitize ? sanitize(current) : current;
       pendingProfile = Object.assign({}, normalized);
       pendingImage = normalized.photoData || pendingImage || null;
       updateFieldDisplays(pendingProfile);
-      if (fieldInput) {
+      const updatedFieldInput = getFieldInput();
+      if (updatedFieldInput) {
         const newValue = pendingProfile[activeFieldKey];
-        fieldInput.value = newValue != null ? String(newValue) : '';
+        if (updatedFieldInput.tagName === 'SELECT') {
+          try { updatedFieldInput.value = newValue != null ? String(newValue) : ''; }
+          catch { updatedFieldInput.value = ''; }
+        } else {
+          updatedFieldInput.value = newValue != null ? String(newValue) : '';
+        }
       }
       closeFieldSheet(true);
     };
@@ -1785,7 +1809,7 @@ function bindProfileSheets(){
   const overviewBtn = document.getElementById('profileOverview');
   const profileSheet = document.getElementById('profileEditor');
   const fieldSheet = document.getElementById('profileFieldSheet');
-  const fieldInput = document.getElementById('profileFieldInput');
+  const getFieldInput = () => document.getElementById('profileFieldInput');
   const fieldTitle = document.getElementById('profileFieldTitle');
   const fieldDesc  = document.getElementById('profileFieldDescription');
   const fieldLabel = document.getElementById('profileFieldLabel');
@@ -1827,12 +1851,17 @@ function bindProfileSheets(){
       if (fieldTitle) fieldTitle.textContent = title;
       if (fieldDesc)  fieldDesc.textContent  = `Please enter your ${name}.`;
       if (fieldLabel) fieldLabel.textContent = title;
-      if (fieldInput) fieldInput.placeholder  = ph;
+      const fieldInput = getFieldInput();
+      if (fieldInput && 'placeholder' in fieldInput) fieldInput.placeholder  = ph;
 
       openSheet(fieldSheet);
-      if (fieldInput) {
+      const focusInput = getFieldInput();
+      if (focusInput && typeof focusInput.focus === 'function') {
         // Focus the input on open
-        setTimeout(()=> fieldInput.focus(), 0);
+        setTimeout(()=> {
+          try { focusInput.focus(); }
+          catch {}
+        }, 0);
       }
     });
   });
