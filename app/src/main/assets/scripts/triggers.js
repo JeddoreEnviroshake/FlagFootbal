@@ -310,7 +310,8 @@ window.triggerGirlPlay = function () {
 
       const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
       const keys = ['firstName', 'teamName', 'city', 'province'];
-      const nextProfile = { ...(window.App?.state?.profile || {}) };
+      const app = window.App || {};
+      const nextProfile = {};
 
       keys.forEach((k) => {
         const el = document.querySelector(`[data-profile-field-value="${k}"]`);
@@ -322,9 +323,39 @@ window.triggerGirlPlay = function () {
         }
       });
 
-      window.App.state.profile = nextProfile;
-      if (typeof window.App.renderAndPersist === 'function') {
-        window.App.renderAndPersist();
+      const sanitizeProfile = typeof (app?.sanitizeProfile) === 'function'
+        ? app.sanitizeProfile
+        : (profile) => profile;
+      const sanitizeInput = { ...nextProfile };
+      if (app?.state?.profile?.photoData != null && sanitizeInput.photoData == null) {
+        sanitizeInput.photoData = app.state.profile.photoData;
+      }
+      const sanitizedProfile = sanitizeProfile(sanitizeInput) || {};
+
+      if (app?.state) {
+        app.state.profile = sanitizedProfile;
+      }
+      if (typeof app?.renderAndPersist === 'function') {
+        app.renderAndPersist();
+      }
+
+      const auth = app?.auth;
+      const db = app?.db;
+      const user = auth && auth.currentUser ? auth.currentUser : null;
+      const canSync = !!(user && !user.isAnonymous && db && typeof db.ref === 'function');
+      if (canSync) {
+        try {
+          const ref = db.ref(`users/${user.uid}/profile`);
+          if (ref && typeof ref.set === 'function') {
+            const payload = sanitizeProfile(app?.state?.profile || sanitizedProfile) || sanitizedProfile;
+            const result = ref.set(payload);
+            if (result && typeof result.catch === 'function') {
+              result.catch((err) => console.warn('[profile sync] failed to save remote profile', err));
+            }
+          }
+        } catch (err) {
+          console.warn('[profile sync] skipped due to error', err);
+        }
       }
 
       const editor = document.getElementById('profileEditor');
