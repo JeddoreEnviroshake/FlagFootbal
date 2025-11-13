@@ -344,13 +344,59 @@ window.triggerGirlPlay = function () {
       const user = auth && auth.currentUser ? auth.currentUser : null;
       const canSync = !!(user && !user.isAnonymous && db && typeof db.ref === 'function');
       if (canSync) {
+        const buildRemoteUserPayload = (uid, profile) => {
+          const safeString = (value) => {
+            if (value == null) return '';
+            const str = String(value).trim();
+            return str;
+          };
+          const safeProvince = (value) => {
+            const str = safeString(value);
+            return str ? str.toUpperCase() : '';
+          };
+          const safeLeague = () => {
+            const raw = profile && typeof profile === 'object'
+              ? (profile.league ?? profile.leagueId ?? profile.teamLeague ?? '')
+              : '';
+            const str = safeString(raw);
+            return str ? str.toLowerCase() : '';
+          };
+
+          const normalizedUid = safeString(uid);
+          if (!normalizedUid) return null;
+          const normalizedProfile = Object.assign({}, profile || {});
+          normalizedProfile.firstName = safeString(profile?.firstName);
+          normalizedProfile.teamName = safeString(profile?.teamName);
+          normalizedProfile.city = safeString(profile?.city);
+          normalizedProfile.province = safeProvince(profile?.province);
+          if (normalizedProfile.photoData == null) {
+            normalizedProfile.photoData = null;
+          }
+
+          const payload = {
+            uid: normalizedUid,
+            name: normalizedProfile.firstName,
+            team: normalizedProfile.teamName,
+            city: normalizedProfile.city,
+            province: normalizedProfile.province,
+            league: safeLeague(),
+            profile: normalizedProfile
+          };
+
+          return payload;
+        };
+
         try {
-          const ref = db.ref(`users/${user.uid}/profile`);
-          if (ref && typeof ref.set === 'function') {
-            const payload = sanitizeProfile(app?.state?.profile || sanitizedProfile) || sanitizedProfile;
-            const result = ref.set(payload);
-            if (result && typeof result.catch === 'function') {
-              result.catch((err) => console.warn('[profile sync] failed to save remote profile', err));
+          const uid = user.uid;
+          const ref = db.ref(`users/${uid}`);
+          if (ref && typeof ref.update === 'function') {
+            const sanitizedForRemote = sanitizeProfile(app?.state?.profile || sanitizedProfile) || sanitizedProfile;
+            const payload = buildRemoteUserPayload(uid, sanitizedForRemote);
+            if (payload) {
+              const result = ref.update(payload);
+              if (result && typeof result.catch === 'function') {
+                result.catch((err) => console.warn('[profile sync] failed to save remote profile', err));
+              }
             }
           }
         } catch (err) {
