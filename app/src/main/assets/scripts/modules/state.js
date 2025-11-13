@@ -439,15 +439,42 @@
     }
 
     try {
-      const ref = db.ref(`users/${uid}/profile`);
+      const ref = db.ref(`users/${uid}`);
       const handler = (snap) => {
         if (!exports.state) {
           exports.state = defaultState();
         }
+
         let raw = null;
         if (snap && typeof snap.val === 'function') {
-          raw = snap.val();
+          const value = snap.val();
+          if (value && typeof value === 'object') {
+            if (value.profile && typeof value.profile === 'object') {
+              raw = value.profile;
+            } else {
+              const hasFlatProfileFields = ['name', 'team', 'city', 'province']
+                .some((key) => Object.prototype.hasOwnProperty.call(value, key));
+              if (hasFlatProfileFields) {
+                raw = {
+                  firstName: value.name,
+                  teamName: value.team,
+                  city: value.city,
+                  province: value.province,
+                  photoData: value.photoData ?? value.photo ?? value.image ?? value.i ?? null
+                };
+              } else {
+                const hasDirectProfileFields = ['firstName', 'teamName', 'city', 'province', 'photoData', 'fn', 'tn', 'c', 'pv', 'photo', 'image', 'i']
+                  .some((key) => Object.prototype.hasOwnProperty.call(value, key));
+                if (hasDirectProfileFields) {
+                  raw = value;
+                }
+              }
+            }
+          } else if (value != null) {
+            raw = value;
+          }
         }
+
         const sanitized = raw == null ? defaultProfile() : sanitizeProfile(raw);
         const current = exports.state && exports.state.profile ? exports.state.profile : defaultProfile();
         const nextProfile = Object.assign({}, current, sanitized);
