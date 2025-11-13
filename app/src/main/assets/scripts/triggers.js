@@ -339,22 +339,41 @@ window.triggerGirlPlay = function () {
         app.renderAndPersist();
       }
 
-      const auth = app?.auth;
       const db = app?.db;
-      const user = auth && auth.currentUser ? auth.currentUser : null;
-      const canSync = !!(user && !user.isAnonymous && db && typeof db.ref === 'function');
-      if (canSync) {
+      const requireAuth = typeof app?.requireAuth === 'function' ? app.requireAuth : null;
+      if (db && typeof db.ref === 'function' && requireAuth) {
+        let user = null;
         try {
-          const ref = db.ref(`users/${user.uid}/profile`);
-          if (ref && typeof ref.set === 'function') {
-            const payload = sanitizeProfile(app?.state?.profile || sanitizedProfile) || sanitizedProfile;
-            const result = ref.set(payload);
-            if (result && typeof result.catch === 'function') {
-              result.catch((err) => console.warn('[profile sync] failed to save remote profile', err));
-            }
-          }
+          user = requireAuth();
         } catch (err) {
-          console.warn('[profile sync] skipped due to error', err);
+          console.warn('[profile sync] authentication required', err);
+        }
+        if (user) {
+          try {
+            const ref = db.ref(`users/${user.uid}/profile`);
+            if (ref && typeof ref.set === 'function') {
+              const payload = sanitizeProfile(app?.state?.profile || sanitizedProfile) || sanitizedProfile;
+              const remotePayload = { ...payload };
+              const writerMetaFactory = typeof app?.createWriterMeta === 'function' ? app.createWriterMeta : null;
+              const meta = writerMetaFactory ? writerMetaFactory(user, { includeCreatedAt: !remotePayload.meta }) : {
+                writerUid: user.uid,
+                writerEmail: user.email || null,
+                writerDisplayName: user.displayName || null,
+                updatedAt: (typeof app?.serverTimestamp === 'function' ? app.serverTimestamp() : Date.now())
+              };
+              if (remotePayload.meta && typeof remotePayload.meta === 'object') {
+                remotePayload.meta = { ...remotePayload.meta, ...meta };
+              } else {
+                remotePayload.meta = meta;
+              }
+              const result = ref.set(remotePayload);
+              if (result && typeof result.catch === 'function') {
+                result.catch((err) => console.warn('[profile sync] failed to save remote profile', err));
+              }
+            }
+          } catch (err) {
+            console.warn('[profile sync] skipped due to error', err);
+          }
         }
       }
 
