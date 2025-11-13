@@ -394,31 +394,6 @@
   exports.remoteSync = remoteSync;
   exports.auth = auth;
   exports.db = db;
-
-  let profileListenerCleanup = null;
-  if (auth && typeof auth.onAuthStateChanged === 'function') {
-    auth.onAuthStateChanged((currentUser) => {
-      if (profileListenerCleanup) {
-        try { profileListenerCleanup(); } catch {}
-        profileListenerCleanup = null;
-      }
-
-      if (typeof exports.hydrateProfileFromUser !== 'function') {
-        return;
-      }
-
-      if (!currentUser || currentUser.isAnonymous) {
-        exports.hydrateProfileFromUser(null);
-        return;
-      }
-
-      const teardown = exports.hydrateProfileFromUser(currentUser.uid);
-      if (typeof teardown === 'function') {
-        profileListenerCleanup = teardown;
-      }
-    });
-  }
-
   exports.remoteConfigured = remoteConfigured;
   exports.requireConfiguredGame = requireConfiguredGame;
   exports.updateRemoteStatus = updateRemoteStatus;

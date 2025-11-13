@@ -310,8 +310,7 @@ window.triggerGirlPlay = function () {
 
       const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
       const keys = ['firstName', 'teamName', 'city', 'province'];
-      const app = window.App || {};
-      const nextProfile = {};
+      const nextProfile = { ...(window.App?.state?.profile || {}) };
 
       keys.forEach((k) => {
         const el = document.querySelector(`[data-profile-field-value="${k}"]`);
@@ -323,6 +322,7 @@ window.triggerGirlPlay = function () {
         }
       });
 
+<<<<<<< HEAD
       const sanitizeProfile = typeof (app?.sanitizeProfile) === 'function'
         ? app.sanitizeProfile
         : (profile) => profile;
@@ -375,6 +375,11 @@ window.triggerGirlPlay = function () {
             console.warn('[profile sync] skipped due to error', err);
           }
         }
+=======
+      window.App.state.profile = nextProfile;
+      if (typeof window.App.renderAndPersist === 'function') {
+        window.App.renderAndPersist();
+>>>>>>> parent of a1cee85 (Merge pull request #102 from JeddoreEnviroshake/codex/implement-user-profile-hydration-on-auth-change)
       }
 
       const editor = document.getElementById('profileEditor');

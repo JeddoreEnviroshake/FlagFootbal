@@ -421,57 +421,6 @@
     }
   }
 
-  let profileHydratorTeardown = null;
-
-  function hydrateProfileFromUser(uid){
-    if (profileHydratorTeardown) {
-      try { profileHydratorTeardown(); } catch {}
-      profileHydratorTeardown = null;
-    }
-
-    if (!uid) {
-      return null;
-    }
-
-    const db = exports.db;
-    if (!db || typeof db.ref !== 'function') {
-      return null;
-    }
-
-    try {
-      const ref = db.ref(`users/${uid}/profile`);
-      const handler = (snap) => {
-        if (!exports.state) {
-          exports.state = defaultState();
-        }
-        let raw = null;
-        if (snap && typeof snap.val === 'function') {
-          raw = snap.val();
-        }
-        const sanitized = raw == null ? defaultProfile() : sanitizeProfile(raw);
-        const current = exports.state && exports.state.profile ? exports.state.profile : defaultProfile();
-        const nextProfile = Object.assign({}, current, sanitized);
-        exports.state.profile = nextProfile;
-        if (typeof exports.renderAndPersist === 'function') {
-          exports.renderAndPersist();
-        }
-      };
-      const cancel = (err) => { if (err) console.warn('[profile hydrate] listener error', err); };
-      if (typeof ref.on === 'function') {
-        ref.on('value', handler, cancel);
-        profileHydratorTeardown = () => {
-          try { ref.off('value', handler); } catch {}
-          profileHydratorTeardown = null;
-        };
-        return profileHydratorTeardown;
-      }
-    } catch (err) {
-      console.warn('[profile hydrate] failed to attach listener', err);
-    }
-
-    return null;
-  }
-
   function renderAndPersist(){
     if (typeof exports.render === 'function') {
       exports.render();
@@ -507,7 +456,6 @@
   exports.reconcileAllState = reconcileAllState;
   exports.requestPersist = requestPersist;
   exports.renderAndPersist = renderAndPersist;
-  exports.hydrateProfileFromUser = hydrateProfileFromUser;
   exports.$ = $;
   exports.$$ = $$;
 
