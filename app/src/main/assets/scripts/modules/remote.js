@@ -31,6 +31,60 @@
 
   remoteSync.config = exports.loadRemoteConfig();
 
+  function serverTimestamp(){
+    if (window.firebase && firebase.database && firebase.database.ServerValue && firebase.database.ServerValue.TIMESTAMP != null) {
+      return firebase.database.ServerValue.TIMESTAMP;
+    }
+    return Date.now();
+  }
+
+  function requireAuth(){
+    if (!auth) {
+      throw new Error('Firebase auth unavailable');
+    }
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User must be authenticated');
+    }
+    if (user.isAnonymous) {
+      throw new Error('Anonymous users cannot write data');
+    }
+    return user;
+  }
+
+  function createWriterMeta(user, options = {}){
+    if (!user || typeof user !== 'object') return {};
+    const opts = options || {};
+    const timestamp = serverTimestamp();
+    const meta = {
+      writerUid: user.uid,
+      writerEmail: user.email || null,
+      writerDisplayName: user.displayName || null,
+      updatedAt: timestamp
+    };
+    if (opts.includeCreatedAt) {
+      meta.createdAt = timestamp;
+    }
+    return meta;
+  }
+
+  function recordWriterMeta(gameId, user){
+    if (!db || !gameId || !user) return Promise.resolve();
+    const timestamp = serverTimestamp();
+    const updates = {
+      [`games/${gameId}/meta/updatedAt`]: timestamp,
+      [`games/${gameId}/meta/writerUid`]: user.uid,
+      [`games/${gameId}/meta/writerEmail`]: user.email || null,
+      [`games/${gameId}/meta/writerDisplayName`]: user.displayName || null,
+      [`games/${gameId}/meta/writers/${user.uid}`]: true
+    };
+    try {
+      return db.ref().update(updates);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   function remoteConfigured(){ return !!(remoteSync.config && remoteSync.config.game); }
 
   function requireConfiguredGame(){
@@ -93,10 +147,30 @@
     if (!gameId) return;
     remoteSync.pushing = true;
 
-    const gameRef = db.ref(`games/${gameId}`);
-    const payload = { state: exports.serializeState(exports.state), updatedAt: firebase.database.ServerValue.TIMESTAMP };
+    let user;
+    try {
+      user = requireAuth();
+    } catch (err) {
+      remoteSync.status = 'error';
+      remoteSync.lastError = err;
+      remoteSync.connected = false;
+      remoteSync.pushing = false;
+      updateRemoteStatus();
+      return;
+    }
 
-    gameRef.update(payload)
+    const gameRef = db.ref(`games/${gameId}`);
+    const serializedState = exports.serializeState(exports.state);
+    const updates = {
+      state: serializedState,
+      'meta/updatedAt': serverTimestamp(),
+      'meta/writerUid': user.uid,
+      'meta/writerEmail': user.email || null,
+      'meta/writerDisplayName': user.displayName || null
+    };
+    updates[`meta/writers/${user.uid}`] = true;
+
+    gameRef.update(updates)
       .then(()=>{ remoteSync.status='connected'; remoteSync.connected=true; remoteSync.lastError=null; lastPushMs=Date.now(); })
       .catch(err=>{ remoteSync.status='error'; remoteSync.connected=false; remoteSync.lastError=String(err && err.message ? err.message : err); })
       .finally(()=>{
@@ -131,7 +205,8 @@
   }
 
   async function isCurrentUserWriter(game) {
-    const uid = (auth && auth.currentUser) ? auth.currentUser.uid : null;
+    const user = auth && auth.currentUser ? auth.currentUser : null;
+    const uid = (user && !user.isAnonymous) ? user.uid : null;
     if (!uid) return false;
     try {
       const snap = await db.ref(`games/${game}/meta/writers/${uid}`).get();
@@ -142,14 +217,24 @@
   }
 
   async function joinWriters(game) {
-    const uid = (auth && auth.currentUser) ? auth.currentUser.uid : null;
-    if (!uid) return false;
-    await db.ref(`games/${game}/meta/writers/${uid}`).set(true);
+    let user;
+    try {
+      user = requireAuth();
+    } catch (err) {
+      return Promise.reject(err);
+    }
+    const updates = {};
+    updates[`games/${game}/meta/writers/${user.uid}`] = true;
+    updates[`games/${game}/meta/writerUid`] = user.uid;
+    updates[`games/${game}/meta/writerEmail`] = user.email || null;
+    updates[`games/${game}/meta/writerDisplayName`] = user.displayName || null;
+    updates[`games/${game}/meta/updatedAt`] = serverTimestamp();
+    await db.ref().update(updates);
     return true;
   }
 
   async function leaveWriters(game) {
-    const uid = (auth && auth.currentUser) ? auth.currentUser.uid : null;
+    const uid = (auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
     if (!uid) return;
     await db.ref(`games/${game}/meta/writers/${uid}`).set(null);
   }
@@ -161,13 +246,31 @@
   function txnField(path, mutateFn) {
     const gameId = requireConfiguredGame();
     if (!gameId) return Promise.reject(new Error('No game configured'));
+    let user;
+    try {
+      user = requireAuth();
+    } catch (err) {
+      return Promise.reject(err);
+    }
     const ref = db.ref(`games/${gameId}/state/${path}`);
-    return ref.transaction(curr => mutateFn(curr));
+    return ref.transaction(curr => mutateFn(curr))
+      .then(result => {
+        if (result && result.committed) {
+          return recordWriterMeta(gameId, user).then(() => result);
+        }
+        return result;
+      });
   }
 
   function txnState(mutateFn){
     const gameId = requireConfiguredGame();
     if (!gameId) return Promise.reject(new Error('No game configured'));
+    let user;
+    try {
+      user = requireAuth();
+    } catch (err) {
+      return Promise.reject(err);
+    }
     const ref = db.ref(`games/${gameId}/state`);
     return ref.transaction(s => {
       const working = exports.inflate(s);
@@ -175,12 +278,25 @@
       const nextState = (result && typeof result === 'object') ? result : working;
       return exports.serializeState(nextState);
     })
-    .then(res => { console.log('[txnState] committed:', res.committed); return res; })
+    .then(res => {
+      console.log('[txnState] committed:', res.committed);
+      if (res && res.committed) {
+        return recordWriterMeta(gameId, user).then(() => res);
+      }
+      return res;
+    })
     .catch(e => { console.warn('[txnState:err]', e); throw e; });
   }
 
   async function seedStateIfMissing(game){
     if (!remoteSync.canWrite) return;
+    let user;
+    try {
+      user = requireAuth();
+    } catch (err) {
+      console.warn('[sync] seedStateIfMissing skipped due to auth error', err);
+      return;
+    }
     const ref = db.ref(`games/${game}/state`);
     const hasSerializer = exports && typeof exports.serializeState === 'function';
     const getDefaultState = () => (exports && typeof exports.defaultState === 'function')
@@ -190,7 +306,7 @@
     const localSeed = hasSerializer
       ? exports.serializeState(currentState || getDefaultState() || {})
       : null;
-    await ref.transaction(s => {
+    const result = await ref.transaction(s => {
       if (s) return s;
       if (localSeed) return localSeed;
       const fallbackSource = getDefaultState();
@@ -199,6 +315,13 @@
         : null;
       return fallback || null;
     });
+    if (result && result.committed) {
+      try {
+        await recordWriterMeta(game, user);
+      } catch (err) {
+        console.warn('[sync] failed to record writer meta for seeded state', err);
+      }
+    }
   }
 
   async function connectRemote(){
@@ -219,27 +342,28 @@
     remoteSync.status = 'connecting';
     updateRemoteStatus();
 
-    try {
-      if (!auth.currentUser) await auth.signInAnonymously();
-    } catch (err) {
-      remoteSync.status = 'error';
-      remoteSync.lastError = err;
-      updateRemoteStatus();
-      return;
-    }
-
     const game = requireConfiguredGame();
     if (!game) return;
-    try {
-      await joinWriters(game);
-    } catch (err) {
-      console.warn('[sync] writer join/leave failed, continuing as viewer', err);
-    }
+    const currentUser = auth.currentUser;
+    if (currentUser && !currentUser.isAnonymous) {
+      try {
+        await joinWriters(game);
+      } catch (err) {
+        console.warn('[sync] writer join failed, continuing as viewer', err);
+      }
 
-    try {
-      remoteSync.canWrite = await isCurrentUserWriter(game);
-    } catch {
+      try {
+        remoteSync.canWrite = await isCurrentUserWriter(game);
+      } catch {
+        remoteSync.canWrite = false;
+      }
+    } else {
       remoteSync.canWrite = false;
+      if (!currentUser) {
+        remoteSync.lastError = 'Sign in with Google to write data';
+      } else if (currentUser.isAnonymous) {
+        remoteSync.lastError = 'Anonymous users cannot write data';
+      }
     }
 
     if (typeof exports.syncTimersWithState === 'function') {
@@ -311,5 +435,9 @@
   exports.isCurrentUserWriter = isCurrentUserWriter;
   exports.joinWriters = joinWriters;
   exports.leaveWriters = leaveWriters;
+  exports.requireAuth = requireAuth;
+  exports.serverTimestamp = serverTimestamp;
+  exports.createWriterMeta = createWriterMeta;
+  exports.recordWriterMeta = recordWriterMeta;
 
 })(window.App = window.App || {});

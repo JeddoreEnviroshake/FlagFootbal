@@ -109,6 +109,22 @@
 
   async function incPlayerStat(teamId, playerId, statKey){
     if (!teamId || !playerId || !statKey) return;
+    const db = exports.db;
+    const willWriteRemote = !!(db && typeof db.ref === 'function');
+    let user = null;
+    if (willWriteRemote) {
+      const requireAuth = typeof exports.requireAuth === 'function' ? exports.requireAuth : null;
+      if (!requireAuth) {
+        console.warn('[incPlayerStat] authentication unavailable');
+        return;
+      }
+      try {
+        user = requireAuth();
+      } catch (err) {
+        console.warn('[incPlayerStat] authentication required', err);
+        return;
+      }
+    }
     const team = teamsDirectory.data?.[teamId];
     if (team) {
       if (!team.players) team.players = {};
@@ -119,12 +135,29 @@
       renderTeamStatsGrid();
     }
 
-    const db = exports.db;
-    if (!db) return;
+    if (!willWriteRemote) return;
 
     try {
       const ref = db.ref(`teams/${teamId}/players/${playerId}/stats/${statKey}`);
-      await ref.transaction(v => (v|0) + 1);
+      const result = await ref.transaction(v => (v|0) + 1);
+      if (result && result.committed && user) {
+        const timestampValue = typeof exports.serverTimestamp === 'function' ? exports.serverTimestamp() : Date.now();
+        const updates = {
+          [`teams/${teamId}/players/${playerId}/meta/updatedAt`]: timestampValue,
+          [`teams/${teamId}/players/${playerId}/meta/writerUid`]: user.uid,
+          [`teams/${teamId}/players/${playerId}/meta/writerEmail`]: user.email || null,
+          [`teams/${teamId}/players/${playerId}/meta/writerDisplayName`]: user.displayName || null,
+          [`teams/${teamId}/meta/updatedAt`]: timestampValue,
+          [`teams/${teamId}/meta/writerUid`]: user.uid,
+          [`teams/${teamId}/meta/writerEmail`]: user.email || null,
+          [`teams/${teamId}/meta/writerDisplayName`]: user.displayName || null
+        };
+        try {
+          await db.ref().update(updates);
+        } catch (err) {
+          console.warn('[incPlayerStat] failed to record writer metadata', err);
+        }
+      }
     } catch (e) {
       console.warn('[incPlayerStat] transaction failed', e);
     }
@@ -566,17 +599,40 @@
     if (!trimmed) return;
     try {
       const db = exports.db;
+      const requireAuth = typeof exports.requireAuth === 'function' ? exports.requireAuth : null;
+      const createWriterMeta = typeof exports.createWriterMeta === 'function' ? exports.createWriterMeta : null;
+      const getTimestamp = typeof exports.serverTimestamp === 'function' ? exports.serverTimestamp : (() => Date.now());
+      if (!requireAuth) {
+        throw new Error('Authentication unavailable');
+      }
+      const user = requireAuth();
       let teamKey = null;
       if (db) {
         const ref = db.ref('teams').push();
-        await ref.set({ name: trimmed });
+        const timestampValue = getTimestamp();
+        const meta = createWriterMeta ? createWriterMeta(user, { includeCreatedAt: true }) : {
+          writerUid: user.uid,
+          writerEmail: user.email || null,
+          writerDisplayName: user.displayName || null,
+          createdAt: timestampValue,
+          updatedAt: timestampValue
+        };
+        await ref.set({ name: trimmed, meta });
         teamKey = ref.key;
       }
       if (!teamKey) {
         teamKey = `local-${Date.now()}`;
       }
       if (!teamsDirectory.data) teamsDirectory.data = {};
-      teamsDirectory.data[teamKey] = { name: trimmed };
+      const localNow = Date.now();
+      const localMeta = {
+        writerUid: user.uid,
+        writerEmail: user.email || null,
+        writerDisplayName: user.displayName || null,
+        createdAt: localNow,
+        updatedAt: localNow
+      };
+      teamsDirectory.data[teamKey] = { name: trimmed, meta: localMeta };
       teamsDirectory.orderedTeamIds = sortKeysByName(teamsDirectory.data);
       teamsDirectory.orderedPlayerIds = [];
       selectTeam(teamKey, { openPage: true });
@@ -601,13 +657,25 @@
     const trimmed = name.trim();
     if (!trimmed) return;
     try {
+      const requireAuth = typeof exports.requireAuth === 'function' ? exports.requireAuth : null;
+      if (!requireAuth) throw new Error('Authentication unavailable');
+      const user = requireAuth();
+      const createWriterMeta = typeof exports.createWriterMeta === 'function' ? exports.createWriterMeta : null;
+      const timestampValue = typeof exports.serverTimestamp === 'function' ? exports.serverTimestamp() : Date.now();
+      const meta = createWriterMeta ? createWriterMeta(user, { includeCreatedAt: true }) : {
+        writerUid: user.uid,
+        writerEmail: user.email || null,
+        writerDisplayName: user.displayName || null,
+        createdAt: timestampValue,
+        updatedAt: timestampValue
+      };
       const ref = db.ref(`teams/${teamId}/players`).push();
       const stats = {};
       TEAM_STAT_FIELDS.forEach(field => {
         const primaryKey = Array.isArray(field.keys) && field.keys.length ? field.keys[0] : (field.resolvedKeys && field.resolvedKeys[0]);
         if (primaryKey) stats[primaryKey] = 0;
       });
-      await ref.set({ name: trimmed, stats });
+      await ref.set({ name: trimmed, stats, meta });
       teamsDirectory.activePlayerId = ref.key;
       if (!teamsDirectory.data) teamsDirectory.data = {};
       let team = teamsDirectory.data[teamId];
@@ -616,7 +684,14 @@
         teamsDirectory.data[teamId] = team;
       }
       if (!team.players) team.players = {};
-      team.players[ref.key] = { name: trimmed, stats };
+      const playerNow = Date.now();
+      team.players[ref.key] = { name: trimmed, stats, meta: {
+        writerUid: user.uid,
+        writerEmail: user.email || null,
+        writerDisplayName: user.displayName || null,
+        createdAt: playerNow,
+        updatedAt: playerNow
+      } };
       teamsDirectory.orderedPlayerIds = sortKeysByName(team.players);
       renderTeamsDirectory();
     } catch (err) {
