@@ -72,7 +72,7 @@ window.triggerGirlPlay = function () {
   // Helper: seed the big Edit Profile sheet preview spans from state
   function seedProfileEditorFromState(){
     const p = (window.App?.state?.profile) || {};
-    const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+    const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province', league: 'League' };
 
     const setPreview = (k, val) => {
       const el = document.querySelector(`[data-profile-field-value="${k}"]`);
@@ -86,6 +86,7 @@ window.triggerGirlPlay = function () {
     setPreview('teamName',  p.teamName);
     setPreview('city',      p.city);
     setPreview('province',  p.province);
+    setPreview('league',    p.league);
   }
 
   // Helper: swap text input -> <select> populated from Firebase Teams
@@ -180,7 +181,7 @@ window.triggerGirlPlay = function () {
     if (fieldSheet) fieldSheet.dataset.key = fieldKey;
 
     // Get current preview text from big editor (not from state)
-    const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+    const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province', league: 'League' };
     const previewEl = document.querySelector(`[data-profile-field-value="${fieldKey}"]`);
     const previewTextRaw = (previewEl?.textContent || '').trim();
     const previewText = previewTextRaw && previewTextRaw !== placeholders[fieldKey] ? previewTextRaw : '';
@@ -286,7 +287,7 @@ window.triggerGirlPlay = function () {
       // Update the visible value in the big Edit Profile sheet
       const preview = document.querySelector(`[data-profile-field-value="${key}"]`);
       if (preview) {
-        const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
+        const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province', league: 'League' };
         preview.textContent = next || placeholders[key] || '';
         preview.classList.toggle('is-placeholder', !next);
       }
@@ -308,8 +309,8 @@ window.triggerGirlPlay = function () {
     profileForm.addEventListener('submit', (e) => {
       e.preventDefault();
 
-      const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province' };
-      const keys = ['firstName', 'teamName', 'city', 'province'];
+      const placeholders = { firstName: 'Name', teamName: 'Team', city: 'City', province: 'Province', league: 'League' };
+      const keys = ['firstName', 'teamName', 'city', 'province', 'league'];
       const app = window.App || {};
       const nextProfile = {};
 
@@ -369,6 +370,7 @@ window.triggerGirlPlay = function () {
           normalizedProfile.teamName = safeString(profile?.teamName);
           normalizedProfile.city = safeString(profile?.city);
           normalizedProfile.province = safeProvince(profile?.province);
+          normalizedProfile.league = safeString(profile?.league);
           if (normalizedProfile.photoData == null) {
             normalizedProfile.photoData = null;
           }

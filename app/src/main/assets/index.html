@@ -229,6 +229,7 @@
             <div class="profile-card__details">
               <div class="profile-card__name" id="profileFirstName">Name</div>
               <div class="profile-card__team" id="profileTeamName">Team</div>
+              <div class="profile-card__league" id="profileLeagueName">League</div>
               <div class="profile-card__location" id="profileLocation">City, Province</div>
             </div>
           </div>
@@ -301,6 +302,22 @@
                 aria-labelledby="profileTeamLabel profileTeamValue"
               >
                 <span class="profile-form__field-value is-placeholder" id="profileTeamValue" data-profile-field-value="teamName">Team</span>
+                <span class="profile-form__field-chevron" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="profile-form__group">
+              <span class="profile-form__label sr-only" id="profileLeagueLabel">League</span>
+              <button
+                class="profile-form__field-button"
+                type="button"
+                data-profile-field="league"
+                data-profile-field-title="League"
+                data-profile-field-name="league"
+                data-profile-field-placeholder="League"
+                aria-labelledby="profileLeagueLabel profileLeagueValue"
+              >
+                <span class="profile-form__field-value is-placeholder" id="profileLeagueValue" data-profile-field-value="league">League</span>
                 <span class="profile-form__field-chevron" aria-hidden="true"></span>
               </button>
             </div>
