@@ -45,8 +45,13 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
+import org.json.JSONArray
 import org.json.JSONObject
 
 private const val ASSET_URL = "https://appassets.androidplatform.net/assets/index.html"
@@ -87,6 +92,10 @@ class MainActivity : AppCompatActivity() {
     private var lastGoogleIdToken: String? = null
     private var webViewReadyForAuth = false
     private var latestNativeAuthScript: String? = null
+    private var userProfileListener: ValueEventListener? = null
+    private var userProfileRef: DatabaseReference? = null
+    private var pendingProfilePayload: String? = null
+    private var hasPendingProfileUpdate = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -183,6 +192,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        clearUserProfileListener()
         webView.apply {
             loadUrl("about:blank")
             stopLoading()
@@ -530,9 +540,11 @@ class MainActivity : AppCompatActivity() {
         if (user == null) {
             lastGoogleIdToken = null
             syncNativeAuthState(null, null)
+            clearUserProfileListener()
             showLoginUi()
         } else {
             ensureUserDocument(user)
+            observeUserProfile(user)
             showWebContent()
             ensureWebViewAuthForUser(user)
         }
@@ -676,10 +688,94 @@ class MainActivity : AppCompatActivity() {
         database.reference
             .child("users")
             .child(user.uid)
-            .setValue(mapOf("uid" to user.uid))
+            .updateChildren(mapOf("uid" to user.uid))
             .addOnFailureListener { error ->
                 Log.w(TAG, "Failed to upsert user profile", error)
             }
+    }
+
+    private fun observeUserProfile(user: FirebaseUser) {
+        val database = realtimeDatabase ?: return
+        val reference = database.reference.child("users").child(user.uid)
+
+        clearUserProfileListener()
+
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val payload = dataSnapshotValueToJson(snapshot.value)
+                queueProfilePayload(payload)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.w(TAG, "User profile listener cancelled", error.toException())
+            }
+        }
+
+        reference.addValueEventListener(listener)
+        userProfileRef = reference
+        userProfileListener = listener
+    }
+
+    private fun clearUserProfileListener() {
+        val ref = userProfileRef
+        val listener = userProfileListener
+        if (ref != null && listener != null) {
+            ref.removeEventListener(listener)
+        }
+        userProfileRef = null
+        userProfileListener = null
+        pendingProfilePayload = null
+        hasPendingProfileUpdate = false
+    }
+
+    private fun queueProfilePayload(payload: String?) {
+        pendingProfilePayload = payload
+        hasPendingProfileUpdate = true
+        flushPendingProfilePayload()
+    }
+
+    private fun flushPendingProfilePayload() {
+        if (!hasPendingProfileUpdate) return
+        if (!webViewReadyForAuth || !hasLoadedInitialUrl) return
+
+        val payload = pendingProfilePayload
+        val script = if (payload == null) {
+            "window.App && window.App.hydrateProfileFromNative && window.App.hydrateProfileFromNative(null);"
+        } else {
+            "window.App && window.App.hydrateProfileFromNative && window.App.hydrateProfileFromNative($payload);"
+        }
+
+        hasPendingProfileUpdate = false
+        runOnUiThread {
+            try {
+                webView.evaluateJavascript(script, null)
+            } catch (error: Exception) {
+                Log.w(TAG, "Failed to deliver profile payload", error)
+                hasPendingProfileUpdate = true
+            }
+        }
+    }
+
+    private fun dataSnapshotValueToJson(value: Any?): String? {
+        return when (value) {
+            null -> null
+            is Map<*, *> -> JSONObject(value).toString()
+            is Collection<*> -> JSONArray(value).toString()
+            is Array<*> -> JSONArray(value).toString()
+            is String -> JSONObject.quote(value)
+            is Number, is Boolean -> value.toString()
+            else -> {
+                val wrapped = JSONObject.wrap(value)
+                when (wrapped) {
+                    null -> null
+                    is JSONObject -> wrapped.toString()
+                    is JSONArray -> wrapped.toString()
+                    is String -> JSONObject.quote(wrapped)
+                    is Number, is Boolean -> wrapped.toString()
+                    else -> JSONObject.quote(wrapped.toString())
+                }
+            }
+        }
     }
 
     private fun enqueueNativeAuthScript(script: String) {
@@ -695,6 +791,7 @@ class MainActivity : AppCompatActivity() {
         if (!script.isNullOrEmpty()) {
             webView.evaluateJavascript(script, null)
         }
+        flushPendingProfilePayload()
     }
 
     private fun setLoginInProgress(inProgress: Boolean) {
@@ -716,6 +813,7 @@ class MainActivity : AppCompatActivity() {
         googleSignInClient?.signOut()
         lastGoogleIdToken = null
         syncNativeAuthState(null, null)
+        clearUserProfileListener()
 
         try {
             webView.evaluateJavascript(
