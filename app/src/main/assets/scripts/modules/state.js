@@ -426,6 +426,60 @@
 
   let profileHydratorTeardown = null;
 
+  function hasAnyKeys(obj, keys){
+    if (!obj || typeof obj !== 'object') return false;
+    return keys.some((key) => Object.prototype.hasOwnProperty.call(obj, key));
+  }
+
+  function normalizeProfilePayload(payload){
+    if (!payload) return null;
+
+    if (typeof payload === 'object') {
+      if (payload.profile && typeof payload.profile === 'object') {
+        return payload.profile;
+      }
+
+      if (hasAnyKeys(payload, ['name', 'team', 'city', 'province'])) {
+        return {
+          firstName: payload.name,
+          teamName: payload.team,
+          city: payload.city,
+          province: payload.province,
+          photoData: payload.photoData ?? payload.photo ?? payload.image ?? payload.i ?? null
+        };
+      }
+
+      if (hasAnyKeys(payload, ['firstName', 'teamName', 'city', 'province', 'photoData', 'fn', 'tn', 'c', 'pv', 'photo', 'image', 'i'])) {
+        return payload;
+      }
+    }
+
+    if (payload != null) {
+      return payload;
+    }
+
+    return null;
+  }
+
+  function applyProfilePayload(payload){
+    if (!exports.state) {
+      exports.state = defaultState();
+    }
+
+    const raw = normalizeProfilePayload(payload);
+    const sanitized = raw == null ? defaultProfile() : sanitizeProfile(raw);
+    const current = exports.state && exports.state.profile ? exports.state.profile : defaultProfile();
+    const nextProfile = Object.assign({}, current, sanitized);
+    exports.state.profile = nextProfile;
+    if (typeof exports.renderAndPersist === 'function') {
+      exports.renderAndPersist();
+    }
+  }
+
+  function hydrateProfileFromNative(payload){
+    applyProfilePayload(payload);
+  }
+
   function hydrateProfileFromUser(uid){
     if (profileHydratorTeardown) {
       try { profileHydratorTeardown(); } catch {}
@@ -444,46 +498,12 @@
     try {
       const ref = db.ref(`users/${uid}`);
       const handler = (snap) => {
-        if (!exports.state) {
-          exports.state = defaultState();
-        }
-
-        let raw = null;
         if (snap && typeof snap.val === 'function') {
-          const value = snap.val();
-          if (value && typeof value === 'object') {
-            if (value.profile && typeof value.profile === 'object') {
-              raw = value.profile;
-            } else {
-              const hasFlatProfileFields = ['name', 'team', 'city', 'province']
-                .some((key) => Object.prototype.hasOwnProperty.call(value, key));
-              if (hasFlatProfileFields) {
-                raw = {
-                  firstName: value.name,
-                  teamName: value.team,
-                  city: value.city,
-                  province: value.province,
-                  photoData: value.photoData ?? value.photo ?? value.image ?? value.i ?? null
-                };
-              } else {
-                const hasDirectProfileFields = ['firstName', 'teamName', 'city', 'province', 'photoData', 'fn', 'tn', 'c', 'pv', 'photo', 'image', 'i']
-                  .some((key) => Object.prototype.hasOwnProperty.call(value, key));
-                if (hasDirectProfileFields) {
-                  raw = value;
-                }
-              }
-            }
-          } else if (value != null) {
-            raw = value;
+          try {
+            applyProfilePayload(snap.val());
+          } catch (err) {
+            console.warn('[profile hydrate] failed to apply payload', err);
           }
-        }
-
-        const sanitized = raw == null ? defaultProfile() : sanitizeProfile(raw);
-        const current = exports.state && exports.state.profile ? exports.state.profile : defaultProfile();
-        const nextProfile = Object.assign({}, current, sanitized);
-        exports.state.profile = nextProfile;
-        if (typeof exports.renderAndPersist === 'function') {
-          exports.renderAndPersist();
         }
       };
       const cancel = (err) => { if (err) console.warn('[profile hydrate] listener error', err); };
@@ -537,6 +557,7 @@
   exports.reconcileAllState = reconcileAllState;
   exports.requestPersist = requestPersist;
   exports.renderAndPersist = renderAndPersist;
+  exports.hydrateProfileFromNative = hydrateProfileFromNative;
   exports.hydrateProfileFromUser = hydrateProfileFromUser;
   exports.$ = $;
   exports.$$ = $$;
