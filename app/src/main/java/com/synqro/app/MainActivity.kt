@@ -739,16 +739,27 @@ class MainActivity : AppCompatActivity() {
         if (!webViewReadyForAuth || !hasLoadedInitialUrl) return
 
         val payload = pendingProfilePayload
-        val script = if (payload == null) {
-            "window.App && window.App.hydrateProfileFromNative && window.App.hydrateProfileFromNative(null);"
-        } else {
-            "window.App && window.App.hydrateProfileFromNative && window.App.hydrateProfileFromNative($payload);"
+        val script = buildString {
+            append("(function(){")
+            append("if (window.App && typeof window.App.hydrateProfileFromNative === 'function') {")
+            append("window.App.hydrateProfileFromNative(")
+            append(payload ?: "null")
+            append(");")
+            append("return true;")
+            append("}")
+            append("return false;")
+            append("})();")
         }
 
         hasPendingProfileUpdate = false
         runOnUiThread {
             try {
-                webView.evaluateJavascript(script, null)
+                webView.evaluateJavascript(script) { result ->
+                    if (result != "true") {
+                        hasPendingProfileUpdate = true
+                        webView.postDelayed({ flushPendingProfilePayload() }, 100)
+                    }
+                }
             } catch (error: Exception) {
                 Log.w(TAG, "Failed to deliver profile payload", error)
                 hasPendingProfileUpdate = true
