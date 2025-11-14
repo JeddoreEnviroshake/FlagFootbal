@@ -41,9 +41,13 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.ktx.firestore
 import org.json.JSONObject
 
 private const val ASSET_URL = "https://appassets.androidplatform.net/assets/index.html"
@@ -76,6 +80,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var googleSignInLauncher: ActivityResultLauncher<Intent>
 
     private var auth: FirebaseAuth? = null
+    private var firestore: FirebaseFirestore? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
     private var hasLoadedInitialUrl = false
     private var pendingWebViewState: Bundle? = null
@@ -158,6 +163,7 @@ class MainActivity : AppCompatActivity() {
             showWebContent()
         } else {
             auth = Firebase.auth(firebaseApp)
+            firestore = Firebase.firestore(firebaseApp)
             configureGoogleSignIn()
             authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
                 updateUiForUser(firebaseAuth.currentUser)
@@ -527,6 +533,7 @@ class MainActivity : AppCompatActivity() {
             syncNativeAuthState(null, null)
             showLoginUi()
         } else {
+            ensureUserDocument(user)
             showWebContent()
             ensureWebViewAuthForUser(user)
         }
@@ -663,6 +670,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         enqueueNativeAuthScript(script)
+    }
+
+    private fun ensureUserDocument(user: FirebaseUser) {
+        val db = firestore ?: return
+        db.collection("users")
+            .document(user.uid)
+            .set(mapOf("uid" to user.uid), SetOptions.merge())
+            .addOnFailureListener { error ->
+                Log.w(TAG, "Failed to upsert user profile", error)
+            }
     }
 
     private fun enqueueNativeAuthScript(script: String) {
