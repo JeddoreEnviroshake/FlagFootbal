@@ -378,9 +378,7 @@ window.triggerGirlPlay = function () {
           const payload = {
             uid: normalizedUid,
             name: normalizedProfile.firstName,
-            firstName: normalizedProfile.firstName,
             team: normalizedProfile.teamName,
-            teamName: normalizedProfile.teamName,
             city: normalizedProfile.city,
             province: normalizedProfile.province,
             league: safeLeague(),
