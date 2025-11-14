@@ -439,17 +439,18 @@
         return payload.profile;
       }
 
-      if (hasAnyKeys(payload, ['name', 'team', 'city', 'province'])) {
+      if (hasAnyKeys(payload, ['name', 'team', 'city', 'province', 'league'])) {
         return {
           firstName: payload.name,
           teamName: payload.team,
           city: payload.city,
           province: payload.province,
+          league: payload.league ?? payload.leagueName ?? payload.teamLeague,
           photoData: payload.photoData ?? payload.photo ?? payload.image ?? payload.i ?? null
         };
       }
 
-      if (hasAnyKeys(payload, ['firstName', 'teamName', 'city', 'province', 'photoData', 'fn', 'tn', 'c', 'pv', 'photo', 'image', 'i'])) {
+      if (hasAnyKeys(payload, ['firstName', 'teamName', 'city', 'province', 'league', 'photoData', 'fn', 'tn', 'c', 'pv', 'lg', 'photo', 'image', 'i'])) {
         return payload;
       }
     }
