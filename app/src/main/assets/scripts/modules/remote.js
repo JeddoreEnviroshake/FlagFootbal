@@ -18,6 +18,8 @@
 
   let auth = null;
   let db = null;
+  const SIGN_IN_REQUIRED_MESSAGE = 'Sign in required for sync';
+  let lastAuthUid = null;
   if (window.__firebaseReady && window.firebase) {
     try {
       auth = firebase.auth();
@@ -66,6 +68,14 @@
   }
 
   let lastPushMs = 0;
+
+  function getAuthenticatedUser(){
+    if (!auth || !auth.currentUser) return null;
+    const user = auth.currentUser;
+    if (user.isAnonymous) return null;
+    return user;
+  }
+
   function scheduleRemotePush(){
     if (remoteSync.useTransactions) return;
     if (!db || !auth) return;
@@ -125,13 +135,15 @@
     if (remoteSync.source){ try { remoteSync.source.off(); } catch {} }
     remoteSync.source = null;
     remoteSync.connected = false;
+    remoteSync.canWrite = false;
     if (remoteSync.pushTimer){ clearTimeout(remoteSync.pushTimer); remoteSync.pushTimer=null; }
     remoteSync.pendingPush = false;
     updateRemoteStatus();
   }
 
   async function isCurrentUserWriter(game) {
-    const uid = (auth && auth.currentUser) ? auth.currentUser.uid : null;
+    const user = getAuthenticatedUser();
+    const uid = user ? user.uid : null;
     if (!uid) return false;
     try {
       const snap = await db.ref(`games/${game}/meta/writers/${uid}`).get();
@@ -142,20 +154,22 @@
   }
 
   async function joinWriters(game) {
-    const uid = (auth && auth.currentUser) ? auth.currentUser.uid : null;
+    const user = getAuthenticatedUser();
+    const uid = user ? user.uid : null;
     if (!uid) return false;
     await db.ref(`games/${game}/meta/writers/${uid}`).set(true);
     return true;
   }
 
   async function leaveWriters(game) {
-    const uid = (auth && auth.currentUser) ? auth.currentUser.uid : null;
+    const user = getAuthenticatedUser();
+    const uid = user ? user.uid : null;
     if (!uid) return;
     await db.ref(`games/${game}/meta/writers/${uid}`).set(null);
   }
 
   function isOnlineWriter(){
-    return remoteConfigured() && remoteSync.canWrite && db && auth && auth.currentUser;
+    return remoteConfigured() && remoteSync.canWrite && !!getAuthenticatedUser();
   }
 
   function txnField(path, mutateFn) {
@@ -216,17 +230,18 @@
       return;
     }
 
-    remoteSync.status = 'connecting';
-    updateRemoteStatus();
-
-    try {
-      if (!auth.currentUser) await auth.signInAnonymously();
-    } catch (err) {
+    const user = getAuthenticatedUser();
+    if (!user) {
       remoteSync.status = 'error';
-      remoteSync.lastError = err;
+      remoteSync.lastError = SIGN_IN_REQUIRED_MESSAGE;
+      remoteSync.canWrite = false;
       updateRemoteStatus();
       return;
     }
+
+    remoteSync.status = 'connecting';
+    remoteSync.lastError = null;
+    updateRemoteStatus();
 
     const game = requireConfiguredGame();
     if (!game) return;
@@ -279,18 +294,38 @@
         profileListenerCleanup = null;
       }
 
-      if (typeof exports.hydrateProfileFromUser !== 'function') {
+      const user = (!currentUser || currentUser.isAnonymous) ? null : currentUser;
+
+      if (typeof exports.hydrateProfileFromUser === 'function') {
+        if (!user) {
+          exports.hydrateProfileFromUser(null);
+        } else {
+          const teardown = exports.hydrateProfileFromUser(user.uid);
+          if (typeof teardown === 'function') {
+            profileListenerCleanup = teardown;
+          }
+        }
+      }
+
+      if (!user) {
+        lastAuthUid = null;
+        disconnectRemote();
+        if (remoteConfigured()) {
+          remoteSync.status = 'error';
+          remoteSync.lastError = SIGN_IN_REQUIRED_MESSAGE;
+        } else {
+          remoteSync.status = 'idle';
+          remoteSync.lastError = null;
+        }
+        updateRemoteStatus();
         return;
       }
 
-      if (!currentUser || currentUser.isAnonymous) {
-        exports.hydrateProfileFromUser(null);
-        return;
-      }
-
-      const teardown = exports.hydrateProfileFromUser(currentUser.uid);
-      if (typeof teardown === 'function') {
-        profileListenerCleanup = teardown;
+      if (user.uid !== lastAuthUid) {
+        lastAuthUid = user.uid;
+        if (remoteConfigured()) {
+          exports.connectRemote();
+        }
       }
     });
   }
