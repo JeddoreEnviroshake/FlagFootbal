@@ -45,8 +45,9 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ktx.database
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.ktx.firestore
 import org.json.JSONObject
 
 private const val ASSET_URL = "https://appassets.androidplatform.net/assets/index.html"
@@ -79,7 +80,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var googleSignInLauncher: ActivityResultLauncher<Intent>
 
     private var auth: FirebaseAuth? = null
-    private var realtimeDatabase: FirebaseDatabase? = null
+    private var firestore: FirebaseFirestore? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
     private var hasLoadedInitialUrl = false
     private var pendingWebViewState: Bundle? = null
@@ -162,7 +163,7 @@ class MainActivity : AppCompatActivity() {
             showWebContent()
         } else {
             auth = Firebase.auth(firebaseApp)
-            realtimeDatabase = Firebase.database(firebaseApp)
+            firestore = Firebase.firestore(firebaseApp)
             configureGoogleSignIn()
             authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
                 updateUiForUser(firebaseAuth.currentUser)
@@ -672,11 +673,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun ensureUserDocument(user: FirebaseUser) {
-        val database = realtimeDatabase ?: return
-        database.reference
-            .child("users")
-            .child(user.uid)
-            .setValue(mapOf("uid" to user.uid))
+        val db = firestore ?: return
+        db.collection("users")
+            .document(user.uid)
+            .set(mapOf("uid" to user.uid), SetOptions.merge())
             .addOnFailureListener { error ->
                 Log.w(TAG, "Failed to upsert user profile", error)
             }
