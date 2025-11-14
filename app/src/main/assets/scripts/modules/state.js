@@ -76,23 +76,56 @@
   }
 
   function sanitizeProfile(profile){
-    const base = defaultProfile();
-    if (!profile || typeof profile !== 'object') return base;
-    base.firstName = coerceProfileString(profile.firstName != null ? profile.firstName : profile.fn);
-    base.teamName = coerceProfileString(profile.teamName != null ? profile.teamName : (profile.team != null ? profile.team : profile.tn));
-    base.city = coerceProfileString(profile.city != null ? profile.city : profile.c);
-    base.province = coerceProfileString(profile.province != null ? profile.province : (profile.provinceCode != null ? profile.provinceCode : profile.pv));
-    base.league = coerceProfileString(profile.league != null ? profile.league : (profile.leagueId != null ? profile.leagueId : (profile.teamLeague != null ? profile.teamLeague : profile.lg)));
-    let photo = profile.photoData != null ? profile.photoData : (profile.photo != null ? profile.photo : (profile.image != null ? profile.image : profile.i));
-    if (typeof photo === 'string') {
-      const trimmed = photo.trim();
-      if (trimmed && trimmed.length <= 350000) {
-        base.photoData = trimmed;
+    const sanitized = {};
+    if (!profile || typeof profile !== 'object') return sanitized;
+
+    const hasKey = (obj, keys) => keys.some((key) => Object.prototype.hasOwnProperty.call(obj, key));
+
+    const sourceFirstName = profile.firstName != null ? profile.firstName : profile.fn;
+    if (hasKey(profile, ['firstName', 'fn'])) {
+      sanitized.firstName = coerceProfileString(sourceFirstName);
+    }
+
+    const sourceTeamName = profile.teamName != null ? profile.teamName : (profile.team != null ? profile.team : profile.tn);
+    if (hasKey(profile, ['teamName', 'team', 'tn'])) {
+      sanitized.teamName = coerceProfileString(sourceTeamName);
+    }
+
+    const sourceCity = profile.city != null ? profile.city : profile.c;
+    if (hasKey(profile, ['city', 'c'])) {
+      sanitized.city = coerceProfileString(sourceCity);
+    }
+
+    const sourceProvince = profile.province != null ? profile.province : (profile.provinceCode != null ? profile.provinceCode : profile.pv);
+    if (hasKey(profile, ['province', 'provinceCode', 'pv'])) {
+      sanitized.province = coerceProfileString(sourceProvince);
+    }
+
+    const sourceLeague = profile.league != null
+      ? profile.league
+      : (profile.leagueId != null ? profile.leagueId : (profile.teamLeague != null ? profile.teamLeague : profile.lg));
+    if (hasKey(profile, ['league', 'leagueId', 'teamLeague', 'lg'])) {
+      sanitized.league = coerceProfileString(sourceLeague);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(profile, 'photoData')
+      || Object.prototype.hasOwnProperty.call(profile, 'photo')
+      || Object.prototype.hasOwnProperty.call(profile, 'image')
+      || Object.prototype.hasOwnProperty.call(profile, 'i')) {
+      let photo = profile.photoData != null ? profile.photoData : (profile.photo != null ? profile.photo : (profile.image != null ? profile.image : profile.i));
+      if (typeof photo === 'string') {
+        const trimmed = photo.trim();
+        if (trimmed && trimmed.length <= 350000) {
+          sanitized.photoData = trimmed;
+        } else {
+          sanitized.photoData = null;
+        }
       } else {
-        base.photoData = null;
+        sanitized.photoData = null;
       }
     }
-    return base;
+
+    return sanitized;
   }
 
   function serializeState(s){
