@@ -329,6 +329,12 @@
       if (nameEl) nameEl.textContent = firstName;
       const teamEl = exports.$('#profileTeamName');
       if (teamEl) teamEl.textContent = teamName;
+      const leagueEl = exports.$('#profileLeagueName');
+      if (leagueEl) {
+        const leagueText = profile.league && profile.league.trim() ? profile.league.trim() : 'League';
+        leagueEl.textContent = leagueText;
+        leagueEl.classList.toggle('is-placeholder', !profile.league || !profile.league.trim());
+      }
       const locationEl = exports.$('#profileLocation');
       if (locationEl) {
         const parts = [];
@@ -362,6 +368,7 @@
       setField('#profileTeamValue',      profile.teamName,  'Team');
       setField('#profileCityValue',      profile.city,      'City');
       setField('#profileProvinceValue',  profile.province,  'Province');
+      setField('#profileLeagueValue',    profile.league,    'League');
       // ✅ End of new block
 
       const accessibleLabel = firstName && firstName !== 'Name'

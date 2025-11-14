@@ -32,6 +32,7 @@
       teamName: '',
       city: '',
       province: '',
+      league: '',
       photoData: null
     };
   }
@@ -81,6 +82,7 @@
     base.teamName = coerceProfileString(profile.teamName != null ? profile.teamName : (profile.team != null ? profile.team : profile.tn));
     base.city = coerceProfileString(profile.city != null ? profile.city : profile.c);
     base.province = coerceProfileString(profile.province != null ? profile.province : (profile.provinceCode != null ? profile.provinceCode : profile.pv));
+    base.league = coerceProfileString(profile.league != null ? profile.league : (profile.leagueId != null ? profile.leagueId : (profile.teamLeague != null ? profile.teamLeague : profile.lg)));
     let photo = profile.photoData != null ? profile.photoData : (profile.photo != null ? profile.photo : (profile.image != null ? profile.image : profile.i));
     if (typeof photo === 'string') {
       const trimmed = photo.trim();
@@ -306,6 +308,7 @@
         if (profile.teamName) profilePayload.tn = profile.teamName;
         if (profile.city) profilePayload.c = profile.city;
         if (profile.province) profilePayload.pv = profile.province;
+        if (profile.league) profilePayload.lg = profile.league;
         if (profile.photoData) profilePayload.ph = profile.photoData;
         const tinyObj = {
           a: state.activeTeam,
