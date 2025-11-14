@@ -67,6 +67,43 @@
     if (form.game) form.game.value = cfg.game || '';
   }
 
+  async function syncNativeAuthState(payload){
+    if (!auth || !firebase || !firebase.auth || !firebase.auth.GoogleAuthProvider) {
+      return false;
+    }
+
+    if (!payload || !payload.idToken) {
+      if (auth.currentUser) {
+        try {
+          await auth.signOut();
+        } catch (err) {
+          console.warn('[native-auth] sign-out failed', err);
+        }
+      }
+      return false;
+    }
+
+    const { idToken, uid } = payload;
+    if (!idToken) return false;
+
+    const current = auth.currentUser;
+    if (current && !current.isAnonymous && (!uid || current.uid === uid)) {
+      return true;
+    }
+
+    try {
+      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+      await auth.signInWithCredential(credential);
+      return true;
+    } catch (err) {
+      console.warn('[native-auth] sign-in failed', err);
+      remoteSync.status = 'error';
+      remoteSync.lastError = err;
+      updateRemoteStatus();
+      return false;
+    }
+  }
+
   let lastPushMs = 0;
 
   function getAuthenticatedUser(){
@@ -346,5 +383,6 @@
   exports.isCurrentUserWriter = isCurrentUserWriter;
   exports.joinWriters = joinWriters;
   exports.leaveWriters = leaveWriters;
+  exports.syncNativeAuthState = syncNativeAuthState;
 
 })(window.App = window.App || {});

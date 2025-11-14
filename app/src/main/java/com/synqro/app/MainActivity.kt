@@ -44,6 +44,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import org.json.JSONObject
 
 private const val ASSET_URL = "https://appassets.androidplatform.net/assets/index.html"
 private const val KEY_WEBVIEW_LOADED = "webview_loaded"
@@ -79,6 +80,9 @@ class MainActivity : AppCompatActivity() {
     private var hasLoadedInitialUrl = false
     private var pendingWebViewState: Bundle? = null
     private var googleSignInClient: GoogleSignInClient? = null
+    private var lastGoogleIdToken: String? = null
+    private var webViewReadyForAuth = false
+    private var latestNativeAuthScript: String? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -159,6 +163,7 @@ class MainActivity : AppCompatActivity() {
                 updateUiForUser(firebaseAuth.currentUser)
             }
             updateUiForUser(auth?.currentUser)
+            requestGoogleIdTokenIfNeeded()
         }
 
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
@@ -331,11 +336,16 @@ class MainActivity : AppCompatActivity() {
                         return@registerForActivityResult
                     }
 
+                    lastGoogleIdToken = idToken
                     firebaseAuth.signInWithCredential(credential)
                         .addOnCompleteListener { signInTask ->
                             setLoginInProgress(false)
                             if (signInTask.isSuccessful) {
                                 loginStatus.isVisible = false
+                                val currentUser = firebaseAuth.currentUser
+                                if (currentUser != null) {
+                                    syncNativeAuthState(currentUser, lastGoogleIdToken)
+                                }
                             } else {
                                 val exception = signInTask.exception
                                 Log.w(
@@ -436,6 +446,10 @@ class MainActivity : AppCompatActivity() {
                 if (::backCallback.isInitialized) {
                     backCallback.isEnabled = webView.canGoBack() && webView.isVisible
                 }
+                val parsed = url?.let(Uri::parse)
+                if (parsed?.host?.equals(assetHost, ignoreCase = true) == true) {
+                    markWebViewReadyForAuth()
+                }
             }
         }
 
@@ -509,9 +523,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUiForUser(user: com.google.firebase.auth.FirebaseUser?) {
         if (user == null) {
+            lastGoogleIdToken = null
+            syncNativeAuthState(null, null)
             showLoginUi()
         } else {
             showWebContent()
+            ensureWebViewAuthForUser(user)
         }
     }
 
@@ -526,6 +543,7 @@ class MainActivity : AppCompatActivity() {
         loginEmailLayout.error = null
         loginEmailLayout.isErrorEnabled = false
         setLoginInProgress(false)
+        webViewReadyForAuth = false
         if (hasLoadedInitialUrl) {
             webView.apply {
                 stopLoading()
@@ -546,9 +564,119 @@ class MainActivity : AppCompatActivity() {
             webView.restoreState(state)
             pendingWebViewState = null
             hasLoadedInitialUrl = true
+            markWebViewReadyForAuth()
         } else if (!hasLoadedInitialUrl) {
+            webViewReadyForAuth = false
             webView.loadUrl(ASSET_URL)
             hasLoadedInitialUrl = true
+        }
+    }
+
+    private fun ensureWebViewAuthForUser(user: com.google.firebase.auth.FirebaseUser) {
+        val existingToken = lastGoogleIdToken
+        if (!existingToken.isNullOrEmpty()) {
+            syncNativeAuthState(user, existingToken)
+            requestGoogleIdToken { token ->
+                if (!token.isNullOrEmpty() && token != existingToken) {
+                    lastGoogleIdToken = token
+                    val currentUser = auth?.currentUser
+                    if (currentUser != null) {
+                        syncNativeAuthState(currentUser, token)
+                    }
+                }
+            }
+            return
+        }
+
+        requestGoogleIdToken { token ->
+            if (!token.isNullOrEmpty()) {
+                lastGoogleIdToken = token
+                val currentUser = auth?.currentUser
+                if (currentUser != null) {
+                    syncNativeAuthState(currentUser, token)
+                }
+            } else {
+                Log.w(TAG, "Unable to obtain Google ID token for WebView authentication")
+            }
+        }
+    }
+
+    private fun requestGoogleIdTokenIfNeeded(force: Boolean = false) {
+        val currentUser = auth?.currentUser
+        if (currentUser == null) {
+            lastGoogleIdToken = null
+            return
+        }
+
+        if (!force && !lastGoogleIdToken.isNullOrEmpty()) {
+            syncNativeAuthState(currentUser, lastGoogleIdToken)
+            return
+        }
+
+        requestGoogleIdToken { token ->
+            if (!token.isNullOrEmpty()) {
+                lastGoogleIdToken = token
+                val refreshedUser = auth?.currentUser
+                if (refreshedUser != null) {
+                    syncNativeAuthState(refreshedUser, token)
+                }
+            }
+        }
+    }
+
+    private fun requestGoogleIdToken(onResult: (String?) -> Unit) {
+        val client = googleSignInClient
+        if (client == null) {
+            runOnUiThread { onResult(null) }
+            return
+        }
+
+        val lastAccount = GoogleSignIn.getLastSignedInAccount(this)
+        val lastToken = lastAccount?.idToken
+        if (!lastToken.isNullOrEmpty()) {
+            runOnUiThread { onResult(lastToken) }
+            return
+        }
+
+        client.silentSignIn()
+            .addOnSuccessListener { account ->
+                runOnUiThread { onResult(account?.idToken) }
+            }
+            .addOnFailureListener { error ->
+                Log.w(TAG, "Google silent sign-in failed", error)
+                runOnUiThread { onResult(null) }
+            }
+    }
+
+    private fun syncNativeAuthState(user: com.google.firebase.auth.FirebaseUser?, googleIdToken: String?) {
+        val script = if (user == null || googleIdToken.isNullOrEmpty()) {
+            "window.App && window.App.syncNativeAuthState && window.App.syncNativeAuthState(null);"
+        } else {
+            val payload = JSONObject().apply {
+                put("uid", user.uid)
+                user.displayName?.let { put("displayName", it) }
+                user.email?.let { put("email", it) }
+                user.photoUrl?.toString()?.let { put("photoURL", it) }
+                put("idToken", googleIdToken)
+            }
+            "window.App && window.App.syncNativeAuthState && window.App.syncNativeAuthState(${payload.toString()});"
+        }
+
+        enqueueNativeAuthScript(script)
+    }
+
+    private fun enqueueNativeAuthScript(script: String) {
+        latestNativeAuthScript = script
+        if (webViewReadyForAuth && hasLoadedInitialUrl) {
+            webView.evaluateJavascript(script, null)
+        }
+    }
+
+    private fun markWebViewReadyForAuth() {
+        webViewReadyForAuth = true
+        val script = latestNativeAuthScript
+        if (!script.isNullOrEmpty()) {
+            webView.evaluateJavascript(script, null)
         }
     }
 
@@ -569,6 +697,8 @@ class MainActivity : AppCompatActivity() {
 
         firebaseAuth.signOut()
         googleSignInClient?.signOut()
+        lastGoogleIdToken = null
+        syncNativeAuthState(null, null)
 
         try {
             webView.evaluateJavascript(
