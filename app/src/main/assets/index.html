@@ -43,6 +43,19 @@
       <div class="sync-status" id="syncStatus" role="status">Offline</div>
 
     </div>
+    <div class="drawer-section">
+      <h2>Timing</h2>
+      <form id="timingSettingsForm" novalidate>
+        <label for="segmentLengthInput">Segment Length (minutes)</label>
+        <input id="segmentLengthInput" name="segmentLength" type="number" step="0.1" min="0.1" inputmode="decimal" autocomplete="off" aria-describedby="timingSettingsNote" placeholder="25" />
+
+        <label for="intermissionLengthInput">Intermission Length (minutes)</label>
+        <input id="intermissionLengthInput" name="intermissionLength" type="number" step="0.1" min="0.1" inputmode="decimal" autocomplete="off" aria-describedby="timingSettingsNote" placeholder="5" />
+      </form>
+      <p class="drawer-note" id="timingSettingsNote">
+        These values determine the default countdowns for each game segment and intermission.
+      </p>
+    </div>
   </nav>
   <div class="drawer-backdrop" id="menuBackdrop" tabindex="-1" aria-hidden="true"></div>
 

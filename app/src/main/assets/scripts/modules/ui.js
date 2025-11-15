@@ -457,6 +457,10 @@
     document.body.dataset.view = exports.viewMode;
     const isFlagged = !!exports.state.flagged;
     document.body.classList.toggle('flagged', isFlagged);
+    if (typeof exports.syncTimingInputs === 'function') {
+      try { exports.syncTimingInputs(); }
+      catch (err) { console.warn('[ui] timing sync failed', err); }
+    }
     if (typeof exports.renderTeamStatsGrid === 'function') {
       try { exports.renderTeamStatsGrid(); }
       catch (err) { console.warn('[ui] team stats render failed', err); }

@@ -37,16 +37,25 @@
     };
   }
 
+  function defaultSettings(){
+    return {
+      segmentLengthSeconds: 25 * 60,
+      intermissionLengthSeconds: 5 * 60
+    };
+  }
+
   function defaultState(){
+    const timing = defaultSettings();
     return {
       activeTeam: 0,
       teams: [
         { name: 'Home', score: 0, downs: 1, girlPlay: 2, rushes: 2, timeouts: 3 },
         { name: 'Away', score: 0, downs: 1, girlPlay: 2, rushes: 2, timeouts: 3 }
       ],
-      game: { seconds: 25*60, running: false, startedAtMs: null, secondsAtStart: null },
+      game: { seconds: timing.segmentLengthSeconds, running: false, startedAtMs: null, secondsAtStart: null },
       timeout: { running: false, secondsRemaining: 0, team: null, startedAtMs: null, secondsAtStart: null },
       halftime: { running: false, secondsRemaining: 0, startedAtMs: null, secondsAtStart: null },
+      settings: timing,
       flagged: false,
       profile: defaultProfile()
     };
@@ -134,6 +143,15 @@
     const game = s.game || {};
     const timeout = s.timeout || {};
     const halftime = s.halftime || {};
+    const settingsSource = s.settings || {};
+    const defaultSettingsObj = defaults.settings || defaultSettings();
+    const safeSettings = {
+      segmentLengthSeconds: coerceSeconds(settingsSource.segmentLengthSeconds != null ? settingsSource.segmentLengthSeconds : defaultSettingsObj.segmentLengthSeconds),
+      intermissionLengthSeconds: coerceSeconds(settingsSource.intermissionLengthSeconds != null ? settingsSource.intermissionLengthSeconds : defaultSettingsObj.intermissionLengthSeconds)
+    };
+    if (safeSettings.segmentLengthSeconds <= 0) safeSettings.segmentLengthSeconds = defaultSettingsObj.segmentLengthSeconds;
+    if (safeSettings.intermissionLengthSeconds <= 0) safeSettings.intermissionLengthSeconds = defaultSettingsObj.intermissionLengthSeconds;
+
     const safe = {
       activeTeam: Math.max(0, Math.min(1, s.activeTeam != null ? s.activeTeam : 0)),
       teams: teamSource.map(t => ({
@@ -163,6 +181,7 @@
         startedAtMs: coerceMs(halftime.startedAtMs),
         secondsAtStart: halftime.secondsAtStart != null ? coerceSeconds(halftime.secondsAtStart) : null
       },
+      settings: safeSettings,
       flagged: !!s.flagged,
       profile: sanitizeProfile(s.profile)
     };
@@ -280,6 +299,22 @@
         }
       }
 
+      const settingsRaw = obj.settings != null ? obj.settings : (obj.cfg != null ? obj.cfg : null);
+      const targetSettings = base.settings || defaultSettings();
+      if (settingsRaw && typeof settingsRaw === 'object') {
+        const segmentRaw = settingsRaw.segmentLengthSeconds != null
+          ? settingsRaw.segmentLengthSeconds
+          : (settingsRaw.segment != null ? settingsRaw.segment : settingsRaw.sg);
+        const intermissionRaw = settingsRaw.intermissionLengthSeconds != null
+          ? settingsRaw.intermissionLengthSeconds
+          : (settingsRaw.intermission != null ? settingsRaw.intermission : settingsRaw.im);
+        const segmentSeconds = coerceSeconds(segmentRaw);
+        const intermissionSeconds = coerceSeconds(intermissionRaw);
+        if (segmentSeconds > 0) targetSettings.segmentLengthSeconds = segmentSeconds;
+        if (intermissionSeconds > 0) targetSettings.intermissionLengthSeconds = intermissionSeconds;
+      }
+      base.settings = targetSettings;
+
       const flaggedRaw = obj.flagged != null ? obj.flagged : (obj.f != null ? obj.f : null);
       base.flagged = flaggedRaw === true || flaggedRaw === 1;
 
@@ -343,6 +378,17 @@
         if (profile.province) profilePayload.pv = profile.province;
         if (profile.league) profilePayload.lg = profile.league;
         if (profile.photoData) profilePayload.ph = profile.photoData;
+        const defaults = defaultState();
+        const safeSettings = (() => {
+          const incoming = state.settings && typeof state.settings === 'object' ? state.settings : {};
+          const seg = coerceSeconds(incoming.segmentLengthSeconds != null ? incoming.segmentLengthSeconds : defaults.settings.segmentLengthSeconds);
+          const inter = coerceSeconds(incoming.intermissionLengthSeconds != null ? incoming.intermissionLengthSeconds : defaults.settings.intermissionLengthSeconds);
+          return {
+            sg: seg > 0 ? seg : defaults.settings.segmentLengthSeconds,
+            im: inter > 0 ? inter : defaults.settings.intermissionLengthSeconds
+          };
+        })();
+
         const tinyObj = {
           a: state.activeTeam,
           t: state.teams.map(t=>({n:t.name, s:t.score|0, d:t.downs|0, g:Math.min(2,Math.max(0,t.girlPlay|0)), r:t.rushes|0, o:t.timeouts|0})),
@@ -365,7 +411,8 @@
             sa: state.halftime.secondsAtStart != null ? coerceSeconds(state.halftime.secondsAtStart) : null,
             ms: state.halftime.startedAtMs != null ? coerceMs(state.halftime.startedAtMs) : null
           },
-          f: state.flagged === true
+          f: state.flagged === true,
+          cfg: safeSettings
         };
         if (Object.keys(profilePayload).length) tinyObj.p = profilePayload;
         const tiny = JSON.stringify(tinyObj);
@@ -572,6 +619,7 @@
   exports.REMOTE_CONFIG_KEY = REMOTE_CONFIG_KEY;
   exports.coerceMs = coerceMs;
   exports.coerceSeconds = coerceSeconds;
+  exports.defaultSettings = defaultSettings;
   exports.defaultState = defaultState;
   exports.defaultProfile = defaultProfile;
   exports.VALUE_RULES = VALUE_RULES;
