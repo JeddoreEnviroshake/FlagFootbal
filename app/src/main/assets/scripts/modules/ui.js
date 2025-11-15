@@ -541,6 +541,15 @@
           if (timeoutTime) timeoutTime.textContent = fmt(timeoutSeconds);
         } else { timeoutBanner.style.display='none'; }
       }
+      const intermissionSeconds = exports.state.halftime?.secondsRemaining || 0;
+      const intermissionBanner = exports.$('#intermissionBanner');
+      if (intermissionBanner) {
+        if (intermissionSeconds > 0 && timeoutSeconds <= 0){
+          intermissionBanner.style.display='';
+          const intermissionTime = exports.$('#intermissionTime');
+          if (intermissionTime) intermissionTime.textContent = fmt(intermissionSeconds);
+        } else { intermissionBanner.style.display='none'; }
+      }
     }
 
     const startPauseBtn = exports.$ ? exports.$('#clockStartPause') : null;
