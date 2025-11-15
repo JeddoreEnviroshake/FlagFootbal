@@ -881,6 +881,7 @@
       align-items: flex-end;
       pointer-events: none;
       transition: opacity 0.3s ease;
+      padding-bottom: var(--keyboard-inset, 0px);
     }
 
     .profile-field-sheet[aria-hidden="true"] {
