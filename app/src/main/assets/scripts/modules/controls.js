@@ -30,6 +30,133 @@
     ],
   };
 
+  const TIMING_FALLBACKS = { segment: 25 * 60, intermission: 5 * 60 };
+
+  function coerceTimingSeconds(value){
+    const coerce = typeof exports.coerceSeconds === 'function'
+      ? exports.coerceSeconds
+      : (input) => {
+          const num = Number(input);
+          if (!Number.isFinite(num) || num < 0) return 0;
+          return Math.floor(num);
+        };
+    return coerce(value);
+  }
+
+  function readDefaultSettings(){
+    if (typeof exports.defaultSettings === 'function') {
+      try {
+        const base = exports.defaultSettings();
+        if (base && typeof base === 'object') return base;
+      } catch {}
+    }
+    return null;
+  }
+
+  const TIMING_DEFAULTS = (() => {
+    const defaults = readDefaultSettings();
+    if (!defaults) return TIMING_FALLBACKS;
+    const segment = coerceTimingSeconds(defaults.segmentLengthSeconds);
+    const intermission = coerceTimingSeconds(defaults.intermissionLengthSeconds);
+    return {
+      segment: segment > 0 ? segment : TIMING_FALLBACKS.segment,
+      intermission: intermission > 0 ? intermission : TIMING_FALLBACKS.intermission,
+    };
+  })();
+
+  function ensureSettings(state = exports.state){
+    if (!state) {
+      return {
+        segmentLengthSeconds: TIMING_DEFAULTS.segment,
+        intermissionLengthSeconds: TIMING_DEFAULTS.intermission,
+      };
+    }
+    const settings = state.settings && typeof state.settings === 'object' ? state.settings : (state.settings = {});
+    const segment = coerceTimingSeconds(settings.segmentLengthSeconds);
+    const finalSegment = segment > 0 ? segment : TIMING_DEFAULTS.segment;
+    if (settings.segmentLengthSeconds !== finalSegment) settings.segmentLengthSeconds = finalSegment;
+    const intermission = coerceTimingSeconds(settings.intermissionLengthSeconds);
+    const finalIntermission = intermission > 0 ? intermission : TIMING_DEFAULTS.intermission;
+    if (settings.intermissionLengthSeconds !== finalIntermission) settings.intermissionLengthSeconds = finalIntermission;
+    return settings;
+  }
+
+  function getSegmentLengthSeconds(state){
+    return ensureSettings(state).segmentLengthSeconds;
+  }
+
+  function getIntermissionLengthSeconds(state){
+    return ensureSettings(state).intermissionLengthSeconds;
+  }
+
+  function setSegmentLengthSeconds(seconds){
+    const settings = ensureSettings();
+    const sanitized = coerceTimingSeconds(seconds);
+    const finalValue = sanitized > 0 ? sanitized : TIMING_DEFAULTS.segment;
+    if (settings.segmentLengthSeconds === finalValue) {
+      syncTimingInputs();
+      return finalValue;
+    }
+    settings.segmentLengthSeconds = finalValue;
+    exports.renderAndPersist();
+    if (typeof exports.isOnlineWriter === 'function' && exports.isOnlineWriter()) {
+      exports.txnState(s => {
+        ensureSettings(s).segmentLengthSeconds = finalValue;
+        return s;
+      });
+    }
+    return finalValue;
+  }
+
+  function setIntermissionLengthSeconds(seconds){
+    const settings = ensureSettings();
+    const sanitized = coerceTimingSeconds(seconds);
+    const finalValue = sanitized > 0 ? sanitized : TIMING_DEFAULTS.intermission;
+    if (settings.intermissionLengthSeconds === finalValue) {
+      syncTimingInputs();
+      return finalValue;
+    }
+    settings.intermissionLengthSeconds = finalValue;
+    exports.renderAndPersist();
+    if (typeof exports.isOnlineWriter === 'function' && exports.isOnlineWriter()) {
+      exports.txnState(s => {
+        ensureSettings(s).intermissionLengthSeconds = finalValue;
+        return s;
+      });
+    }
+    return finalValue;
+  }
+
+  function parseMinutesToSeconds(value, fallbackSeconds){
+    if (value == null) return fallbackSeconds;
+    const trimmed = String(value).trim();
+    if (!trimmed) return fallbackSeconds;
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || num <= 0) return fallbackSeconds;
+    const seconds = Math.round(num * 60);
+    return seconds > 0 ? seconds : fallbackSeconds;
+  }
+
+  function formatMinutes(seconds){
+    if (!Number.isFinite(seconds) || seconds <= 0) return '';
+    const minutes = seconds / 60;
+    if (Math.abs(minutes - Math.round(minutes)) < 1e-6) return String(Math.round(minutes));
+    const trimmed = minutes.toFixed(2).replace(/\.0+$|0+$/,'');
+    return trimmed;
+  }
+
+  function syncTimingInputs(){
+    if (!exports.$) return;
+    const segmentInput = exports.$('#segmentLengthInput');
+    if (segmentInput && document.activeElement !== segmentInput) {
+      segmentInput.value = formatMinutes(getSegmentLengthSeconds());
+    }
+    const intermissionInput = exports.$('#intermissionLengthInput');
+    if (intermissionInput && document.activeElement !== intermissionInput) {
+      intermissionInput.value = formatMinutes(getIntermissionLengthSeconds());
+    }
+  }
+
   function escapeCssUrl(val){
     if (typeof val !== 'string') return '';
     return val.replace(CSS_URL_QUOTE, '\\"');
@@ -472,11 +599,12 @@
     exports.state.game.secondsAtStart = null;
 
     exports.state.teams.forEach(t=>{ t.downs=1; t.girlPlay=2; t.rushes=2; t.timeouts=3; });
-    exports.state.game.seconds = 25*60;
+    const segmentSeconds = getSegmentLengthSeconds();
+    exports.state.game.seconds = segmentSeconds;
 
-    const duration = 300;
-    exports.state.halftime.secondsRemaining = duration;
-    exports.state.halftime.secondsAtStart = duration;
+    const halftimeDuration = getIntermissionLengthSeconds();
+    exports.state.halftime.secondsRemaining = halftimeDuration;
+    exports.state.halftime.secondsAtStart = halftimeDuration;
     exports.state.halftime.startedAtMs = now;
     exports.state.halftime.running = true;
 
@@ -495,7 +623,8 @@
         s.game.running = false;
         s.game.startedAtMs = null;
         s.game.secondsAtStart = null;
-        s.game.seconds = 25*60;
+        const remoteSettings = ensureSettings(s);
+        s.game.seconds = remoteSettings.segmentLengthSeconds;
         const teams = Array.isArray(s.teams) ? s.teams : [];
         teams.forEach(t=>{
           if (!t) return;
@@ -504,8 +633,8 @@
           t.rushes = 2;
           t.timeouts = 3;
         });
-        s.halftime.secondsRemaining = duration;
-        s.halftime.secondsAtStart = duration;
+        s.halftime.secondsRemaining = remoteSettings.intermissionLengthSeconds;
+        s.halftime.secondsAtStart = remoteSettings.intermissionLengthSeconds;
         s.halftime.startedAtMs = now;
         s.halftime.running = true;
       });
@@ -1013,6 +1142,63 @@
         performSignOut();
       });
     }
+  }
+
+  function bindTimingControls(){
+    const form = exports.$ ? exports.$('#timingSettingsForm') : null;
+    const segmentInput = exports.$ ? exports.$('#segmentLengthInput') : null;
+    const intermissionInput = exports.$ ? exports.$('#intermissionLengthInput') : null;
+    if (!form && !segmentInput && !intermissionInput) return;
+
+    ensureSettings();
+
+    if (form) {
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (segmentInput && typeof segmentInput.blur === 'function') {
+          try { segmentInput.blur(); } catch {}
+        }
+        if (intermissionInput && typeof intermissionInput.blur === 'function') {
+          try { intermissionInput.blur(); } catch {}
+        }
+      });
+    }
+
+    if (segmentInput) {
+      const commitSegment = () => {
+        const fallback = getSegmentLengthSeconds();
+        const seconds = parseMinutesToSeconds(segmentInput.value, fallback);
+        setSegmentLengthSeconds(seconds);
+      };
+      segmentInput.addEventListener('change', commitSegment);
+      segmentInput.addEventListener('blur', () => { syncTimingInputs(); });
+      segmentInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commitSegment();
+          try { segmentInput.blur(); } catch {}
+        }
+      });
+    }
+
+    if (intermissionInput) {
+      const commitIntermission = () => {
+        const fallback = getIntermissionLengthSeconds();
+        const seconds = parseMinutesToSeconds(intermissionInput.value, fallback);
+        setIntermissionLengthSeconds(seconds);
+      };
+      intermissionInput.addEventListener('change', commitIntermission);
+      intermissionInput.addEventListener('blur', () => { syncTimingInputs(); });
+      intermissionInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commitIntermission();
+          try { intermissionInput.blur(); } catch {}
+        }
+      });
+    }
+
+    syncTimingInputs();
   }
 
   function bindBottomNav(){
@@ -2045,6 +2231,7 @@ if (typeof exports.initializeControls === 'function') {
     bindClockControls();
     bindControlCarousel();
     bindMenuControls();
+    bindTimingControls();
     bindBottomNav();
     bindStatisticianTabs();
     bindTeamsDirectoryControls();
@@ -2080,6 +2267,11 @@ if (typeof exports.initializeControls === 'function') {
   exports.setFlaggedState = setFlaggedState;
   exports.toggleFlaggedState = toggleFlaggedState;
   exports.computeActiveViewKey = computeActiveViewKey;
+  exports.getSegmentLengthSeconds = getSegmentLengthSeconds;
+  exports.getIntermissionLengthSeconds = getIntermissionLengthSeconds;
+  exports.setSegmentLengthSeconds = setSegmentLengthSeconds;
+  exports.setIntermissionLengthSeconds = setIntermissionLengthSeconds;
+  exports.syncTimingInputs = syncTimingInputs;
   exports.initializeControls = initializeControls;
 
 })(window.App = window.App || {});
