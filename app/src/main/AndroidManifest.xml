@@ -26,13 +26,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".ProfileEditorActivity"
-            android:exported="false"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.Synqro"
-            android:windowSoftInputMode="stateUnchanged|adjustNothing" />
-
         <receiver
             android:name=".ScoreboardWidgetProvider"
             android:exported="false">

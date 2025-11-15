@@ -69,7 +69,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loginEmailInput: TextInputEditText
     private lateinit var loginProgress: CircularProgressIndicator
     private lateinit var loginStatus: TextView
-    private lateinit var profileEditorButton: MaterialButton
     private lateinit var backCallback: OnBackPressedCallback
 
     private val assetLoader by lazy {
@@ -114,7 +113,6 @@ class MainActivity : AppCompatActivity() {
         loginEmailInput = findViewById(R.id.loginEmailInput)
         loginProgress = findViewById(R.id.loginProgress)
         loginStatus = findViewById(R.id.loginStatus)
-        profileEditorButton = findViewById(R.id.profileEditorButton)
 
         loginEmailInput.doAfterTextChanged {
             if (loginEmailLayout.isErrorEnabled) {
@@ -137,10 +135,6 @@ class MainActivity : AppCompatActivity() {
 
         signInButton.setOnClickListener {
             launchSignIn()
-        }
-
-        profileEditorButton.setOnClickListener {
-            startActivity(Intent(this, ProfileEditorActivity::class.java))
         }
 
         // FIX: create an OnBackPressedCallback object and register it

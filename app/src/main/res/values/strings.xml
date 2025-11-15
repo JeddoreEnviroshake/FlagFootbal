@@ -29,7 +29,4 @@
     <string name="login_sign_out_error">Unable to sign out right now. Please try again.</string>
     <string name="widget_title">Open Synqro</string>
     <string name="widget_content_description">Launch Synqro</string>
-    <string name="profile_editor_title">Profile editor</string>
-    <string name="profile_editor_description">Update your account details in this dedicated editor.</string>
-    <string name="open_profile_editor">Open profile editor</string>
 </resources>
