@@ -201,6 +201,21 @@
                 android:textColor="@color/login_text_muted"
                 android:textSize="12sp" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/profileEditorButton"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:insetTop="14dp"
+                android:insetBottom="14dp"
+                android:text="@string/open_profile_editor"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                app:backgroundTint="@color/login_field_background"
+                app:cornerRadius="16dp"
+                android:textColor="@color/login_text_primary" />
+
         </LinearLayout>
     </ScrollView>
 
