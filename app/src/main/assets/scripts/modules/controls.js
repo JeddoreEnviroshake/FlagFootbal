@@ -1451,24 +1451,73 @@
       if (photoInput) photoInput.value = '';
     };
 
+    let viewportListenersAttached = false;
+
     const updateKeyboardInset = () => {
-      if (!fieldSheet || fieldSheet.dataset.open !== 'true' || !visualViewport) return;
+      if (!fieldSheet) return;
+      if (!visualViewport || fieldSheet.dataset.open !== 'true') {
+        fieldSheet.style.removeProperty('--keyboard-inset');
+        return;
+      }
       const bottomOffset = Math.max(0, (window.innerHeight - visualViewport.height - visualViewport.offsetTop));
       fieldSheet.style.setProperty('--keyboard-inset', `${bottomOffset}px`);
     };
 
-    const attachViewportListeners = () => {
-      if (!visualViewport) return;
-      visualViewport.addEventListener('resize', updateKeyboardInset);
-      visualViewport.addEventListener('scroll', updateKeyboardInset);
+    const updateProfileSheetOffset = () => {
+      if (!sheet) return;
+      if (!visualViewport || sheet.dataset.open !== 'true') {
+        if (!fieldSheet || fieldSheet.dataset.open !== 'true') {
+          sheet.style.removeProperty('transform');
+        }
+        return;
+      }
+      const offset = visualViewport.offsetTop || 0;
+      if (offset > 0) {
+        sheet.style.transform = `translateY(${offset}px)`;
+      } else {
+        sheet.style.removeProperty('transform');
+      }
+    };
+
+    const updateViewportMetrics = () => {
+      updateProfileSheetOffset();
       updateKeyboardInset();
     };
 
+    const attachViewportListeners = () => {
+      if (!visualViewport || viewportListenersAttached) return;
+      visualViewport.addEventListener('resize', updateViewportMetrics);
+      visualViewport.addEventListener('scroll', updateViewportMetrics);
+      viewportListenersAttached = true;
+      updateViewportMetrics();
+    };
+
     const detachViewportListeners = () => {
-      if (!visualViewport) return;
-      visualViewport.removeEventListener('resize', updateKeyboardInset);
-      visualViewport.removeEventListener('scroll', updateKeyboardInset);
-      if (fieldSheet) fieldSheet.style.removeProperty('--keyboard-inset');
+      if (!visualViewport) {
+        viewportListenersAttached = false;
+        updateViewportMetrics();
+        return;
+      }
+      if (!viewportListenersAttached) {
+        updateViewportMetrics();
+        return;
+      }
+      visualViewport.removeEventListener('resize', updateViewportMetrics);
+      visualViewport.removeEventListener('scroll', updateViewportMetrics);
+      viewportListenersAttached = false;
+      updateViewportMetrics();
+    };
+
+    const syncViewportListeners = () => {
+      updateViewportMetrics();
+      if (!visualViewport) {
+        return;
+      }
+      if (sheet.dataset.open === 'true' || (fieldSheet && fieldSheet.dataset.open === 'true')) {
+        attachViewportListeners();
+      } else {
+        detachViewportListeners();
+      }
     };
 
     const finalizeFieldClose = (focusField = false) => {
@@ -1477,7 +1526,7 @@
         fieldSheet.style.removeProperty('--keyboard-inset');
       }
       fieldCloseFallback = null;
-      detachViewportListeners();
+      syncViewportListeners();
       const target = focusField ? (activeFieldButton || null) : null;
       activeFieldKey = null;
       activeFieldButton = null;
@@ -1494,7 +1543,7 @@
       }
       fieldSheet.dataset.open = 'false';
       fieldSheet.setAttribute('aria-hidden', 'true');
-      detachViewportListeners();
+      syncViewportListeners();
       if (fieldPanel) {
         const onEnd = (ev) => {
           if (ev.target !== fieldPanel) return;
@@ -1520,6 +1569,8 @@
       closeFallback = null;
       pendingProfile = null;
       pendingImage = null;
+      sheet.style.removeProperty('transform');
+      syncViewportListeners();
       if (focusTrigger) {
         const focusTarget = lastFocusedElement && typeof lastFocusedElement.focus === 'function'
           ? lastFocusedElement
@@ -1536,6 +1587,7 @@
       }
       sheet.dataset.open = 'false';
       sheet.setAttribute('aria-hidden', 'true');
+      syncViewportListeners();
       if (panel) {
         const onEnd = (ev) => {
           if (ev.target !== panel) return;
@@ -1586,7 +1638,7 @@
         if (fieldPanel && typeof fieldPanel.focus === 'function') {
           try { fieldPanel.focus(); } catch {}
         }
-        attachViewportListeners();
+        syncViewportListeners();
       });
     }
 
@@ -1605,6 +1657,7 @@
         sheet.dataset.open = 'true';
         sheet.setAttribute('aria-hidden', 'false');
         document.body.classList.add('profile-sheet-open');
+        syncViewportListeners();
         if (panel && typeof panel.focus === 'function') {
           try { panel.focus(); } catch {}
         }
