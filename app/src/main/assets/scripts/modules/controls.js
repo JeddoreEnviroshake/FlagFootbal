@@ -587,7 +587,7 @@
     }
   }
 
-  function startHalftime(){
+  function startIntermission(){
     if (exports.viewMode !== 'ref') return;
     const now = Date.now();
     exports.reconcileAll(now);
@@ -639,6 +639,10 @@
         s.halftime.running = true;
       });
     }
+  }
+
+  function startHalftime(){
+    startIntermission();
   }
 
   function openMenu(){
@@ -1140,6 +1144,14 @@
       signOutBtn.addEventListener('click', () => {
         try { closeMenu(); } catch {}
         performSignOut();
+      });
+    }
+
+    const intermissionBtn = exports.$ ? exports.$('#intermissionBtn') : null;
+    if (intermissionBtn) {
+      intermissionBtn.addEventListener('click', () => {
+        startIntermission();
+        try { closeMenu(); } catch {}
       });
     }
   }
@@ -2257,6 +2269,7 @@ if (typeof exports.initializeControls === 'function') {
   exports.pauseClock = pauseClock;
   exports.toggleStartPause = toggleStartPause;
   exports.startTimeout = startTimeout;
+  exports.startIntermission = startIntermission;
   exports.startHalftime = startHalftime;
   exports.openMenu = openMenu;
   exports.closeMenu = closeMenu;
