@@ -113,6 +113,22 @@
     return user;
   }
 
+  function profileHasMeaningfulData(profile) {
+    if (!profile || typeof profile !== 'object') return false;
+    const textFields = ['firstName', 'teamName', 'city', 'province', 'league'];
+    for (const field of textFields) {
+      const value = profile[field];
+      if (typeof value === 'string' && value.trim()) {
+        return true;
+      }
+    }
+    const photo = profile.photoData;
+    if (typeof photo === 'string' && photo.trim()) {
+      return true;
+    }
+    return false;
+  }
+
   function scheduleRemotePush(){
     if (remoteSync.useTransactions) return;
     if (!db || !auth) return;
@@ -159,7 +175,30 @@
     if (!body) return;
     remoteSync.applying = true;
     try {
+      const previousState = exports.state;
+      const sanitizeProfileFn = typeof exports.sanitizeProfile === 'function'
+        ? exports.sanitizeProfile
+        : null;
+      const defaultProfileFn = typeof exports.defaultProfile === 'function'
+        ? exports.defaultProfile
+        : null;
+      const previousProfileRaw = previousState && previousState.profile ? previousState.profile : null;
+      const previousProfile = sanitizeProfileFn ? sanitizeProfileFn(previousProfileRaw) : previousProfileRaw;
+      const hadProfileData = profileHasMeaningfulData(previousProfile);
+
       exports.state = exports.inflate(body);
+
+      const nextProfileRaw = exports.state && exports.state.profile ? exports.state.profile : null;
+      const nextProfile = sanitizeProfileFn ? sanitizeProfileFn(nextProfileRaw) : nextProfileRaw;
+      const hasIncomingProfileData = profileHasMeaningfulData(nextProfile);
+
+      if (hadProfileData && !hasIncomingProfileData) {
+        const fallback = previousProfile && typeof previousProfile === 'object' && Object.keys(previousProfile).length
+          ? Object.assign({}, previousProfile)
+          : (defaultProfileFn ? defaultProfileFn() : {});
+        exports.state.profile = fallback;
+      }
+
       if (typeof exports.render === 'function') {
         exports.render();
       }
