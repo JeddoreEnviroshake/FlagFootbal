@@ -559,6 +559,7 @@
     .profile-sheet {
       position: fixed;
       inset: 0;
+      bottom: calc(0px - var(--keyboard-inset, 0px));
       z-index: 60;
       display: flex;
       justify-content: center;

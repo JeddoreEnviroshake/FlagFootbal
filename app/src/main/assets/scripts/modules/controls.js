@@ -1455,6 +1455,7 @@
       if (!fieldSheet || fieldSheet.dataset.open !== 'true' || !visualViewport) return;
       const bottomOffset = Math.max(0, (window.innerHeight - visualViewport.height - visualViewport.offsetTop));
       fieldSheet.style.setProperty('--keyboard-inset', `${bottomOffset}px`);
+      if (sheet) sheet.style.setProperty('--keyboard-inset', `${bottomOffset}px`);
     };
 
     const attachViewportListeners = () => {
@@ -1469,6 +1470,7 @@
       visualViewport.removeEventListener('resize', updateKeyboardInset);
       visualViewport.removeEventListener('scroll', updateKeyboardInset);
       if (fieldSheet) fieldSheet.style.removeProperty('--keyboard-inset');
+      if (sheet) sheet.style.removeProperty('--keyboard-inset');
     };
 
     const finalizeFieldClose = (focusField = false) => {
