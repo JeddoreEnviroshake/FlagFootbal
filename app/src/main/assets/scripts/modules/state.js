@@ -40,7 +40,8 @@
   function defaultSettings(){
     return {
       segmentLengthSeconds: 25 * 60,
-      intermissionLengthSeconds: 5 * 60
+      intermissionLengthSeconds: 5 * 60,
+      timeoutLengthSeconds: 30
     };
   }
 
@@ -147,10 +148,12 @@
     const defaultSettingsObj = defaults.settings || defaultSettings();
     const safeSettings = {
       segmentLengthSeconds: coerceSeconds(settingsSource.segmentLengthSeconds != null ? settingsSource.segmentLengthSeconds : defaultSettingsObj.segmentLengthSeconds),
-      intermissionLengthSeconds: coerceSeconds(settingsSource.intermissionLengthSeconds != null ? settingsSource.intermissionLengthSeconds : defaultSettingsObj.intermissionLengthSeconds)
+      intermissionLengthSeconds: coerceSeconds(settingsSource.intermissionLengthSeconds != null ? settingsSource.intermissionLengthSeconds : defaultSettingsObj.intermissionLengthSeconds),
+      timeoutLengthSeconds: coerceSeconds(settingsSource.timeoutLengthSeconds != null ? settingsSource.timeoutLengthSeconds : defaultSettingsObj.timeoutLengthSeconds)
     };
     if (safeSettings.segmentLengthSeconds <= 0) safeSettings.segmentLengthSeconds = defaultSettingsObj.segmentLengthSeconds;
     if (safeSettings.intermissionLengthSeconds <= 0) safeSettings.intermissionLengthSeconds = defaultSettingsObj.intermissionLengthSeconds;
+    if (safeSettings.timeoutLengthSeconds <= 0) safeSettings.timeoutLengthSeconds = defaultSettingsObj.timeoutLengthSeconds;
 
     const safe = {
       activeTeam: Math.max(0, Math.min(1, s.activeTeam != null ? s.activeTeam : 0)),
@@ -308,10 +311,15 @@
         const intermissionRaw = settingsRaw.intermissionLengthSeconds != null
           ? settingsRaw.intermissionLengthSeconds
           : (settingsRaw.intermission != null ? settingsRaw.intermission : settingsRaw.im);
+        const timeoutRaw = settingsRaw.timeoutLengthSeconds != null
+          ? settingsRaw.timeoutLengthSeconds
+          : (settingsRaw.timeout != null ? settingsRaw.timeout : settingsRaw.to);
         const segmentSeconds = coerceSeconds(segmentRaw);
         const intermissionSeconds = coerceSeconds(intermissionRaw);
+        const timeoutSeconds = coerceSeconds(timeoutRaw);
         if (segmentSeconds > 0) targetSettings.segmentLengthSeconds = segmentSeconds;
         if (intermissionSeconds > 0) targetSettings.intermissionLengthSeconds = intermissionSeconds;
+        if (timeoutSeconds > 0) targetSettings.timeoutLengthSeconds = timeoutSeconds;
       }
       base.settings = targetSettings;
 
@@ -383,9 +391,11 @@
           const incoming = state.settings && typeof state.settings === 'object' ? state.settings : {};
           const seg = coerceSeconds(incoming.segmentLengthSeconds != null ? incoming.segmentLengthSeconds : defaults.settings.segmentLengthSeconds);
           const inter = coerceSeconds(incoming.intermissionLengthSeconds != null ? incoming.intermissionLengthSeconds : defaults.settings.intermissionLengthSeconds);
+          const timeout = coerceSeconds(incoming.timeoutLengthSeconds != null ? incoming.timeoutLengthSeconds : defaults.settings.timeoutLengthSeconds);
           return {
             sg: seg > 0 ? seg : defaults.settings.segmentLengthSeconds,
-            im: inter > 0 ? inter : defaults.settings.intermissionLengthSeconds
+            im: inter > 0 ? inter : defaults.settings.intermissionLengthSeconds,
+            to: timeout > 0 ? timeout : defaults.settings.timeoutLengthSeconds
           };
         })();
 

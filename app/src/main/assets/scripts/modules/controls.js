@@ -30,7 +30,7 @@
     ],
   };
 
-  const TIMING_FALLBACKS = { segment: 25 * 60, intermission: 5 * 60 };
+  const TIMING_FALLBACKS = { segment: 25 * 60, intermission: 5 * 60, timeout: 30 };
 
   function coerceTimingSeconds(value){
     const coerce = typeof exports.coerceSeconds === 'function'
@@ -58,9 +58,11 @@
     if (!defaults) return TIMING_FALLBACKS;
     const segment = coerceTimingSeconds(defaults.segmentLengthSeconds);
     const intermission = coerceTimingSeconds(defaults.intermissionLengthSeconds);
+    const timeout = coerceTimingSeconds(defaults.timeoutLengthSeconds);
     return {
       segment: segment > 0 ? segment : TIMING_FALLBACKS.segment,
       intermission: intermission > 0 ? intermission : TIMING_FALLBACKS.intermission,
+      timeout: timeout > 0 ? timeout : TIMING_FALLBACKS.timeout,
     };
   })();
 
@@ -69,6 +71,7 @@
       return {
         segmentLengthSeconds: TIMING_DEFAULTS.segment,
         intermissionLengthSeconds: TIMING_DEFAULTS.intermission,
+        timeoutLengthSeconds: TIMING_DEFAULTS.timeout,
       };
     }
     const settings = state.settings && typeof state.settings === 'object' ? state.settings : (state.settings = {});
@@ -78,6 +81,9 @@
     const intermission = coerceTimingSeconds(settings.intermissionLengthSeconds);
     const finalIntermission = intermission > 0 ? intermission : TIMING_DEFAULTS.intermission;
     if (settings.intermissionLengthSeconds !== finalIntermission) settings.intermissionLengthSeconds = finalIntermission;
+    const timeout = coerceTimingSeconds(settings.timeoutLengthSeconds);
+    const finalTimeout = timeout > 0 ? timeout : TIMING_DEFAULTS.timeout;
+    if (settings.timeoutLengthSeconds !== finalTimeout) settings.timeoutLengthSeconds = finalTimeout;
     return settings;
   }
 
@@ -87,6 +93,10 @@
 
   function getIntermissionLengthSeconds(state){
     return ensureSettings(state).intermissionLengthSeconds;
+  }
+
+  function getTimeoutLengthSeconds(state){
+    return ensureSettings(state).timeoutLengthSeconds;
   }
 
   function setSegmentLengthSeconds(seconds){
@@ -127,6 +137,25 @@
     return finalValue;
   }
 
+  function setTimeoutLengthSeconds(seconds){
+    const settings = ensureSettings();
+    const sanitized = coerceTimingSeconds(seconds);
+    const finalValue = sanitized > 0 ? sanitized : TIMING_DEFAULTS.timeout;
+    if (settings.timeoutLengthSeconds === finalValue) {
+      syncTimingInputs();
+      return finalValue;
+    }
+    settings.timeoutLengthSeconds = finalValue;
+    exports.renderAndPersist();
+    if (typeof exports.isOnlineWriter === 'function' && exports.isOnlineWriter()) {
+      exports.txnState(s => {
+        ensureSettings(s).timeoutLengthSeconds = finalValue;
+        return s;
+      });
+    }
+    return finalValue;
+  }
+
   function parseMinutesToSeconds(value, fallbackSeconds){
     if (value == null) return fallbackSeconds;
     const trimmed = String(value).trim();
@@ -154,6 +183,10 @@
     const intermissionInput = exports.$('#intermissionLengthInput');
     if (intermissionInput && document.activeElement !== intermissionInput) {
       intermissionInput.value = formatMinutes(getIntermissionLengthSeconds());
+    }
+    const timeoutInput = exports.$('#timeoutLengthInput');
+    if (timeoutInput && document.activeElement !== timeoutInput) {
+      timeoutInput.value = formatMinutes(getTimeoutLengthSeconds());
     }
   }
 
@@ -554,7 +587,7 @@
 
     clearHalftimeMode();
 
-    const duration = 30;
+    const duration = getTimeoutLengthSeconds();
     exports.state.timeout.team = teamIdx;
     exports.state.timeout.secondsRemaining = duration;
     exports.state.timeout.secondsAtStart = duration;
@@ -1160,7 +1193,8 @@
     const form = exports.$ ? exports.$('#timingSettingsForm') : null;
     const segmentInput = exports.$ ? exports.$('#segmentLengthInput') : null;
     const intermissionInput = exports.$ ? exports.$('#intermissionLengthInput') : null;
-    if (!form && !segmentInput && !intermissionInput) return;
+    const timeoutInput = exports.$ ? exports.$('#timeoutLengthInput') : null;
+    if (!form && !segmentInput && !intermissionInput && !timeoutInput) return;
 
     ensureSettings();
 
@@ -1172,6 +1206,9 @@
         }
         if (intermissionInput && typeof intermissionInput.blur === 'function') {
           try { intermissionInput.blur(); } catch {}
+        }
+        if (timeoutInput && typeof timeoutInput.blur === 'function') {
+          try { timeoutInput.blur(); } catch {}
         }
       });
     }
@@ -1206,6 +1243,23 @@
           event.preventDefault();
           commitIntermission();
           try { intermissionInput.blur(); } catch {}
+        }
+      });
+    }
+
+    if (timeoutInput) {
+      const commitTimeout = () => {
+        const fallback = getTimeoutLengthSeconds();
+        const seconds = parseMinutesToSeconds(timeoutInput.value, fallback);
+        setTimeoutLengthSeconds(seconds);
+      };
+      timeoutInput.addEventListener('change', commitTimeout);
+      timeoutInput.addEventListener('blur', () => { syncTimingInputs(); });
+      timeoutInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commitTimeout();
+          try { timeoutInput.blur(); } catch {}
         }
       });
     }
@@ -2282,8 +2336,10 @@ if (typeof exports.initializeControls === 'function') {
   exports.computeActiveViewKey = computeActiveViewKey;
   exports.getSegmentLengthSeconds = getSegmentLengthSeconds;
   exports.getIntermissionLengthSeconds = getIntermissionLengthSeconds;
+  exports.getTimeoutLengthSeconds = getTimeoutLengthSeconds;
   exports.setSegmentLengthSeconds = setSegmentLengthSeconds;
   exports.setIntermissionLengthSeconds = setIntermissionLengthSeconds;
+  exports.setTimeoutLengthSeconds = setTimeoutLengthSeconds;
   exports.syncTimingInputs = syncTimingInputs;
   exports.initializeControls = initializeControls;
 
